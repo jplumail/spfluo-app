@@ -133,7 +133,7 @@ def test_shapes_convolution_matching_poses_grid():
     psf = torch.randn((D, H, W))
     potential_poses = torch.randn((M, d))
 
-    best_poses, errors = convolution_matching_poses_grid(reference, volumes, psf, potential_poses)
+    best_poses, errors = convolution_matching_poses_grid(reference, volumes, psf, potential_poses, max_batch=(8,None))
 
     assert best_poses.shape == (N, d)
     assert errors.shape == (N,)

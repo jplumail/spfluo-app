@@ -1,7 +1,9 @@
 from __future__ import annotations
+import itertools
 
 import math
-from typing import Generator
+import numpy as np
+from typing import Generator, Tuple
 from pynvml.smi import nvidia_smi
 from torch import cuda
 
@@ -91,27 +93,49 @@ def maximum_batch(memory, total_memory: int | None = None) -> int | None:
 
 
 def split_batch(
-    max_batch, current_batch: int, total_memory: int | None = None
-) -> Generator[int, None, None]:
+    max_batch: Tuple[int|None], shape: Tuple[int], total_memory: int | None = None, offset: Tuple[int] = None
+) -> Generator[int | Tuple[int], None, None]:
     #max_batch = maximum_batch(memory, total_memory)
 
-    if max_batch is None:
-        yield current_batch
-        return
 
-    batch_size = 2 ** (math.floor(math.log2(max_batch)))
-    (times, current_batch) = divmod(current_batch, batch_size)
+    if type(max_batch) is tuple:
+        assert len(max_batch) == len(shape)
+        max_batch = np.array([mb if mb is not None else shape[i] for i, mb in enumerate(max_batch)])
+    else:
+        max_batch = np.array([max_batch], dtype=int)
 
-    for _ in range(times):
-        yield batch_size
+    batch_size = 2 ** (np.floor(np.log2(max_batch)))
+    batch_size = batch_size.astype(int)
+    (times, remain_shape) = np.divmod(shape, batch_size)
 
-    while current_batch > 0:
-        batch_size >>= 1
-        if current_batch >= batch_size:
-            current_batch -= batch_size
-            yield batch_size
-        assert current_batch < batch_size, [current_batch, batch_size]
+    if offset is None:
+        offset = np.zeros((batch_size.shape[0]), dtype=int)
+    ranges = [range(t) for t in times]
+    for x in itertools.product(*ranges):
+        start = offset + batch_size * np.array(x)
+        end = start + batch_size
+        out = list(zip(start, end))
+        if len(out) == 1:
+            yield out[0]
+        else:
+            yield out
+
+    if remain_shape.sum() > 0:
+        rectangle = times * batch_size
+        dims = remain_shape.nonzero()[0]
+        if type(shape) is int:
+            shape = np.array([shape])
+        for i in range(1, len(dims)+1):
+            for combination in itertools.combinations(dims, i):
+                combination = np.asarray(combination)
+                new_shape = rectangle.copy()
+                new_shape[combination] = np.asarray(shape)[combination] - rectangle[combination]
+                new_offset = offset.copy()
+                new_offset[combination] += rectangle[combination]
+                for o in split_batch(tuple(np.minimum(max_batch, new_shape)), tuple(new_shape), None, new_offset):
+                    yield o
 
 
 if __name__ == '__main__':
-    print(free_memory())
+    for o in split_batch((8,None,10), (100,120,17)):
+        print(o)

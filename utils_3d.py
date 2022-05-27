@@ -120,7 +120,7 @@ def convolution_matching_poses_grid(
     volumes: torch.Tensor,
     psf: torch.Tensor,
     potential_poses: torch.Tensor,
-    max_batch: int = 1
+    max_batch: Tuple[int] = (1, 1)
 ) -> Tuple[torch.Tensor]:
     """Find the best pose from a list of poses for each volume
     Params:
@@ -145,23 +145,21 @@ def convolution_matching_poses_grid(
     
     shifts = torch.empty((N,M,3))
     errors = torch.empty((N,M))
-    total = 0
-    for mini_batch_size in utils_memory.split_batch(max_batch, M):
-        potential_poses_minibatch = potential_poses[total:total+mini_batch_size]
+    for (start1, end1), (start2, end2) in utils_memory.split_batch(max_batch, (N,M)):
+        potential_poses_minibatch = potential_poses[start2:end2]
 
         # Rotate the reference
-        reference_repeated = reference.repeat(mini_batch_size, 1, 1, 1)
+        reference_repeated = reference.repeat(end2-start2, 1, 1, 1)
         reference_rotated = affine_transform(reference_repeated[:,None], potential_poses_minibatch)[:,0]
         reference_rotated_convolved = h.conj() * torch.fft.fftn(reference_rotated, dim=(1,2,3))
 
         # Registration
-        err, sh = dftregistrationND(reference_rotated_convolved[None], volumes_freq[:,None], nb_spatial_dims=3)
+        err, sh = dftregistrationND(reference_rotated_convolved[None], volumes_freq[start1:end1,None], nb_spatial_dims=3)
         sh = torch.stack(list(sh), dim=-1)
         
-        errors[:, total:total+mini_batch_size] = err
-        shifts[:, total:total+mini_batch_size] = sh
-
-        total += mini_batch_size
+        errors[start1:end1, start2:end2] = err
+        shifts[start1:end1, start2:end2] = sh
+    
     best_errors, best_indices = torch.min(errors, dim=1)
     best_poses = potential_poses[best_indices]
     best_poses[:, 3:] = shifts[np.arange(N), best_indices]
@@ -183,9 +181,9 @@ def convolution_matching_poses_refined(reference, volumes, psf, potential_poses,
 
     shifts = torch.empty((N,M,3))
     errors = torch.empty((N,M))
-    total = 0
-    for mini_batch_size in utils_memory.split_batch(max_batch, M):
-        potential_poses_minibatch = potential_poses[:, total:total+mini_batch_size].contiguous()
+    for start, end in utils_memory.split_batch(max_batch, M):
+        mini_batch_size = end - start
+        potential_poses_minibatch = potential_poses[:, start:end].contiguous()
 
         # Rotate the reference
         reference_minibatch = reference.repeat(N*mini_batch_size, 1, 1, 1)
@@ -196,10 +194,8 @@ def convolution_matching_poses_refined(reference, volumes, psf, potential_poses,
         err, sh = dftregistrationND(reference_minibatch, volumes[:,None], nb_spatial_dims=3)
         sh = torch.stack(list(sh), dim=-1)
 
-        errors[:, total:total+mini_batch_size] = err
-        shifts[:, total:total+mini_batch_size] = sh
-
-        total += mini_batch_size
+        errors[:, start:end] = err
+        shifts[:, start:end] = sh
     
     errors, best_indices = torch.min(errors, dim=1)
     best_poses = potential_poses[np.arange(N), best_indices]
@@ -318,7 +314,7 @@ def find_angles_grid(reconstruction, patches, psf, precision=10):
     L = find_L(precision)
     potential_poses, _ = create_poses_grid(L, reconstruction.dtype, reconstruction.device)
 
-    best_poses, best_errors = convolution_matching_poses_grid(reconstruction, patches, psf, potential_poses, max_batch=8)
+    best_poses, best_errors = convolution_matching_poses_grid(reconstruction, patches, psf, potential_poses, max_batch=(8,8))
 
     return best_poses, best_errors
 
