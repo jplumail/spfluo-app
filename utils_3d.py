@@ -53,30 +53,35 @@ def inverse_affine_transform(volumes, transform):
     return affine_transform(volumes, transform_)
 
 
-def reconstruction_L2(volumes: torch.Tensor, psf: torch.Tensor, poses: torch.Tensor, lambda_: float) -> torch.Tensor:
-    """Reconstruct a particule from volumes and their poses
+def reconstruction_L2(volumes: torch.Tensor, psf: torch.Tensor, poses: torch.Tensor, lambda_: torch.Tensor) -> torch.Tensor:
+    """Reconstruct a particule from volumes and their poses. Multiple reconstructions can be done at once.
 
     Args:
-        volumes (torch.Tensor): 3D images of shape (N, D, H, W)
-        psf (torch.Tensor) : 3D image of shape (D, H, W)
-        poses (torch.Tensor): transform matrices of shape (N, 6).
+        volumes (torch.Tensor): stack(s) of N 3D images of shape (..., N, D, H, W)
+        psf (torch.Tensor) : 3D image(s) of shape (..., d, h, w)
+        poses (torch.Tensor): stack(s) of N transform matrices of shape (..., N, 6).
             Euler angles in the 'zxz' convention in degrees and translation vector tz, ty, tx
-        lambda_ (float): regularization parameter
+        lambda_ (torch.Tensor): regularization parameters of shape (...)
     
     Returns:
-        recon (torch.Tensor): reconstruction of shape (D, H, W)
-        den (torch.Tensor): something of shape (D, H, W)
+        recon (torch.Tensor): reconstruction(s) of shape (..., D, H, W)
+        den (torch.Tensor): something of shape (..., D, H, W)
     """
-    volumes_rotated = inverse_affine_transform(volumes[:,None], poses)[:,0]
-    psfs = psf.repeat(volumes.size(0), 1, 1, 1)
-    psfs_rotated = inverse_affine_transform(psfs[:,None], poses)[:,0]
+    N, D, H, W = volumes.size(-4), volumes.size(-3), volumes.size(-2), volumes.size(-1)
+    d, h, w = psf.size(-3), psf.size(-2), psf.size(-1)
+    batch_dims = np.array(volumes.shape[:-4])
+    size_batch = int(batch_dims.prod())
+    volumes_rotated = inverse_affine_transform(volumes.view(size_batch*N,1,D,H,W), poses.view(size_batch*N,6))[:,0].view(*batch_dims,N,D,H,W)
+    psfs = psf.unsqueeze(-4)
+    psfs = psfs.repeat(*tuple([1]*len(batch_dims)), N, 1, 1, 1)
+    psfs_rotated = inverse_affine_transform(psfs.view(size_batch*N,1,d,h,w), poses.view(size_batch*N,6))[:,0].view(*batch_dims,N,d,h,w)
     psfs_rotated_padded = pad_to_size(psfs_rotated, volumes_rotated.size())
 
-    H = torch.fft.fftn(psfs_rotated_padded, dim=(1,2,3))
-    y = torch.fft.fftn(torch.fft.fftshift(volumes_rotated, dim=(1,2,3)), dim=(1,2,3))
+    H = torch.fft.fftn(psfs_rotated_padded, dim=(-3,-2,-1))
+    y = torch.fft.fftn(torch.fft.fftshift(volumes_rotated, dim=(-3,-2,-1)), dim=(-3,-2,-1))
 
-    HtH = (H.conj() * H).abs().mean(dim=0)
-    Hty = (H.conj() * y).mean(dim=0)
+    HtH = (H.conj() * H).abs().mean(dim=-4)
+    Hty = (H.conj() * y).mean(dim=-4)
                 
     dxyz = torch.zeros((3,2,2,2), device=volumes.device)
     dxyz[0,0,0,0] = 1 
@@ -86,11 +91,11 @@ def reconstruction_L2(volumes: torch.Tensor, psf: torch.Tensor, poses: torch.Ten
     dxyz[2,0,0,0] = 1 
     dxyz[2,0,0,1] = -1
 
-    dxyz_padded = pad_to_size(dxyz, (3,) + volumes[0].size())
+    dxyz_padded = pad_to_size(dxyz, (3,) + volumes.shape[-3:])
     DtD = (torch.fft.fftn(dxyz_padded).abs()**2).sum(dim=0)
 
-    den = HtH + lambda_ * DtD
-    recon = torch.fft.ifftn(Hty/den).real
+    den = HtH + lambda_[...,None,None,None] * DtD
+    recon = torch.fft.ifftn(Hty/den, dim=(-3,-2,-1)).real
     recon = torch.clamp(recon, min=0)
 
     return recon, den

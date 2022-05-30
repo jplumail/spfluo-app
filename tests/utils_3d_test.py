@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 import utils_3d
-from utils_3d import convolution_matching_poses_refined, dftregistrationND, convolution_matching_poses_grid, find_angles_grid
+from utils_3d import convolution_matching_poses_refined, dftregistrationND, convolution_matching_poses_grid, find_angles_grid, reconstruction_L2
 from skimage import data, util
 from skimage.registration import phase_cross_correlation
 from scipy.ndimage import fourier_shift
@@ -120,6 +120,35 @@ def test_broadcasting_dftregistration():
     assert ((shift1 - shift2) < eps).all()
     assert ((error1 - error2) < eps).all()
 
+
+##########################
+# Test reconstruction_L2 #
+##########################
+
+def test_shapes_reconstruction_L2():
+    N, D, H, W = 100, 32, 32, 32
+    volumes = torch.randn((N, D, H, W))
+    psf = torch.randn((D, H, W))
+    poses = torch.randn((N, 6))
+    lambda_ = torch.tensor(1.)
+    recon, den = reconstruction_L2(volumes, psf, poses, lambda_)
+    
+    assert recon.shape == (D, H, W)
+    assert den.shape == (D, H, W)
+
+
+def test_parallel_reconstruction_L2():
+    batch_dims = (5,5,)
+    N, D, H, W = 100, 32, 32, 32
+    volumes = torch.randn(batch_dims+(N, D, H, W))
+    psf = torch.randn(batch_dims+(D, H, W))
+    poses = torch.randn(batch_dims+(N, 6))
+    lambda_ = torch.randn(batch_dims)
+    recon, _ = reconstruction_L2(volumes, psf, poses, lambda_)
+    recon2 = torch.stack([torch.stack([reconstruction_L2(vv, pp, ppoo, ll)[0] for vv, pp, ppoo, ll in zip(v,p,po,l)]) for v, p, po, l in zip(volumes, psf, poses, lambda_)])
+
+    assert recon.shape == batch_dims+(D, H, W)
+    assert torch.isclose(recon, recon2).all()
 
 #############################
 # Test convolution_matching #
