@@ -1,7 +1,8 @@
 from __future__ import annotations
 import itertools
-
 import math
+
+import torch
 import numpy as np
 from typing import Generator, Tuple
 from pynvml.smi import nvidia_smi
@@ -81,15 +82,32 @@ def free_memory() -> int | None:
         return None
 
 
-def maximum_batch(memory, total_memory: int | None = None) -> int | None:
-    # batch * x + no_batch = unused_memoroy
+def maximum_batch(total_memory, func: str, *func_args):
+    if func == "convolution_matching_poses_grid":
+        reference, volumes, _, potential_poses = func_args
+        D = reference.size(0)
+        N = volumes.size(0)
+        M = potential_poses.size(0)
+        shape = (N, M)
+        dtype_bytes = torch.finfo(reference.dtype).bits / 8
+        total_batch = total_memory*4*(32**3)*64*128 / (12_000_000_000*dtype_bytes*(D**3))
+        max_batch_ = math.floor(total_batch**0.5)
+        if max_batch_ > N and max_batch_ > M: max_batch = (None, None)
+        elif max_batch_ > N:
+            if (mbatch:=math.floor(total_batch/N)) > M: max_batch = (None, None)
+            else: max_batch = (None, mbatch)
+        elif max_batch_ > M:
+            if (nbatch:=math.floor(total_batch/M)) > N: max_batch = (None, None)
+            else: max_batch = (nbatch, None)
+        else: max_batch = (max_batch_, max_batch_)
+    return max_batch, shape
+
+
+def split_batch_func(func, *func_args, total_memory=None):
     if total_memory is None:
         total_memory = free_memory()
-
-    if total_memory is None:
-        return None
-
-    return (total_memory - memory.no_batch) // memory.batch
+    max_batch, shape = maximum_batch(total_memory, func, *func_args)
+    yield from split_batch(max_batch, shape, total_memory)
 
 
 def split_batch(

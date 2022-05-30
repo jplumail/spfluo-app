@@ -1,5 +1,5 @@
 import math
-from typing import Tuple
+from typing import Tuple, Union
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -119,8 +119,7 @@ def convolution_matching_poses_grid(
     reference: torch.Tensor,
     volumes: torch.Tensor,
     psf: torch.Tensor,
-    potential_poses: torch.Tensor,
-    max_batch: Tuple[int] = (1, 1)
+    potential_poses: torch.Tensor
 ) -> Tuple[torch.Tensor]:
     """Find the best pose from a list of poses for each volume
     Params:
@@ -128,7 +127,6 @@ def convolution_matching_poses_grid(
         volumes (torch.Tensor) : volumes to match of shape (N, D, H, W)
         psf (torch.Tensor): 3D PSF of shape (D, H, W)
         potential_poses (torch.Tensor): poses to test of shape (M, 6)
-        max_batch (int): maximum minibatch to use in the loop
     Returns:
         best_poses (torch.Tensor): best poses for each volume of shape (N, 6)
         best_errors (torch.Tensor): dftRegistration error associated to each pose (N,)
@@ -137,16 +135,18 @@ def convolution_matching_poses_grid(
     M, _ = potential_poses.shape
     N, D, H, W = volumes.shape
 
-    # Volumes to frequency space
-    volumes_freq = torch.fft.fftn(volumes, dim=(1,2,3))
-
     # PSF
     h = torch.fft.fftn(torch.fft.fftshift(pad_to_size(psf, (D,H,W))))
     
     shifts = torch.empty((N,M,3))
     errors = torch.empty((N,M))
-    for (start1, end1), (start2, end2) in utils_memory.split_batch(max_batch, (N,M)):
+    for (start1, end1), (start2, end2) in utils_memory.split_batch_func(
+        "convolution_matching_poses_grid", reference, volumes, psf, potential_poses
+    ):
         potential_poses_minibatch = potential_poses[start2:end2]
+
+        # Volumes to frequency space
+        volumes_freq = torch.fft.fftn(volumes[start1:end1], dim=(1,2,3))
 
         # Rotate the reference
         reference_repeated = reference.repeat(end2-start2, 1, 1, 1)
@@ -154,7 +154,7 @@ def convolution_matching_poses_grid(
         reference_rotated_convolved = h.conj() * torch.fft.fftn(reference_rotated, dim=(1,2,3))
 
         # Registration
-        err, sh = dftregistrationND(reference_rotated_convolved[None], volumes_freq[start1:end1,None], nb_spatial_dims=3)
+        err, sh = dftregistrationND(reference_rotated_convolved[None], volumes_freq[:,None], nb_spatial_dims=3)
         sh = torch.stack(list(sh), dim=-1)
         
         errors[start1:end1, start2:end2] = err
@@ -314,7 +314,7 @@ def find_angles_grid(reconstruction, patches, psf, precision=10):
     L = find_L(precision)
     potential_poses, _ = create_poses_grid(L, reconstruction.dtype, reconstruction.device)
 
-    best_poses, best_errors = convolution_matching_poses_grid(reconstruction, patches, psf, potential_poses, max_batch=(8,8))
+    best_poses, best_errors = convolution_matching_poses_grid(reconstruction, patches, psf, potential_poses)
 
     return best_poses, best_errors
 

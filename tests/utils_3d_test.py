@@ -125,18 +125,21 @@ def test_broadcasting_dftregistration():
 # Test convolution_matching #
 #############################
 
-def test_shapes_convolution_matching_poses_grid():
-    M, d = 5, 6
-    N, D, H, W = 100, 32, 32, 32
-    reference = torch.randn((D, H, W))
-    volumes = torch.randn((N, D, H, W))
-    psf = torch.randn((D, H, W))
-    potential_poses = torch.randn((M, d))
+def test_memory_convolution_matching_poses_grid():
+    device = 'cuda'
+    D = 32
+    for N in [1, 10, 1000, 1500, 5000]:
+        N = int(N)
+        M = int(10000 / N**0.5)
+        reference = torch.randn((D, D, D), device=device)
+        volumes = torch.randn((N, D, D, D), device=device)
+        psf = torch.randn((D, D, D), device=device)
+        potential_poses = torch.randn((M, 6), device=device)
 
-    best_poses, errors = convolution_matching_poses_grid(reference, volumes, psf, potential_poses, max_batch=(8,None))
+        best_poses, errors = convolution_matching_poses_grid(reference, volumes, psf, potential_poses)
 
-    assert best_poses.shape == (N, d)
-    assert errors.shape == (N,)
+        assert best_poses.shape == (N, 6)
+        assert errors.shape == (N,)
 
 
 def test_shapes_convolution_matching_poses_grid():
@@ -199,4 +202,4 @@ def test_distance_poses():
     assert torch.isclose(t, torch.tensor(2.)**0.5)
 
 if __name__ == '__main__':
-    test_distance_poses()
+    test_memory_convolution_matching_poses_grid()
