@@ -173,6 +173,25 @@ def pad_to_size(volume: torch.Tensor, output_size: torch.Size) -> torch.Tensor:
     return output_volume[tuple(slices)]
 
 
+def hann_window(shape: Tuple[int], **kwargs) -> torch.Tensor:
+    """Computes N dimensional Hann window.
+
+    Args:
+        shape: shape of the final window
+        kwargs: keyword arguments for torch.hann_window function
+    Returns:
+         Hann window of the shape asked
+    """
+    windows = [torch.hann_window(s, **kwargs) for s in shape]
+    view = [1] * len(shape)
+    hw = torch.ones(shape, device=windows[0].device, dtype=windows[0].dtype)
+    for i in range(len(windows)):
+        view_ = list(view)
+        view_[i] = -1
+        hw *= windows[i].view(tuple(view_))
+    return hw
+
+
 def convolution_matching_poses_grid(
     reference: torch.Tensor,
     volumes: torch.Tensor,
