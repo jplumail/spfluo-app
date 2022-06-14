@@ -121,6 +121,39 @@ def reconstruction_L2(volumes: torch.Tensor, psf: torch.Tensor, poses: torch.Ten
     return recon, den
 
 
+def fftn(x: torch.Tensor, dim: Tuple[int]=None):
+    """Computes N dimensional FFT of x in batch. Tries to avoid out-of-memory errors.
+
+    Args:
+        x: data
+        dim: tuple of size N, dimensions where FFTs will be computed
+    Returns:
+        y: data in the Fourier domain, shape of x 
+    """
+    if dim is None:
+        return torch.fft.fftn(x)
+    else:
+        if x.is_complex():
+            dtype = x.dtype
+        else:
+            if x.dtype is torch.float32:
+                dtype = torch.complex64
+            elif x.dtype is torch.float64:
+                dtype = torch.complex128
+        batch_indices = torch.ones((x.ndim,), dtype=bool)
+        batch_indices[list(dim)] = False
+        batch_indices = batch_indices.nonzero()[:,0]
+        batch_slices = [slice(None,None) for i in range(x.ndim)]
+
+        y = torch.empty_like(x, dtype=dtype)
+        for batch_idx in utils_memory.split_batch_func("fftn", x, dim):
+            if type(batch_idx) is tuple: batch_idx = [batch_idx]
+            for d, (start, end) in zip(batch_indices, batch_idx):
+                batch_slices[d] = slice(start, end)
+            y[tuple(batch_slices)] = torch.fft.fftn(x[tuple(batch_slices)], dim=dim)
+        return y
+
+
 
 def pad_to_size(volume: torch.Tensor, output_size: torch.Size) -> torch.Tensor:
     output_size = torch.as_tensor(output_size)
