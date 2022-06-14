@@ -15,25 +15,44 @@ def affine_transform(volumes: torch.Tensor, transforms: torch.Tensor) -> torch.T
     Args:
         volumes (torch.Tensor): 3D images of shape (N, C, D, H, W)
         transforms (torch.Tensor): transform matrices of shape (N, 6).
-            Euler angles in the 'zxz' convention in degrees and translation vector tz, ty, tx
+            Euler angles in the 'ZXZ' convention in degrees and translation vector tz, ty, tx
     
     Returns:
         torch.Tensor: Rotated volumes of shape (N, C, D, H, W)
     """
+    pad = [0 for _ in range(6)]
+    for i in range(3):
+        if (volumes.size(2+i) % 2) == 0: # padding needed
+            pad[-2*i-2] = 1
+    volumes = F.pad(volumes, pad, mode='constant', value=0)
+
     # Compute rotation matrix
     euler_angles = transforms[..., :3]
     euler_angles = euler_angles.cpu().numpy()
-    rotMat = Rotation.from_euler('zxz', euler_angles, degrees=True).inv().as_matrix() # we inverse the matrix because another inversion is done inside affine_grid
+    # we inverse the matrix because affine_grid perform an inverse wrapping
+    # see https://github.com/pytorch/pytorch/issues/35775#issuecomment-705702703
+    rotMat = Rotation.from_euler('ZXZ', euler_angles, degrees=True).inv().as_matrix()
     tvec = transforms[..., 3:]
     rotMat = torch.as_tensor(rotMat, dtype=volumes.dtype, device=volumes.device)
         
     # Compute translation, tvec between -1 and 1
-    # pytorch swaps Z and X inside grid_sample
-    tvec = 2 * tvec[:, [2,1,0]] / torch.as_tensor(volumes[0,0].size(), device=tvec.device, dtype=tvec.dtype)
-
+    tvec = 2 * tvec / torch.as_tensor(volumes[0,0].size(), device=tvec.device, dtype=tvec.dtype)
+    # pytorch swaps X and Z
+    tvec = tvec[:, [2,1,0]]
     theta = torch.cat([rotMat, -tvec[:,:,None]], dim=2)
-    grid = F.affine_grid(theta, volumes.size(), align_corners=False)
-    return F.grid_sample(volumes, grid, mode='bilinear', align_corners=False)
+
+    out_size = list(volumes.shape[:2]) + [s for s in volumes.shape[2:]]
+    rotated_vol = torch.empty(out_size, dtype=volumes.dtype, device=volumes.device)
+    for start, end in utils_memory.split_batch_func("affine_transform", volumes, transforms):
+        out_size_batch = list(out_size)
+        out_size_batch[0] = end - start
+        grid = F.affine_grid(theta[start:end], out_size_batch, align_corners=False)
+        rotated_vol[start:end] = F.grid_sample(volumes[start:end], grid, mode='bilinear', align_corners=False)
+
+    # Crop
+    rotated_vol = rotated_vol[:,:,pad[4]:,pad[2]:,pad[0]:]
+    
+    return rotated_vol
 
 
 def inverse_affine_transform(volumes, transform):
@@ -42,14 +61,14 @@ def inverse_affine_transform(volumes, transform):
     Args:
         volumes (torch.Tensor): 3D image of shape (N, C, D, H, W)
         transform (torch.Tensor): transform matrix of shape (N, 6).
-            Euler angles in the 'zxz' convention in degrees and translation vector tz, ty, tx
+            Euler angles in the 'ZXZ' convention in degrees and translation vector tz, ty, tx
     
     Returns:
         torch.Tensor: Rotated volumes of shape (N, C, D, H, W)
     """
     transform_ = torch.clone(transform)
     euler_angles = transform_[...,:3].cpu().numpy()
-    transform_[:,:3] = torch.as_tensor(Rotation.from_euler('zxz', euler_angles, degrees=True).inv().as_euler('zxz', degrees=True).copy(), device=transform.device, dtype=transform.dtype)
+    transform_[:,:3] = torch.as_tensor(Rotation.from_euler('ZXZ', euler_angles, degrees=True).inv().as_euler('ZXZ', degrees=True).copy(), device=transform.device, dtype=transform.dtype)
     transform_[:,3:] = -transform_[:,3:]
     return affine_transform(volumes, transform_)
 
