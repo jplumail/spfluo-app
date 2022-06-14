@@ -6,6 +6,7 @@ import torch.nn.functional as F
 from scipy.spatial.transform import Rotation
 import scipy.ndimage as ndii
 import utils_memory
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
 def affine_transform(volumes: torch.Tensor, transforms: torch.Tensor) -> torch.Tensor:
@@ -428,21 +429,42 @@ def normalize_patches(patches: torch.Tensor) -> torch.Tensor:
     return normalized_patches
 
 
-def disp3D(fig, *ims, axis_off=True):
-    axes = fig.subplots(2, len(ims)*2)
+def disp3D(fig, *ims, axis_off=False):
+    axes = fig.subplots(1, len(ims))
+    if len(ims) == 1:
+        axes = [axes]
     if axis_off:
-        for ax in axes.reshape(-1): ax.set_axis_off()
+        for ax in axes: ax.set_axis_off()
     for i in range(len(ims)):
-        views = np.array([
+        views = [
             ims[i][ims[i].shape[0]//2,:,:],
             ims[i][:,ims[i].shape[1]//2,:],
             ims[i][:,:,ims[i].shape[2]//2]
-        ])
-        views = torch.from_numpy(views)
-        views = normalize_patches(views).cpu().numpy()
-        axes[0,2*i].imshow(views[0], cmap='gray')
-        axes[1,2*i].imshow(views[1], cmap='gray')
-        axes[0,2*i+1].imshow(ndii.rotate(views[2], -90)[:,::-1], cmap='gray')
+        ]
+        axes[i].set_aspect(1.)
+        #views = [normalize_patches(torch.from_numpy(v)).cpu().numpy() for v in views]
+
+        divider = make_axes_locatable(axes[i])
+        # below height and pad are in inches
+        
+        ax_x = divider.append_axes("right", size=f'{100*ims[i].shape[0]/ims[i].shape[2]}%', pad='5%', sharex=axes[i])
+        ax_y = divider.append_axes("bottom",size=f'{100*ims[i].shape[0]/ims[i].shape[1]}%', pad='5%', sharey=axes[i])
+
+        # make some labels invisible
+        axes[i].xaxis.set_tick_params(labeltop=True, top=True, labelbottom=False, bottom=False)
+        ax_x.yaxis.set_tick_params(labelleft=False, left=False, right=True)
+        ax_x.xaxis.set_tick_params(top=True, labeltop=True, bottom=True, labelbottom=False)
+        ax_y.xaxis.set_tick_params(bottom=True, labelbottom=False, top=False)
+        ax_y.yaxis.set_tick_params(right=True)
+
+        # show slice info
+        axes[i].text(0, 2, f"Z={ims[i].shape[0]//2}", color='white', bbox=dict(boxstyle='square'))
+        ax_x.text(0, 2, f"Y={ims[i].shape[1]//2}", color='white', bbox=dict(boxstyle='square'))
+        ax_y.text(0, 2, f"X={ims[i].shape[2]//2}", color='white', bbox=dict(boxstyle='square'))
+
+        axes[i].imshow(views[0], cmap='gray')
+        ax_x.imshow(ndii.rotate(views[1],90)[::-1], cmap='gray')
+        ax_y.imshow(views[2], cmap='gray')
 
 def disp2D(fig, *ims, **imshowkwargs):
     h = int(np.floor(len(ims)**0.5))
