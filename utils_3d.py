@@ -121,17 +121,18 @@ def reconstruction_L2(volumes: torch.Tensor, psf: torch.Tensor, poses: torch.Ten
     return recon, den
 
 
-def fftn(x: torch.Tensor, dim: Tuple[int]=None):
+def fftn(x: torch.Tensor, dim: Tuple[int]=None, out=None) -> torch.Tensor:
     """Computes N dimensional FFT of x in batch. Tries to avoid out-of-memory errors.
 
     Args:
         x: data
         dim: tuple of size N, dimensions where FFTs will be computed
+        out: the output tensor
     Returns:
         y: data in the Fourier domain, shape of x 
     """
     if dim is None:
-        return torch.fft.fftn(x)
+        return torch.fft.fftn(x, out=out)
     else:
         if x.is_complex():
             dtype = x.dtype
@@ -145,12 +146,15 @@ def fftn(x: torch.Tensor, dim: Tuple[int]=None):
         batch_indices = batch_indices.nonzero()[:,0]
         batch_slices = [slice(None,None) for i in range(x.ndim)]
 
-        y = torch.empty_like(x, dtype=dtype)
+        if out is not None:
+            y = out
+        else:
+            y = x.new_empty(size=x.size(), dtype=dtype)
         for batch_idx in utils_memory.split_batch_func("fftn", x, dim):
             if type(batch_idx) is tuple: batch_idx = [batch_idx]
             for d, (start, end) in zip(batch_indices, batch_idx):
                 batch_slices[d] = slice(start, end)
-            y[tuple(batch_slices)] = torch.fft.fftn(x[tuple(batch_slices)], dim=dim)
+            torch.fft.fftn(x[tuple(batch_slices)], dim=dim, out=y[tuple(batch_slices)])
         return y
 
 
