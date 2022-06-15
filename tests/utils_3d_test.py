@@ -185,6 +185,32 @@ def test_shapes_convolution_matching_poses_grid():
     assert errors.shape == (N,)
 
 
+def test_matlab_convolution_matching_poses_refined():
+    as_tensor = lambda x: torch.as_tensor(x, dtype=torch.float64, device='cuda')
+
+    # Load Matlab data
+    data_path = os.path.join(os.path.dirname(__file__), "data", "convolution_matching")
+    potential_poses_ = loadmat(os.path.join(data_path,"bigListPoses.mat"))["bigListPoses"]
+    volumes = np.stack(loadmat(os.path.join(data_path,"inVols.mat"))["inVols"][:,0]).transpose(0,3,2,1)
+    best_poses_matlab = loadmat(os.path.join(data_path,"posesNew.mat"))["posesNew"][:,[0,1,2,5,3,4]]
+    best_poses_matlab[:, 3:] *= -1
+    psf = loadmat(os.path.join(data_path,"psf.mat"))["psf"].transpose(2,1,0)
+    reference = loadmat(os.path.join(data_path,"recon.mat"))["recon1"].transpose(2,1,0)
+
+    potential_poses_, volumes, best_poses_matlab, psf, reference = map(
+        as_tensor, [potential_poses_, volumes, best_poses_matlab, psf, reference]
+    )
+
+    N, M, _ = potential_poses_.shape
+    potential_poses = as_tensor(torch.zeros((N, M, 6)))
+    potential_poses[:, :, :3] = potential_poses_
+
+    best_poses, _ = convolution_matching_poses_refined(reference, volumes, psf, potential_poses)
+
+    eps = 1e-2
+    assert ((best_poses - best_poses_matlab) < eps).all()
+
+
 def test_shapes_convolution_matching_poses_refined():
     M, d = 5, 6
     N, D, H, W = 100, 32, 32, 32

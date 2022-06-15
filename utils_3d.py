@@ -214,7 +214,7 @@ def convolution_matching_poses_grid(
 
     # PSF
     h = torch.fft.fftn(torch.fft.fftshift(pad_to_size(psf, (D,H,W))))
-    
+
     shifts = torch.empty((N,M,3))
     errors = torch.empty((N,M))
     for (start1, end1), (start2, end2) in utils_memory.split_batch_func(
@@ -226,16 +226,19 @@ def convolution_matching_poses_grid(
         volumes_freq = torch.fft.fftn(volumes[start1:end1], dim=(1,2,3))
 
         # Rotate the reference
-        reference_repeated = reference.repeat(end2-start2, 1, 1, 1)
-        reference_rotated = affine_transform(reference_repeated[:,None], potential_poses_minibatch)[:,0]
-        reference_rotated_convolved = h.conj() * torch.fft.fftn(reference_rotated, dim=(1,2,3))
+        reference_minibatch = reference.repeat(end2-start2, 1, 1, 1)
+        reference_minibatch = affine_transform(reference_minibatch[:,None], potential_poses_minibatch)[:,0]
+        reference_minibatch = h * torch.fft.fftn(reference_minibatch, dim=(1,2,3))
 
         # Registration
-        err, sh = dftregistrationND(reference_rotated_convolved[None], volumes_freq[:,None], nb_spatial_dims=3)
+        err, sh = dftregistrationND(reference_minibatch[None], volumes_freq[:,None], nb_spatial_dims=3)
         sh = torch.stack(list(sh), dim=-1)
         
         errors[start1:end1, start2:end2] = err
         shifts[start1:end1, start2:end2] = sh
+        
+        del volumes_freq, reference_minibatch, err, sh
+        torch.cuda.empty_cache()
     
     best_errors, best_indices = torch.min(errors, dim=1)
     best_poses = potential_poses[best_indices]
@@ -244,7 +247,23 @@ def convolution_matching_poses_grid(
     return best_poses, best_errors
 
 
-def convolution_matching_poses_refined(reference, volumes, psf, potential_poses, max_batch=1):
+def convolution_matching_poses_refined(
+    reference: torch.Tensor,
+    volumes: torch.Tensor,
+    psf: torch.Tensor,
+    potential_poses: torch.Tensor
+) -> Tuple[torch.Tensor]:
+    """Find the best pose from a list of poses for each volume. There can be a different list of pose
+    for each volume.
+    Params:
+        reference (torch.Tensor) : reference 3D image of shape (D, H, W)
+        volumes (torch.Tensor) : volumes to match of shape (N, D, H, W)
+        psf (torch.Tensor): 3D PSF of shape (D, H, W)
+        potential_poses (torch.Tensor): poses to test of shape (N, M, 6)
+    Returns:
+        best_poses (torch.Tensor): best poses for each volume of shape (N, 6)
+        best_errors (torch.Tensor): dftRegistration error associated to each pose (N,)
+    """
     # Shapes
     N1, M, d = potential_poses.shape
     N, D, H, W = volumes.shape
@@ -253,26 +272,31 @@ def convolution_matching_poses_refined(reference, volumes, psf, potential_poses,
     # PSF
     h = torch.fft.fftn(torch.fft.fftshift(pad_to_size(psf, (D,H,W))))
 
-    # Volumes to Fourier space
-    volumes = torch.fft.fftn(volumes, dim=(1,2,3))
-
     shifts = torch.empty((N,M,3))
     errors = torch.empty((N,M))
-    for start, end in utils_memory.split_batch(max_batch, M):
-        mini_batch_size = end - start
-        potential_poses_minibatch = potential_poses[:, start:end].contiguous()
+    for (start1, end1), (start2, end2) in utils_memory.split_batch_func(
+        "convolution_matching_poses_refined", reference, volumes, psf, potential_poses
+    ):
+        minibatch_size = (end1-start1)*(end2-start2)
+        potential_poses_minibatch = potential_poses[start1:end1, start2:end2].contiguous()
+
+        # Volumes to Fourier space
+        volumes_freq = torch.fft.fftn(volumes[start1:end1], dim=(1,2,3))
 
         # Rotate the reference
-        reference_minibatch = reference.repeat(N*mini_batch_size, 1, 1, 1)
-        reference_minibatch = affine_transform(reference_minibatch[:,None], potential_poses_minibatch.view(N*mini_batch_size,d)).view(N,mini_batch_size,D,H,W)
-        reference_minibatch = h.conj() * torch.fft.fftn(reference_minibatch, dim=(2,3,4))
+        reference_minibatch = reference.repeat(minibatch_size, 1, 1, 1)
+        reference_minibatch = affine_transform(reference_minibatch[:,None], potential_poses_minibatch.view(minibatch_size,d))[:,0].view(end1-start1,end2-start2,D,H,W)
+        reference_minibatch = h * torch.fft.fftn(reference_minibatch, dim=(2,3,4))
 
         # Registration
-        err, sh = dftregistrationND(reference_minibatch, volumes[:,None], nb_spatial_dims=3)
+        err, sh = dftregistrationND(reference_minibatch, volumes_freq[:,None], nb_spatial_dims=3)
         sh = torch.stack(list(sh), dim=-1)
 
-        errors[:, start:end] = err
-        shifts[:, start:end] = sh
+        errors[start1:end1, start2:end2] = err
+        shifts[start1:end1, start2:end2] = sh
+
+        del volumes_freq, reference_minibatch, err, sh
+        torch.cuda.empty_cache()
     
     errors, best_indices = torch.min(errors, dim=1)
     best_poses = potential_poses[np.arange(N), best_indices]
