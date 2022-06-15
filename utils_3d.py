@@ -440,8 +440,8 @@ def distance_poses(p1, p2):
     """
     # Rotation distance
     rot1, rot2 = p1[...,:3], p2[...,:3]
-    rot1 = Rotation.from_euler("zxz", rot1.cpu().numpy().reshape(-1,3), degrees=True)
-    rot2 = Rotation.from_euler("zxz", rot2.cpu().numpy().reshape(-1,3), degrees=True)
+    rot1 = Rotation.from_euler("ZXZ", rot1.cpu().numpy().reshape(-1,3), degrees=True)
+    rot2 = Rotation.from_euler("ZXZ", rot2.cpu().numpy().reshape(-1,3), degrees=True)
     points1 = rot1.apply(np.array([0,0,1]), inverse=False).reshape(p1.shape[:-1]+(3,))
     points2 = rot2.apply(np.array([0,0,1]), inverse=False).reshape(p2.shape[:-1]+(3,))
     angle = np.arccos((points1 * points2).sum(axis=-1)) * 180 / np.pi

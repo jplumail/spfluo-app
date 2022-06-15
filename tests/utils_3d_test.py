@@ -223,8 +223,8 @@ def test_shapes_find_angles_grid():
 #######################
 
 def test_distance_poses():
-    p1 = torch.tensor([0, 90, 90, 1, 0, 0]).type(torch.float)
-    p2 = torch.tensor([0, 90, -90, 0, 1, 0]).type(torch.float)
+    p1 = torch.tensor([90, 90, 0, 1, 0, 0]).type(torch.float)
+    p2 = torch.tensor([-90, 90, 0, 0, 1, 0]).type(torch.float)
     angle, t = utils_3d.distance_poses(p1, p2)
 
     assert torch.isclose(angle, torch.tensor(180.))
