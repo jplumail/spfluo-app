@@ -308,6 +308,24 @@ def convolution_matching_poses_refined(
     return best_poses, errors
 
 
+def _upsampled_dft(data, upsampled_region_size, upsample_factor=1, axis_offsets=None, nb_spatial_dims=3):
+    tensor_kwargs = {'device': data.device, 'dtype': None}
+    upsampled_region_size = [upsampled_region_size, ] * nb_spatial_dims
+    dim_properties = list(zip(data.shape[-nb_spatial_dims:], upsampled_region_size, axis_offsets.permute(-1, *tuple(range(axis_offsets.ndim-1)))))
+    im2pi = 1j * 2 * np.pi
+    for (n_items, ups_size, ax_offset) in dim_properties[::-1]:
+        kernel = ((torch.arange(ups_size, **tensor_kwargs) - ax_offset[...,None])[..., None]
+                  * torch.fft.fftfreq(n_items, upsample_factor, **tensor_kwargs))
+        kernel = torch.exp(-im2pi * kernel)
+        kernel = kernel.type(data.dtype)
+        data = torch.einsum(
+            kernel, [..., 0, nb_spatial_dims],
+            data, [...]+list(range(1,1+nb_spatial_dims)),
+            [..., 0]+list(range(1,1+nb_spatial_dims-1))
+        )
+    return data
+
+
 def argmax_lastNaxes(A, N):
     s = torch.as_tensor(A.size())
     new_shp = tuple(s[:-N]) + (torch.prod(s[-N:]),)
@@ -322,7 +340,7 @@ def unravel_index(x, dims):
     return torch.floor(x[...,None]/dim_prod) % dims
 
 
-def cross_correlation_max(x: torch.Tensor, y: torch.Tensor) -> Tuple[torch.Tensor]:
+def cross_correlation_max(x: torch.Tensor, y: torch.Tensor, normalization: str) -> Tuple[torch.Tensor]:
     """ Compute cross-correlation between x and y
     Params:
         x (torch.Tensor) of shape (B, ...) where (...) corresponds to the N spatial dimensions
@@ -330,25 +348,30 @@ def cross_correlation_max(x: torch.Tensor, y: torch.Tensor) -> Tuple[torch.Tenso
     Returns:
         maxi (torch.Tensor): cross correlatio maximum of shape (B,)
         shift (Tuple[torch.Tensor]): tuple of N tensors of size (B,)
+        image_product (torch.Tensor): product of size (B, ...)
     """
     device = x.device
     spatial_shape = torch.as_tensor(x.size(), device=device)[1:]
     z = x * y.conj()
-    torch.fft.ifftn(z, dim=tuple(range(1,len(x.size()))), out=z)
-    z = torch.mul(z, z.conj(), out=z).real
+    if normalization == "phase":
+        eps = torch.finfo(z.real.dtype).eps
+        z /= torch.max(z.abs(), torch.as_tensor(100*eps))
+    cc = ifftn(z, dim=tuple(range(1,len(x.size()))))
+    cc = torch.mul(cc, cc.conj(), out=cc).real
     new_shp = (-1, int(torch.prod(spatial_shape)))
-    z = z.reshape(*new_shp)
-    maxi, max_idx = torch.max(z, dim=1)
+    cc = cc.reshape(*new_shp)
+    maxi, max_idx = torch.max(cc, dim=1)
     shift = unravel_index(max_idx, spatial_shape)
-    return maxi, shift
+    return maxi, shift, z
 
 
-def dftregistrationND(reference: torch.Tensor, moving_images: torch.Tensor, nb_spatial_dims: int=None) -> torch.Tensor:
+def dftregistrationND(reference: torch.Tensor, moving_images: torch.Tensor, nb_spatial_dims: int=None, upsample_factor: int=1, normalization: str="phase") -> torch.Tensor:
     """ Phase cross-correlation between a reference and moving_images
     Params:
         reference (torch.Tensor): image of shape ({...}, [...]) where [...] corresponds to the N spatial dimensions
         moving_images (torch.Tensor): images to register of shape ({{...}}, [...]). {...} and {{...}} are broadcasted to (...)
         nb_spatial_dims (int): specify the N spatial dimensions
+        upsample_factor (float): upsampling factor. Images will be registered up to 1/upsample_factor.
     Returns:
         error (torch.Tensor): tensor of shape (...)
         shift (Tuple[torch.Tensor]): tuple of N tensors of size (...)
@@ -368,20 +391,44 @@ def dftregistrationND(reference: torch.Tensor, moving_images: torch.Tensor, nb_s
     moving_images_batched = torch.broadcast_to(moving_images, tuple(output_shape))
     reference_batched = reference_batched.reshape(-1, *tuple(spatial_shapes))
     moving_images_batched = moving_images_batched.reshape(-1, *tuple(spatial_shapes))
-    error, shift = cross_correlation_max(reference_batched, moving_images_batched)
+    error, shift, image_product = cross_correlation_max(reference_batched, moving_images_batched, normalization)
     
     error = error.reshape(tuple(other_shapes))
     shift = shift.reshape(*tuple(other_shapes),nb_spatial_dims)
+    image_product = image_product.reshape(*tuple(other_shapes), *tuple(spatial_shapes))
     
     # Now change shifts so that they represent relative shifts and not indices
     spatial_shapes_broadcasted = torch.broadcast_to(spatial_shapes, tuple(other_shapes)+(nb_spatial_dims,)).to(device)
     shift[shift > midpoints] -= spatial_shapes_broadcasted[shift > midpoints]
 
     spatial_size = torch.prod(spatial_shapes).type(reference.dtype)
-    rg00 = torch.sum((reference * reference.conj()), dim=tuple(range(reference.ndim-nb_spatial_dims,reference.ndim))) / spatial_size
-    rf00 = torch.sum((moving_images * moving_images.conj()), dim=tuple(range(moving_images.ndim-nb_spatial_dims,moving_images.ndim))) / spatial_size
+
+    if upsample_factor == 1:
+        rg00 = torch.sum((reference * reference.conj()), dim=tuple(range(reference.ndim-nb_spatial_dims,reference.ndim))) / spatial_size
+        rf00 = torch.sum((moving_images * moving_images.conj()), dim=tuple(range(moving_images.ndim-nb_spatial_dims,moving_images.ndim))) / spatial_size
+    else:
+        upsample_factor = torch.tensor(upsample_factor, device=device, dtype=torch.float)
+        shift = torch.round(shift * upsample_factor) / upsample_factor
+        upsampled_region_size = torch.ceil(upsample_factor * 1.5)
+        dftshift = torch.fix(upsampled_region_size / 2.0)
+        sample_region_offset = dftshift - shift * upsample_factor
+        cross_correlation = _upsampled_dft(image_product.conj(),
+                                           upsampled_region_size,
+                                           upsample_factor,
+                                           sample_region_offset,
+                                           nb_spatial_dims).conj()
+        cross_correlation = (cross_correlation * cross_correlation.conj()).real
+        error, max_idx = torch.max(cross_correlation.reshape(*tuple(other_shapes), -1), dim=-1)
+        maxima = unravel_index(max_idx, torch.as_tensor(cross_correlation.shape[-nb_spatial_dims:], device=max_idx.device))
+        maxima -= dftshift
+
+        shift += maxima / upsample_factor
+
+        rg00 = torch.sum((reference * reference.conj()), dim=tuple(range(reference.ndim-nb_spatial_dims,reference.ndim)))
+        rf00 = torch.sum((moving_images * moving_images.conj()), dim=tuple(range(moving_images.ndim-nb_spatial_dims,moving_images.ndim)))
+
     error = torch.tensor([1.0], device=device) - error / (rg00.real * rf00.real)
-    error = torch.sqrt(error.abs())
+    error = torch.sqrt(error.abs())    
 
     return error, tuple([shift[...,i] for i in range(shift.size(-1))])
 
