@@ -216,8 +216,113 @@ def test_upsample_cuda_dftregistration():
 
     eps = 1e-3
     assert ((shift1 - shift2) < eps).all()
-    assert ((error1 - error2) < eps).all()
+    assert (error1 - error2) < eps
 
+
+####################################################
+# Test affine_transform against the scipy function #
+####################################################
+
+from scipy.ndimage import affine_transform
+from scipy.spatial.transform import Rotation as R
+
+def affine_transform_gpu(vol, mat, offset=0.0, output_shape=None, device='cpu'):
+    out = utils_3d.affine_transform(
+        torch.as_tensor(vol, device=device),
+        torch.as_tensor(mat, device=device),
+        offset=offset,
+        output_shape=output_shape
+    )
+    return out.cpu().numpy()
+
+def create_2d_rot_mat(theta):
+    return np.array([
+        [np.cos(theta), -np.sin(theta)],
+        [np.sin(theta), np.cos(theta)]
+    ])
+
+def is_affine_close(im1, im2):
+    """Because scipy's and pytorch interpolations at borders don't behave equivalently, we add a margin"""
+    D, H, W = im1.shape
+    return np.isclose(im1, im2).sum() > (D*W*H-2*(H*D+D*W+W*H))
+
+def test_affine_transform_simple():
+    N = 10
+    image = util.img_as_float(data.cells3d()[:, 1, :, :])
+    matrices = np.empty((N, 4, 4))
+    for i in range(N):
+        matrices[i] = np.eye(4)
+        matrices[i, :3,:3] = np.eye(3) + R.random().as_matrix()*0.1
+        matrices[i, :3, 3] = np.random.randn(3)
+    
+    out_scipy = [affine_transform(image, m, order=1) for m in matrices]
+    out_pt = list(affine_transform_gpu(np.stack([image]*N)[:,None], matrices)[:,0])
+    assert all([is_affine_close(x, y) for x, y in zip(out_scipy, out_pt)])
+
+def test_affine_transform_output_shape():
+    output_shapes = [(64,32,32), (32,32,32), (64,128,256), (128,128,57), (57,56,55)]
+    image = util.img_as_float(data.cells3d()[:, 1, :, :])
+    matrix = np.eye(4)
+    matrix[:3,:3] = np.eye(3) + R.random().as_matrix()*0.1
+    matrix[:3, 3] = np.random.randn(3)
+    
+    out_scipy = [affine_transform(image, matrix, order=1, output_shape=o) for o in output_shapes]
+    out_pt = [affine_transform_gpu(image[None,None], matrix[None], output_shape=o)[:,0] for o in output_shapes]
+    assert all([is_affine_close(x, y) for x, y in zip(out_scipy, out_pt)])
+
+def test_affine_transform_offset():
+    N = 10
+    image = util.img_as_float(data.cells3d()[:, 1, :, :])
+    matrix = np.eye(3) + R.random().as_matrix()*0.1
+    matrices = np.stack([matrix]*N)
+    offsets = np.random.randn(N, 3)
+    
+    out_scipy = [affine_transform(image, matrix, order=1, offset=o) for o in offsets]
+    out_pt = affine_transform_gpu(np.stack([image]*N)[:,None], matrices, offset=offsets)
+    assert all([is_affine_close(x, y) for x, y in zip(out_scipy, out_pt)])
+
+#################################################
+# Test fourier_shift against the scipy function #
+#################################################
+
+def fourier_shift2(volume_freq, shift, nb_spatial_dims=None, device='cpu'):
+    out = utils_3d.fourier_shift(
+        torch.as_tensor(volume_freq, device=device),
+        torch.as_tensor(shift, device=device),
+        nb_spatial_dims
+    )
+
+    return out.cpu().numpy()
+
+
+def test_simple_fourier_shift():
+    """
+    Test of 1 fourier shift in 2D
+    """
+    image = data.camera().astype(float)
+    shift = (-22.4, 13.32)
+    # The shift corresponds to the pixel offset relative to the reference image
+    offset_image1 = fourier_shift(np.fft.fftn(image), shift)
+    offset_image2 = fourier_shift2(np.fft.fftn(image), shift)
+
+    assert np.isclose(offset_image1, offset_image2).all()
+
+
+def test_broadcasting_fourier_shift():
+    """
+    Test broadcasted fourier shift in 2D
+    """
+    M = 2
+    N = 10
+    images = np.stack([data.camera().astype(float) for i in range(M)])
+    images[0, :10, :10] = 0. # images[0] and images[1] are different
+    shifts = np.random.randn(N, 2)
+    # The shift corresponds to the pixel offset relative to the reference image
+    images_fft = np.fft.fftn(images, axes=(1,2))
+    offset_images1 = np.stack([np.stack([fourier_shift(image_fft, shift) for shift in shifts]) for image_fft in images_fft])
+    offset_images2 = fourier_shift2(images_fft[:,None], shifts[None,:], nb_spatial_dims=2)
+
+    assert np.isclose(offset_images1, offset_images2).all()
 
 ##########################
 # Test reconstruction_L2 #

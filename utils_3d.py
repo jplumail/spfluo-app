@@ -9,68 +9,81 @@ import utils_memory
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
-def affine_transform(volumes: torch.Tensor, transforms: torch.Tensor) -> torch.Tensor:
-    """Rotate the volume according to the Euler angles (rot, tilt, psi) in the 'zxz' convention.
+def affine_transform(input: torch.Tensor, matrix: torch.Tensor, offset=0.0, output_shape=None, output=None, order=1, mode='zeros', cval=0.0, prefilter=True) -> torch.Tensor:
+    """Rotate the volume according to the transform matrix.
+    Matches the `scipy.ndimage.affine_transform` function at best with the
+    `torch.nn.functional.grid_sample` function
 
     Args:
-        volumes (torch.Tensor): 3D images of shape (N, C, D, H, W)
-        transforms (torch.Tensor): transform matrices of shape (N, 6).
-            Euler angles in the 'ZXZ' convention in degrees and translation vector tz, ty, tx
+        input (torch.Tensor): 3D images of shape (N, C, D, H, W)
+        matrix (torch.Tensor): transform matrices of shape (N, 3), (N,3,3), (N,4,4) or (N,3,4).
+        offset (float or torch.Tensor): offset of the grid.
+        output_shape (tuple): shape of the output.
+        output: not implemented
+        order (int): must be 1. Only linear interpolation is implemented.
+        mode (str): How to fill blank space. 'zeros', 'border' or 'reflection'
+        cval (float): not implemented
+        prefilter (bool): not implemented
     
     Returns:
         torch.Tensor: Rotated volumes of shape (N, C, D, H, W)
     """
-    pad = [0 for _ in range(6)]
-    for i in range(3):
-        if (volumes.size(2+i) % 2) == 0: # padding needed
-            pad[-2*i-2] = 1
-    volumes = F.pad(volumes, pad, mode='constant', value=0)
+    N, C, D, H, W = input.size()
+    tensor_kwargs = dict(device=input.device, dtype=input.dtype)
 
-    # Compute rotation matrix
-    euler_angles = transforms[..., :3]
-    euler_angles = euler_angles.cpu().numpy()
-    # we inverse the matrix because affine_grid perform an inverse wrapping
-    # see https://github.com/pytorch/pytorch/issues/35775#issuecomment-705702703
-    rotMat = Rotation.from_euler('ZXZ', euler_angles, degrees=True).inv().as_matrix()
-    tvec = transforms[..., 3:]
-    rotMat = torch.as_tensor(rotMat, dtype=volumes.dtype, device=volumes.device)
+    if type(offset) == float:
+        tvec = torch.tensor([offset, offset, offset], **tensor_kwargs)[None]
+    elif offset.shape == (3,):
+        tvec = torch.as_tensor(offset, **tensor_kwargs)[None]
+    elif offset.shape == (N, 3):
+        tvec = torch.as_tensor(offset, **tensor_kwargs)
+    else:
+        raise ValueError("Offset should be a float, a sequence of size 3 or a tensor of size (N,3).")
         
-    # Compute translation, tvec between -1 and 1
-    tvec = 2 * tvec / torch.as_tensor(volumes[0,0].size(), device=tvec.device, dtype=tvec.dtype)
-    # pytorch swaps X and Z
-    tvec = tvec[:, [2,1,0]]
-    theta = torch.cat([rotMat, -tvec[:,:,None]], dim=2)
+    if matrix.size() == torch.Size([N, 3, 3]):
+        rotMat = matrix
+    elif matrix.size() == torch.Size([N, 3]):
+        rotMat = torch.stack([torch.diag(matrix[i]) for i in range(N)])
+    elif matrix.size() == torch.Size([N, 4, 4]) or matrix.size() == torch.Size([N, 3, 4]):
+        rotMat = matrix[:, :3, :3]
+        tvec = matrix[:, :3, 3]
+    else:
+        raise ValueError(f"Matrix should be a tensor of shape {(N,3)}, {(N,3,3)}, {(N,4,4)} or {(N,3,4)}. Found matrix of shape {matrix.size()}")
 
-    out_size = list(volumes.shape[:2]) + [s for s in volumes.shape[2:]]
-    rotated_vol = torch.empty(out_size, dtype=volumes.dtype, device=volumes.device)
-    for start, end in utils_memory.split_batch_func("affine_transform", volumes, transforms):
-        out_size_batch = list(out_size)
-        out_size_batch[0] = end - start
-        grid = F.affine_grid(theta[start:end], out_size_batch, align_corners=False)
-        rotated_vol[start:end] = F.grid_sample(volumes[start:end], grid, mode='bilinear', align_corners=False)
+    if output_shape is None:
+        output_shape = (D, H, W)
 
-    # Crop
-    rotated_vol = rotated_vol[:,:,pad[4]:,pad[2]:,pad[0]:]
+    if output is not None:
+        raise NotImplementedError()
     
+    if order > 1:
+        raise NotImplementedError()
+
+    pytorch_modes = ['zeros', 'border', 'reflection']
+    if mode not in pytorch_modes:
+        raise NotImplementedError(f'Only {pytorch_modes} are available')
+
+    if cval != 0:
+        raise NotImplementedError()
+
+    if not prefilter:
+        raise NotImplementedError()
+    
+    return _affine_transform(input, rotMat, tvec, output_shape, mode, tensor_kwargs)
+
+
+def _affine_transform(input, rotMat, tvec, output_shape, mode, tensor_kwargs):
+    output_shape = list(output_shape)
+    rotated_vol = input.new_empty(list(input.shape[:2])+output_shape)
+    grid = torch.stack(torch.meshgrid([torch.linspace(0, d-1, steps=d, **tensor_kwargs) for d in output_shape], indexing='ij'), dim=-1)
+    c = torch.tensor([0 for d in output_shape], **tensor_kwargs)
+    input_shape = torch.as_tensor(input.shape[2:], **tensor_kwargs)
+    for start, end in utils_memory.split_batch_func("affine_transform", input, rotMat):
+        grid_batch = (rotMat[start:end,None,None,None] @ ((grid-c)[None,...,None]))[...,0] + c + tvec[start:end,None,None,None,:]
+        grid_batch = - 1 + 1 / input_shape + 2 * grid_batch / input_shape
+        rotated_vol[start:end] = F.grid_sample(input[start:end], grid_batch[:,:,:,:,[2,1,0]], mode='bilinear', align_corners=False, padding_mode=mode)
+    rotated_vol[:,:,:output_shape[0],:output_shape[1],:output_shape[2]]
     return rotated_vol
-
-
-def inverse_affine_transform(volumes, transform):
-    """Apply an affine transform to the volume
-
-    Args:
-        volumes (torch.Tensor): 3D image of shape (N, C, D, H, W)
-        transform (torch.Tensor): transform matrix of shape (N, 6).
-            Euler angles in the 'ZXZ' convention in degrees and translation vector tz, ty, tx
-    
-    Returns:
-        torch.Tensor: Rotated volumes of shape (N, C, D, H, W)
-    """
-    transform_ = torch.clone(transform)
-    euler_angles = transform_[...,:3].cpu().numpy()
-    transform_[:,:3] = torch.as_tensor(Rotation.from_euler('ZXZ', euler_angles, degrees=True).inv().as_euler('ZXZ', degrees=True).copy(), device=transform.device, dtype=transform.dtype)
-    transform_[:,3:] = -transform_[:,3:]
-    return affine_transform(volumes, transform_)
 
 
 def reconstruction_L2(volumes: torch.Tensor, psf: torch.Tensor, poses: torch.Tensor, lambda_: torch.Tensor) -> torch.Tensor:
@@ -158,6 +171,43 @@ def fftn(x: torch.Tensor, dim: Tuple[int]=None, out=None) -> torch.Tensor:
         return y
 
 
+def ifftn(x: torch.Tensor, dim: Tuple[int]=None, out=None) -> torch.Tensor:
+    """Computes N dimensional inverse FFT of x in batch. Tries to avoid out-of-memory errors.
+
+    Args:
+        x: data
+        dim: tuple of size N, dimensions where FFTs will be computed
+        out: the output tensor
+    Returns:
+        y: data in the Fourier domain, shape of x 
+    """
+    if dim is None or len(dim)==x.ndim:
+        return torch.fft.ifftn(x, out=out)
+    else:
+        if x.is_complex():
+            dtype = x.dtype
+        else:
+            if x.dtype is torch.float32:
+                dtype = torch.complex64
+            elif x.dtype is torch.float64:
+                dtype = torch.complex128
+        batch_indices = torch.ones((x.ndim,), dtype=bool)
+        batch_indices[list(dim)] = False
+        batch_indices = batch_indices.nonzero()[:,0]
+        batch_slices = [slice(None,None) for i in range(x.ndim)]
+
+        if out is not None:
+            y = out
+        else:
+            y = x.new_empty(size=x.size(), dtype=dtype)
+        for batch_idx in utils_memory.split_batch_func("fftn", x, dim):
+            if type(batch_idx) is tuple: batch_idx = [batch_idx]
+            for d, (start, end) in zip(batch_indices, batch_idx):
+                batch_slices[d] = slice(start, end)
+            torch.fft.ifftn(x[tuple(batch_slices)], dim=dim, out=y[tuple(batch_slices)])
+        return y
+
+
 
 def pad_to_size(volume: torch.Tensor, output_size: torch.Size) -> torch.Tensor:
     output_size = torch.as_tensor(output_size)
@@ -175,6 +225,51 @@ def pad_to_size(volume: torch.Tensor, output_size: torch.Size) -> torch.Tensor:
         ]
 
     return output_volume[tuple(slices)]
+
+
+def fourier_shift(volume_freq: torch.Tensor, shift: torch.Tensor, nb_spatial_dims=None):
+    """
+    Args:
+        volume (torch.Tensor): volume in the Fourier domain ({...}, [...])
+            where [...] corresponds to the N spatial dimensions and {...} corresponds to the batched dimensions
+        shift (torch.Tensor): shift to apply to the volume ({{...}}, N)
+            where {{...}} corresponds to batched dimensions. {...} and {{...}} must be broadcastable.
+        nb_spatial_dims (int): number of spatial dimensions N
+    Returns:
+        out (torch.Tensor): volume shifted in the Fourier domain
+    """
+    tensor_kwargs = {'device': volume_freq.device}
+    if volume_freq.dtype == torch.complex128:
+        tensor_kwargs['dtype'] = torch.float64
+    elif volume_freq.dtype == torch.complex64:
+        tensor_kwargs['dtype'] = torch.float32
+    elif volume_freq.dtype == torch.complex32:
+        tensor_kwargs['dtype'] = torch.float16
+    else:
+        print("Volume must be complex")
+    if nb_spatial_dims is None:
+        nb_spatial_dims = volume_freq.ndim
+    spatial_shape = torch.as_tensor(volume_freq.size()[-nb_spatial_dims:], **tensor_kwargs)
+    assert shift.size(-1) == nb_spatial_dims
+    shift = shift.view(*shift.shape[:-1],*[1 for _ in range(nb_spatial_dims)],-1)
+    
+    grid_freq = torch.stack(    
+        torch.meshgrid(
+            *[torch.fft.fftfreq(int(s), **tensor_kwargs) for s in spatial_shape],
+            indexing='ij'
+        ), dim=-1
+    )
+    phase_shift = (grid_freq * shift).sum(-1)
+        
+    # Fourier shift
+    out = volume_freq * torch.exp(-1j*2*torch.pi*phase_shift)
+
+    return out
+
+
+    
+
+
 
 
 def hann_window(shape: Tuple[int], **kwargs) -> torch.Tensor:
