@@ -5,7 +5,7 @@ from re import S
 from typing import Tuple, Union
 import pandas as pd
 from scipy.spatial import ConvexHull
-from scipy.spatial._qhull import QhullError
+from scipy.spatial.qhull import QhullError
 import numpy as np
 import torch
 from torch.nn import functional as F
@@ -175,8 +175,10 @@ class _Generator(torch.nn.Sequential):
     def build_module(self):
         super().__init__(*self.build_pipeline(self.blocks, self.params))
         groundtruth_gen = torch.nn.Sequential(
-            CreatePointcloud,
-            Voxelise
+            *self.build_pipeline(
+                [CreatePointcloud, Voxelise],
+                {'CreatePointcloud': self.params['CreatePointcloud'], 'Voxelise': self.params['Voxelise']}
+            )
         )
         self.groundtruth = groundtruth_gen({})
     
@@ -192,7 +194,7 @@ class _Generator(torch.nn.Sequential):
         return initialized_blocks
     
     def get_groundtruth(self):
-        return self.groundtruth_gen({})
+        return self.groundtruth[0], self.groundtruth[2]
 
 
 class _RandomParticle(_Generator):
@@ -699,7 +701,7 @@ class Voxelise(_AbstractTransform):
     def transform(self, data):
         pointcloud, true_pointcloud, info = data
         self.update_info(info)
-        if info["Translate"]["applied"]:
+        if 'Translate' in 'info' and info["Translate"]["applied"]:
             info["Translate"]["tvec"] -= self.center.cpu().numpy()
             info["Translate"]["tvec"] /= self.resolution.cpu().numpy()
         densities = self.get_densities(pointcloud)
