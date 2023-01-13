@@ -1,5 +1,7 @@
-from .utils_3d import pad_to_size, fftn, dftregistrationND, discretize_sphere_uniformly
-from .utils_memory import split_batch_func
+"""Some functions from this file were translated from a Matlab project made by Denis Fortun"""
+
+from utils import pad_to_size, fftn, dftregistrationND, discretize_sphere_uniformly
+from utils.memory import split_batch_func
 
 from typing import Tuple
 import math
