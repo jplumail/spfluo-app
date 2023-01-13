@@ -1,4 +1,4 @@
-from utils_memory import split_batch
+from utils.memory import split_batch
 
 import numpy as np
 

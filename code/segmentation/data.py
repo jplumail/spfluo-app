@@ -1,3 +1,7 @@
+from utils import create_psf, get_random_3d_vector
+from utils.loading import load_array, load_pointcloud
+from segmentation.create_centriole import simu_cylinder_rev, get_radius
+
 from abc import abstractmethod
 from copy import deepcopy
 import os
@@ -14,10 +18,6 @@ from scipy.spatial.transform import Rotation
 from pyfigtree import figtree
 from time import time
 from PIL import Image
-
-from utils_3d import create_psf, get_random_3d_vector
-from utils_loading import load_array, load_pointcloud
-from segmentation.create_centriole import simu_cylinder_rev, get_radius
 
 
 class SamplingStrategy():

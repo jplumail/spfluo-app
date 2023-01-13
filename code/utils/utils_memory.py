@@ -7,6 +7,7 @@ import numpy as np
 from typing import Generator, Tuple
 from pynvml.smi import nvidia_smi
 from torch import cuda
+import psutil
 
 
 NVSMI = None
@@ -66,7 +67,7 @@ def torch_free_memory() -> int:
     return unused_memory
 
 
-def free_memory() -> int | None:
+def free_memory_gpu() -> int | None:
     """
     The amount of free GPU memory that can be used.
 
@@ -82,15 +83,20 @@ def free_memory() -> int | None:
         return None
 
 
+def free_memory_cpu():
+    return psutil.virtual_memory().available
+
+
+
 def maximum_batch(total_memory, func: str, *func_args):
     if func == "convolution_matching_poses_grid":
         reference, volumes, _, potential_poses = func_args
-        D = reference.size(0)
-        N = volumes.size(0)
-        M = potential_poses.size(0)
+        D, H, W = reference.shape[:3]
+        N, _, _, _ = volumes.size()
+        M, _ = potential_poses.size()
         shape = (N, M)
         dtype_bytes = torch.finfo(reference.dtype).bits / 8
-        total_batch = total_memory*4*(32**3)*64*128 / (12_000_000_000*dtype_bytes*(D**3))
+        total_batch = total_memory*4*(32**3)*128*100 / (12000*(2**20)*dtype_bytes*H*W*D)
         max_batch_ = math.floor(total_batch**0.5)
         if max_batch_ > N and max_batch_ > M: max_batch = (None, None)
         elif max_batch_ > N:
@@ -100,12 +106,78 @@ def maximum_batch(total_memory, func: str, *func_args):
             if (nbatch:=math.floor(total_batch/M)) > N: max_batch = (None, None)
             else: max_batch = (nbatch, None)
         else: max_batch = (max_batch_, max_batch_)
+    
+    if func == "convolution_matching_poses_refined":
+        reference, volumes, _, potential_poses = func_args
+        D, H, W = reference.shape[:3]
+        N, _, _, _ = volumes.size()
+        _, M, _ = potential_poses.size()
+        shape = (N, M)
+        dtype_bytes = torch.finfo(reference.dtype).bits / 8
+        total_batch = total_memory*4*(32**3)*128*100 / (12000*(2**20)*dtype_bytes*H*W*D)
+        max_batch_ = math.floor(total_batch**0.5)
+        if max_batch_ > N and max_batch_ > M: max_batch = (None, None)
+        elif max_batch_ > N:
+            if (mbatch:=math.floor(total_batch/N)) > M: max_batch = (None, None)
+            else: max_batch = (None, mbatch)
+        elif max_batch_ > M:
+            if (nbatch:=math.floor(total_batch/M)) > N: max_batch = (None, None)
+            else: max_batch = (nbatch, None)
+        else: max_batch = (max_batch_, max_batch_)
+    
+    if func == "reconstruction_L2":
+        volumes, psf, poses, lambda_ = func_args
+        _, D, H, W = volumes.size()
+        M, N, _ = poses.size()
+        dtype_bytes = torch.finfo(poses.dtype).bits / 8
+        total_batch = total_memory * 4*(128**3)*5*8 / (5000*(2**20)*dtype_bytes*N*H*W*D)
+        max_batch = (math.floor(total_batch),)
+        shape = (M,)
+    
+    if func == "affine_transform":
+        volumes, transforms = func_args
+        N, C, D, H, W = volumes.size()
+        dtype_bytes = torch.finfo(volumes.dtype).bits / 8
+        size_tensor = dtype_bytes * C * D * H * W
+        size_allocated = size_tensor * 8 * 2 # empirical result
+        max_batch = (math.floor(total_memory / size_allocated),)
+        shape = (N,)
+    
+    if func == "fftn":
+        x, spatial_dims = func_args
+        batch_dims = np.ones((x.ndim,), dtype=bool)
+        batch_dims[list(spatial_dims)] = False
+        batch_dims = tuple(batch_dims.nonzero()[0])
+        sizes = torch.as_tensor(x.size())
+        spatial_size = sizes[list(spatial_dims)]
+        dtype_bytes = torch.finfo(x.dtype).bits / 8
+        size_tensor = dtype_bytes * spatial_size.prod()
+        if x.is_complex(): mul_factor = 2
+        else: mul_factor = 6
+        size_allocated = size_tensor * mul_factor
+        total_batch = total_memory / size_allocated
+
+        if len(batch_dims) > 0:
+            max_batch_ = math.floor(total_batch ** (1/len(batch_dims)))
+            max_batch = tuple([max_batch_ for _ in range(len(batch_dims))])
+        else:
+            max_batch = (total_batch,)
+        shape = torch.as_tensor(x.shape)[list(batch_dims)]
+        if len(shape) > 0:
+            shape = tuple(shape.tolist())
+        else:
+            shape = None
+
+
+    #if 0 in max_batch:
+        #raise MemoryError(f"Total memory of {total_memory/2**20} MB is too small for func {func} with arguments of shapes: "+', '.join([repr(s.size()) for s in func_args]))
+    
     return max_batch, shape
 
 
 def split_batch_func(func, *func_args, total_memory=None):
     if total_memory is None:
-        total_memory = free_memory()
+        total_memory = free_memory_gpu() if func_args[0].is_cuda else free_memory_cpu()
     max_batch, shape = maximum_batch(total_memory, func, *func_args)
     yield from split_batch(max_batch, shape, total_memory)
 
@@ -122,7 +194,8 @@ def split_batch(
     else:
         max_batch = np.array([max_batch], dtype=int)
 
-    batch_size = 2 ** (np.floor(np.log2(max_batch)))
+    max_batch = np.maximum(max_batch, 1)
+    batch_size = np.maximum(2 ** (np.floor(np.log2(max_batch))), 1)
     batch_size = batch_size.astype(int)
     (times, remain_shape) = np.divmod(shape, batch_size)
 

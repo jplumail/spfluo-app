@@ -1,7 +1,7 @@
 import torch
 import numpy as np
-import utils_3d
-from utils_3d import convolution_matching_poses_refined, dftregistrationND, convolution_matching_poses_grid, find_angles_grid, reconstruction_L2
+import utils
+from utils import convolution_matching_poses_refined, dftregistrationND, convolution_matching_poses_grid, find_angles_grid, reconstruction_L2
 from skimage import data, util
 from skimage.registration import phase_cross_correlation
 from scipy.ndimage import fourier_shift
@@ -28,11 +28,12 @@ def test_simple_dftregistration():
     image = data.camera().astype(float)
     shift = (-22.4, 13.32)
     # The shift corresponds to the pixel offset relative to the reference image
-    offset_image = fourier_shift(np.fft.fftn(image), shift)
+    image_fourier = np.fft.fftn(image)
+    offset_image = fourier_shift(image_fourier, shift)
     offset_image = np.fft.ifftn(offset_image)
     
-    shift1, error1 = dftregistration(image, offset_image, normalization=None)
-    shift2, error2, _ = phase_cross_correlation(image, offset_image, space='fourier', overlap_ratio=0, normalization=None)
+    shift1, error1 = dftregistration(image_fourier, offset_image, normalization=None)
+    shift2, error2, _ = phase_cross_correlation(image_fourier, offset_image, space='fourier', overlap_ratio=0, normalization=None)
 
     eps = 1e-3
     assert ((shift1 - shift2) < eps).all()
@@ -46,11 +47,12 @@ def test_simple_phasenorm_dftregistration():
     image = data.camera().astype(float)
     shift = (-22.4, 13.32)
     # The shift corresponds to the pixel offset relative to the reference image
-    offset_image = fourier_shift(np.fft.fftn(image), shift)
+    image_fourier = np.fft.fftn(image)
+    offset_image = fourier_shift(image_fourier, shift)
     offset_image = np.fft.ifftn(offset_image)
     
-    shift1, error1 = dftregistration(image, offset_image, normalization="phase")
-    shift2, error2, _ = phase_cross_correlation(image, offset_image, space='fourier', overlap_ratio=0, normalization="phase")
+    shift1, error1 = dftregistration(image_fourier, offset_image, normalization="phase")
+    shift2, error2, _ = phase_cross_correlation(image_fourier, offset_image, space='fourier', overlap_ratio=0, normalization="phase")
 
     eps = 1e-3
     assert ((shift1 - shift2) < eps).all()
@@ -64,10 +66,11 @@ def test_batch_dftregistration():
     N = 5
     image = data.camera().astype(float)
     shifts = np.random.randn(N,2) * 6
-    offset_images = np.stack([fourier_shift(np.fft.fftn(image), shift) for shift in shifts], axis=0)
+    image_fourier = np.fft.fftn(image)
+    offset_images = np.stack([fourier_shift(image_fourier, shift) for shift in shifts], axis=0)
 
-    shift1, error1 = dftregistration(image, offset_images, nb_spatial_dims=2)
-    shift2, error2, _ = zip(*[phase_cross_correlation(image, offset_image, space='fourier', overlap_ratio=0, normalization=None) for offset_image in offset_images])
+    shift1, error1 = dftregistration(image_fourier, offset_images, nb_spatial_dims=2, normalization=None)
+    shift2, error2, _ = zip(*[phase_cross_correlation(image_fourier, offset_image, space='fourier', overlap_ratio=0, normalization=None) for offset_image in offset_images])
     shift2 = np.stack(shift2, axis=0)
     error2 = np.array(error2)
 
@@ -81,12 +84,12 @@ def test_3d_dftregistration():
     Test of 1 dftRegistration in 3D
     """
     d = 3
-    image = np.fft.fftn(util.img_as_float(data.cells3d()[:, 1, :, :]))
+    image_fourier = np.fft.fftn(util.img_as_float(data.cells3d()[:, 1, :, :]))
     shift = np.random.randn(d) * 10
-    offset_image = fourier_shift(image, shift)
+    offset_image = fourier_shift(image_fourier, shift)
 
-    shift1, error1 = dftregistration(image, offset_image, nb_spatial_dims=d, normalization=None)
-    shift2, error2, _ = phase_cross_correlation(image, offset_image, space='fourier', overlap_ratio=1, normalization=None)
+    shift1, error1 = dftregistration(image_fourier, offset_image, nb_spatial_dims=d, normalization=None)
+    shift2, error2, _ = phase_cross_correlation(image_fourier, offset_image, space='fourier', overlap_ratio=1, normalization=None)
 
     eps = 1e-3
     assert (np.abs(-shift2 - shift) <= 1).all()
@@ -100,12 +103,12 @@ def test_batch_3d_dftregistration():
     """
     d = 3
     N = 5
-    image = np.fft.fftn(util.img_as_float(data.cells3d()[:, 1, :, :]))
+    image_fourier = np.fft.fftn(util.img_as_float(data.cells3d()[:, 1, :, :]))
     shifts = np.random.randn(N,d) * 100
-    offset_images = np.stack([fourier_shift(image, shift) for shift in shifts], axis=0)
+    offset_images = np.stack([fourier_shift(image_fourier, shift) for shift in shifts], axis=0)
 
-    shift1, error1 = dftregistration(image, offset_images, nb_spatial_dims=d, normalization=None)
-    shift2, error2, _ = zip(*[phase_cross_correlation(image, offset_image, space='fourier', overlap_ratio=0, normalization=None) for offset_image in offset_images])
+    shift1, error1 = dftregistration(image_fourier, offset_images, nb_spatial_dims=d, normalization=None)
+    shift2, error2, _ = zip(*[phase_cross_correlation(image_fourier, offset_image, space='fourier', overlap_ratio=0, normalization=None) for offset_image in offset_images])
     shift2 = np.stack(shift2, axis=0)
     error2 = np.array(error2)
 
@@ -167,11 +170,11 @@ def test_upsample_dftregistration():
     image = data.camera().astype(float)
     shift = (-22.4, 13.32)
     # The shift corresponds to the pixel offset relative to the reference image
-    image = np.fft.fftn(image)
-    offset_image = fourier_shift(image, shift)
+    image_fourier = np.fft.fftn(image)
+    offset_image = fourier_shift(image_fourier, shift)
     
-    shift1, error1 = dftregistration(image, offset_image, upsample_factor=100, normalization=None)
-    shift2, error2, _ = phase_cross_correlation(image, offset_image, space='fourier', upsample_factor=100, overlap_ratio=0, normalization=None)
+    shift1, error1 = dftregistration(image_fourier, offset_image, upsample_factor=100, normalization=None)
+    shift2, error2, _ = phase_cross_correlation(image_fourier, offset_image, space='fourier', upsample_factor=100, overlap_ratio=0, normalization=None)
 
     eps = 1e-3
     assert ((shift1 - shift2) < eps).all()
@@ -460,4 +463,4 @@ def test_distance_poses():
     assert torch.isclose(t, torch.tensor(2.)**0.5)
 
 if __name__ == '__main__':
-    test_memory_convolution_matching_poses_grid()
+    test_batch_dftregistration()

@@ -5,18 +5,38 @@ import imageio
 import numpy as np
 from typing import Tuple, Dict
 import torch
+from tqdm.auto import tqdm
+
+from utils import pad_to_size
 
 
-def load_data(rootdir):
+def load_data(rootdir, crop_size=None, extension='.tiff'):
 
-    views, patches_names = load_views(os.path.join(rootdir, "views.csv"))
-    patches = load_patches(os.path.join(rootdir, "test/cropped/positive"), patches_names).astype(float)
-
-    coords = load_annotations(os.path.join(rootdir, 'coordinates.csv'))[:,2:].astype(float)
-    angles = load_angles(os.path.join(rootdir, 'angles.csv'))[:,2:].astype(float)
+    views, patches_names = load_views(os.path.join(rootdir, "views.csv"), extension=extension)
+    ann = load_annotations(os.path.join(rootdir, 'coordinates.csv'))
+    coords = ann[:,2:].astype(float)
+    angles_file = os.path.join(rootdir, 'angles.csv')
     translations = coords - np.rint(coords)
+    if os.path.exists(angles_file):
+        angles = load_angles(angles_file)[:,2:].astype(float)
+    else:
+        angles = np.zeros((translations.shape[0], 3))
+    
     poses = np.concatenate([angles, translations], axis=1).astype(float)
 
+    cropped_dir = os.path.join(rootdir, "test/cropped/positive")
+    if crop_size is None and os.path.exists(cropped_dir):
+        patches = load_patches(cropped_dir, patches_names).astype(float)
+    else:
+        images = {image_name: load_array(os.path.join(rootdir, "annotated", image_name)) for image_name in tqdm(set(ann[:,0]), desc='Load images')}
+        patches = []
+        for image_name, particle_id, z, y, x in tqdm(ann, desc='Crop particles'):
+            im = images[image_name]
+            patch = crop_one_particle(im, np.rint([z,y,x]).astype(int), crop_size, im.shape)
+            patch = pad_to_size(torch.as_tensor(patch), crop_size).cpu().numpy()
+            patches.append(patch)
+        patches = np.stack(patches, axis=0)
+    
     psf = load_array(os.path.join(rootdir, 'psf.tif'))
 
     return patches, coords, angles, views, poses, psf
@@ -48,7 +68,7 @@ def load_array(path: str) -> np.ndarray:
     if extension == '.npz':
         return np.load(path)['image']
     elif extension in ['.tif', '.tiff']:
-        image = np.stack(imageio.mimread(path, memtest=False)).astype(np.int16)
+        image = imageio.volread(path).astype(np.int16)
         # Some tiff images are heavily imbalanced: their data type is int16 but very few voxels
         # are actually > 255. If this is the case, the image in truncated and casted to uint8.
         if image.dtype == np.int16 and ((image > 255).sum() / image.size) < 1e-3:
@@ -96,15 +116,22 @@ def load_angles(csv_path: str) -> np.ndarray:
     return np.array(data, dtype=object)
 
 
-def load_views(views_path):
+def load_views(views_path, extension=None):
     _, ext = os.path.splitext(views_path)
     if ext == '.csv': # DONT USE CSV NOT WORKING 
         views_ = load_annotations(views_path)
         views = views_[:,2].astype(int)
-        patches_names = np.array([
-            os.path.splitext(im_name)[0] + '_' + patch_index + os.path.splitext(im_name)[1]
-            for im_name, patch_index in views_[:,[0,1]]
-        ])
+        if extension is None:
+            patches_names = np.array([
+                os.path.splitext(im_name)[0] + '_' + patch_index + os.path.splitext(im_name)[1]
+                for im_name, patch_index in views_[:,[0,1]]
+            ])
+        else:
+            patches_names = np.array([
+                os.path.splitext(im_name)[0] + '_' + patch_index + extension
+                for im_name, patch_index in views_[:,[0,1]]
+            ])
+
     elif ext == '.pickle':
         with open(views_path, 'rb') as f:
             views_ = pickle.load(f)
@@ -117,6 +144,11 @@ def load_views(views_path):
 def load_patches(crop_dir, patches_names):
     patches = [load_array(os.path.join(crop_dir,p)) for p in patches_names] # (N,z,y,x)
     return np.stack(patches, axis=0)
+
+
+def load_pointcloud(pointcloud_path: str) -> np.ndarray:
+        template_point_cloud = np.loadtxt(pointcloud_path, delimiter=',')
+        return template_point_cloud
 
 
 def center_to_corners(center: Tuple[int], size: Tuple[int]) -> Tuple[int]:
@@ -177,3 +209,28 @@ def send_mail(subject: str, body: str) -> None:
         server.login(sender_email, password)
         server.sendmail(sender_email, receiver_email, message)
 
+def crop_one_particle(
+    image: np.ndarray,
+    center: np.ndarray,
+    crop_size: Tuple[int],
+    max_size: Tuple[int],
+) -> np.ndarray:
+    corners = center_to_corners(center, crop_size)
+    corners = reframe_corners_if_needed(corners, crop_size, max_size)
+    x_min, y_min, z_min, x_max, y_max, z_max = corners
+    return image[z_min:z_max, y_min:y_max, x_min:x_max]
+
+
+def reframe_corners_if_needed(
+    corners: Tuple[int],
+    crop_size: Tuple[int],
+    max_size: Tuple[int]
+) -> Tuple[int]:
+    d, h, w = crop_size
+    D, H, W = max_size
+    x_min, y_min, z_min, x_max, y_max, z_max = corners
+    z_min, y_min, x_min = max(0, z_min), max(0, y_min), max(0, x_min)
+    #z_max, y_max, x_max = z_min + d, y_min + h, x_min + w
+    z_max, y_max, x_max = min(D, z_max), min(H, y_max), min(W, x_max)
+    #z_min, y_min, x_min = z_max - d, y_max - h, x_max - w
+    return x_min, y_min, z_min, x_max, y_max, z_max

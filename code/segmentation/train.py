@@ -2,9 +2,9 @@ import copy
 import os
 
 import pandas as pd
-from unet_3d import UNet3D
-from data import GeneratorDataset, HardCopyDataset, MultiEpochsDataLoader, Generator_variableSize, unbatch_dict, infos_to_dataframe
-from losses import iaawnLossDenis
+from .unet_3d import UNet3D
+from .data import GeneratorDataset, HardCopyDataset, MultiEpochsDataLoader, Generator_variableSize, unbatch_dict, infos_to_dataframe
+from .losses import iaawnLossDenis
 
 import torch
 from torch.utils.tensorboard import SummaryWriter

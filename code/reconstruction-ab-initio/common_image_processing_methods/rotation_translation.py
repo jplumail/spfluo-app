@@ -7,7 +7,7 @@ import numbers
 
 import torch
 
-from utils_3d import affine_transform as affine_transform_pytorch
+from utils import affine_transform as affine_transform_pytorch
 
 interp_order = 3
 
@@ -89,7 +89,7 @@ def rotation_gpu(volume, rot_mat, order=interp_order, trans_vec=None):
     rotated = affine_transform_cupy(volume, rot_mat.T, c-rot_mat.T @ (c + trans_vec), order=order, mode='constant')
     return rotated, rot_mat
 
-def rotation_gpu_pytorch(volume, rot_mat, order=interp_order, trans_vec=None):
+def rotation_gpu_pytorch(volume, rot_mat, order=1, trans_vec=None):
     """apply a rotation around center of image"""
     if order > 1:
         raise NotImplementedError('order should be 1')
