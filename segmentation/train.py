@@ -12,7 +12,7 @@ from torch.utils.data import default_collate
 from torch.optim import Adam
 from torchvision.utils import make_grid
 import numpy as np
-from tqdm import tqdm
+from tqdm.auto import tqdm
 import time
 
 import torch.multiprocessing
