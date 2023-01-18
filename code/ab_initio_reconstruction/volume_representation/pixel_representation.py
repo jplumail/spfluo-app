@@ -22,7 +22,7 @@ class Fourier_pixel_representation:
     def __init__(self, nb_dim, size, psf, init_vol=None, random_init=True, dtype=np.float32):
         if init_vol is None:
             if random_init:
-                volume_fourier = np.random.randn(*tuple([size for _ in range(nb_dim)])) + 1j * np.random.randn(*tuple([size for _ in range(nb_dim)]))
+                volume_fourier = np.random.randn(*psf.shape) + 1j * np.random.randn(*psf.shape)
             else:
                 raise NotImplementedError
         else:
