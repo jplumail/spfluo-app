@@ -1,7 +1,7 @@
 import torch
 import numpy as np
-import utils
-from utils import convolution_matching_poses_refined, dftregistrationND, convolution_matching_poses_grid, find_angles_grid, reconstruction_L2
+from utils import dftregistrationND
+from utils.fluo import convolution_matching_poses_refined, convolution_matching_poses_grid, find_angles_grid, reconstruction_L2
 from skimage import data, util
 from skimage.registration import phase_cross_correlation
 from scipy.ndimage import fourier_shift
