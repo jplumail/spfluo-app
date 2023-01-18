@@ -14,3 +14,7 @@ Pas encore très bien défini. Dans l'optique d'éliminer des particules parasit
 Augmenter progressivement le nombre de coefficients de Fourier à utiliser dans la reconstruction. Permet d'améliorer la vitesse de calcul.
 
 - [ ] Estimation de la PSF en s'inspirant de [EpiDEMIC](https://icy.bioimageanalysis.org/plugin/epidemic/).
+
+- [ ] Reconstruction multi-canaux.
+
+- [ ] Paramétrisation de la reconstruction pour cas particuliers. Exemple : pore nucléaire 8 doublets en cylindre
