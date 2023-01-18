@@ -7,7 +7,7 @@ import numbers
 
 import torch
 
-from utils import affine_transform as affine_transform_pytorch
+from spfluo.utils import affine_transform as affine_transform_pytorch
 
 interp_order = 3
 
