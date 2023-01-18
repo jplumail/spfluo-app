@@ -1,4 +1,4 @@
-from .utils_memory import split_batch_func
+from .memory import split_batch_func
 
 import math
 from typing import Tuple, Union
