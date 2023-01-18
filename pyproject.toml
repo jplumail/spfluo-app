@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["code"]
+
+[project]
+name = "spfluo"
+dependencies = [
+  "numpy",
+  "scipy",
+  "scikit-image",
+  "pandas",
+  "tqdm",
+  "SimpleITK",
+  "connected-components-3d"
+]
+version = "0.0.1"
+authors = [
+  { name="Jean Plumail", email="jplumail@unistra.fr" },
+]
+description = "SPFluo package"
+readme = "README.md"
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
