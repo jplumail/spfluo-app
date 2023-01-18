@@ -1,7 +1,7 @@
 import torch
 import numpy as np
-from utils import dftregistrationND
-from utils.fluo import convolution_matching_poses_refined, convolution_matching_poses_grid, find_angles_grid, reconstruction_L2
+import spfluo.utils
+from spfluo.utils import dftregistrationND
 from skimage import data, util
 from skimage.registration import phase_cross_correlation
 from scipy.ndimage import fourier_shift
@@ -230,7 +230,7 @@ from scipy.ndimage import affine_transform
 from scipy.spatial.transform import Rotation as R
 
 def affine_transform_gpu(vol, mat, offset=0.0, output_shape=None, device='cpu'):
-    out = utils_3d.affine_transform(
+    out = spfluo.utils.affine_transform(
         torch.as_tensor(vol, device=device),
         torch.as_tensor(mat, device=device),
         offset=offset,
@@ -289,7 +289,7 @@ def test_affine_transform_offset():
 #################################################
 
 def fourier_shift2(volume_freq, shift, nb_spatial_dims=None, device='cpu'):
-    out = utils_3d.fourier_shift(
+    out = spfluo.utils.fourier_shift(
         torch.as_tensor(volume_freq, device=device),
         torch.as_tensor(shift, device=device),
         nb_spatial_dims
@@ -327,128 +327,6 @@ def test_broadcasting_fourier_shift():
 
     assert np.isclose(offset_images1, offset_images2).all()
 
-##########################
-# Test reconstruction_L2 #
-##########################
-
-def test_shapes_reconstruction_L2():
-    N, D, H, W = 100, 32, 32, 32
-    volumes = torch.randn((N, D, H, W))
-    psf = torch.randn((D, H, W))
-    poses = torch.randn((N, 6))
-    lambda_ = torch.tensor(1.)
-    recon, den = reconstruction_L2(volumes, psf, poses, lambda_)
-    
-    assert recon.shape == (D, H, W)
-    assert den.shape == (D, H, W)
-
-
-def test_parallel_reconstruction_L2():
-    batch_dims = (5,5,)
-    N, D, H, W = 100, 32, 32, 32
-    volumes = torch.randn(batch_dims+(N, D, H, W))
-    psf = torch.randn(batch_dims+(D, H, W))
-    poses = torch.randn(batch_dims+(N, 6))
-    lambda_ = torch.randn(batch_dims)
-    recon, _ = reconstruction_L2(volumes, psf, poses, lambda_)
-    recon2 = torch.stack([torch.stack([reconstruction_L2(vv, pp, ppoo, ll)[0] for vv, pp, ppoo, ll in zip(v,p,po,l)]) for v, p, po, l in zip(volumes, psf, poses, lambda_)])
-
-    assert recon.shape == batch_dims+(D, H, W)
-    assert torch.isclose(recon, recon2).all()
-
-#############################
-# Test convolution_matching #
-#############################
-
-def test_memory_convolution_matching_poses_grid():
-    device = 'cuda'
-    D = 32
-    for N in [1, 10, 1000, 1500, 5000]:
-        N = int(N)
-        M = int(10000 / N**0.5)
-        reference = torch.randn((D, D, D), device=device)
-        volumes = torch.randn((N, D, D, D), device=device)
-        psf = torch.randn((D, D, D), device=device)
-        potential_poses = torch.randn((M, 6), device=device)
-
-        best_poses, errors = convolution_matching_poses_grid(reference, volumes, psf, potential_poses)
-
-        assert best_poses.shape == (N, 6)
-        assert errors.shape == (N,)
-
-
-def test_shapes_convolution_matching_poses_grid():
-    M, d = 5, 6
-    N, D, H, W = 100, 32, 32, 32
-    reference = torch.randn((D, H, W))
-    volumes = torch.randn((N, D, H, W))
-    psf = torch.randn((D, H, W))
-    potential_poses = torch.randn((M, d))
-
-    best_poses, errors = convolution_matching_poses_grid(reference, volumes, psf, potential_poses)
-
-    assert best_poses.shape == (N, d)
-    assert errors.shape == (N,)
-
-
-def test_matlab_convolution_matching_poses_refined():
-    as_tensor = lambda x: torch.as_tensor(x, dtype=torch.float64, device='cuda')
-
-    # Load Matlab data
-    data_path = os.path.join(os.path.dirname(__file__), "data", "convolution_matching")
-    potential_poses_ = loadmat(os.path.join(data_path,"bigListPoses.mat"))["bigListPoses"]
-    volumes = np.stack(loadmat(os.path.join(data_path,"inVols.mat"))["inVols"][:,0]).transpose(0,3,2,1)
-    best_poses_matlab = loadmat(os.path.join(data_path,"posesNew.mat"))["posesNew"][:,[0,1,2,5,3,4]]
-    best_poses_matlab[:, 3:] *= -1
-    psf = loadmat(os.path.join(data_path,"psf.mat"))["psf"].transpose(2,1,0)
-    reference = loadmat(os.path.join(data_path,"recon.mat"))["recon1"].transpose(2,1,0)
-
-    potential_poses_, volumes, best_poses_matlab, psf, reference = map(
-        as_tensor, [potential_poses_, volumes, best_poses_matlab, psf, reference]
-    )
-
-    N, M, _ = potential_poses_.shape
-    potential_poses = as_tensor(torch.zeros((N, M, 6)))
-    potential_poses[:, :, :3] = potential_poses_
-
-    best_poses, _ = convolution_matching_poses_refined(reference, volumes, psf, potential_poses)
-
-    eps = 1e-2
-    assert ((best_poses - best_poses_matlab) < eps).all()
-
-
-def test_shapes_convolution_matching_poses_refined():
-    M, d = 5, 6
-    N, D, H, W = 100, 32, 32, 32
-    reference = torch.randn((D, H, W))
-    volumes = torch.randn((N, D, H, W))
-    psf = torch.randn((D, H, W))
-    potential_poses = torch.randn((N, M, d))
-
-    best_poses, errors = convolution_matching_poses_refined(reference, volumes, psf, potential_poses)
-
-    assert best_poses.shape == (N, d)
-    assert errors.shape == (N,)
-
-
-###################
-# Test find_angle #
-###################
-
-def test_shapes_find_angles_grid():
-    if torch.cuda.is_available(): device = 'cuda'
-    else: device = 'cpu'
-
-    N, D, H, W = 150, 32, 32, 32
-    reconstruction = torch.randn((D, H, W), device=device)
-    patches = torch.randn((N, D, H, W), device=device)
-    psf = torch.randn((D, H, W), device=device)
-
-    best_poses, errors = find_angles_grid(reconstruction, patches, psf, precision=10)
-    
-    assert best_poses.shape == (N, 6)
-    assert errors.shape == (N,)
-
 
 #######################
 # Test distance_poses #
@@ -457,7 +335,7 @@ def test_shapes_find_angles_grid():
 def test_distance_poses():
     p1 = torch.tensor([90, 90, 0, 1, 0, 0]).type(torch.float)
     p2 = torch.tensor([-90, 90, 0, 0, 1, 0]).type(torch.float)
-    angle, t = utils_3d.distance_poses(p1, p2)
+    angle, t = spfluo.utils.distance_poses(p1, p2)
 
     assert torch.isclose(angle, torch.tensor(180.))
     assert torch.isclose(t, torch.tensor(2.)**0.5)
