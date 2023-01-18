@@ -1,4 +1,4 @@
-from ..common_image_processing_methods.utils_3d import dftregistrationND as phase_cross_correlation_gpu_pytorch, fourier_shift as fourier_shift_gpu_pytorch
+from utils import dftregistrationND as phase_cross_correlation_gpu_pytorch, fourier_shift as fourier_shift_gpu_pytorch
 from ..common_image_processing_methods.rotation_translation import rotation, translation, rotation_gpu, rotation_gpu_pytorch
 from ..common_image_processing_methods.registration import registration_exhaustive_search, shift_registration_exhaustive_search
 from ..common_image_processing_methods.others import normalize, crop_center
