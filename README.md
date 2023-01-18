@@ -3,9 +3,10 @@
 This repository contains code for picking and single particle reconstruction in fluorescence imaging.
 
 Pipeline :
-1. [picking](code/picking)
-2. for centrioles only : [cleaning with segmentation](code/segmentation) and [alignement](code/alignement)
-3. [reconstruction ab-initio](code/reconstruction-ab-initio/)
+1. [picking](spfluo/picking)
+2. for centrioles only : [cleaning with segmentation](spfluo/segmentation) and [alignement](spfluo/alignement)
+3. [reconstruction ab-initio](spfluo/reconstruction-ab-initio/)
+4. [refinement](spfluo/refinement/)
 
 ## Installation
 ```bash
