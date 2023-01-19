@@ -11,7 +11,9 @@ dependencies = [
   "pandas",
   "tqdm",
   "SimpleITK",
-  "connected-components-3d"
+  "connected-components-3d",
+  "albumentations",
+  "tensorboard"
 ]
 version = "0.0.1"
 authors = [
