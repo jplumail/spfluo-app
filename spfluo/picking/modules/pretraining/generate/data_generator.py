@@ -11,7 +11,7 @@ from scipy.stats import truncnorm
 from scipy.ndimage.filters import gaussian_filter
 import tifffile
 from . import functional as F
-from .figtree.pyfigtree import figtree
+#from .figtree.pyfigtree import figtree
 from .config import DataGenerationConfig
 from .config import Outliers as OutliersConfig
 

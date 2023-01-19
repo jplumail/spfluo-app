@@ -6,7 +6,7 @@ from tqdm import tqdm
 import torch
 from torch import Tensor
 from torch.utils.data import DataLoader
-from modules.training.core import Model, Data
+from .core import Model, Data
 
 
 def step(x: Tensor, model: Model, training: bool) -> float:
