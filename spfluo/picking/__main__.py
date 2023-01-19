@@ -4,10 +4,10 @@ import argparse
 import pickle
 import numpy as np
 from typing import Sequence
-from modules.pretraining import prepare, crop
-from modules.training import train_picking, train_tilt
-from modules.posttraining import predict_picking, postprocess, evaluate_picking, predict_tilt, evaluate_tilt
-from modules.utils import seed_all, send_mail
+from .modules.pretraining import prepare, crop
+from .modules.training import train_picking, train_tilt
+from .modules.posttraining import predict_picking, postprocess, evaluate_picking, predict_tilt, evaluate_tilt
+from .modules.utils import seed_all, send_mail
 
 
 def parse_args() -> argparse.Namespace:
