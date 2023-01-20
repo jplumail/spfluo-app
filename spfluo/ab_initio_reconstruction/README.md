@@ -18,3 +18,5 @@ Augmenter progressivement le nombre de coefficients de Fourier à utiliser dans 
 - [ ] Reconstruction multi-canaux.
 
 - [ ] Paramétrisation de la reconstruction pour cas particuliers. Exemple : pore nucléaire 8 doublets en cylindre
+
+- [ ] Ajout de la FSC
