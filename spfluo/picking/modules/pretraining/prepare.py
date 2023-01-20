@@ -399,9 +399,10 @@ def prepare(
             'positive_only': positive_only,
             'extension': extension,
         }
-        crop_kwargs['csv_name'] = 'train_coordinates'
-        crop(os.path.join(rootdir, 'train'), crop_output_dir, **crop_kwargs)
-        crop_kwargs['csv_name'] = 'val_coordinates'
-        crop(os.path.join(rootdir,   'val'), crop_output_dir, **crop_kwargs)
-        crop_kwargs['csv_name'] = 'test_coordinates'
-        crop(os.path.join(rootdir,   'test'), crop_output_dir, **crop_kwargs)
+        for d in ['train', 'val', 'test']:
+            crop_kwargs['csv_name'] = d+'_coordinates'
+            subdir = os.path.join(rootdir, d)
+            if os.path.exists(subdir):
+                crop(subdir, crop_output_dir, **crop_kwargs)
+            else:
+                print(f"{subdir} not found")
