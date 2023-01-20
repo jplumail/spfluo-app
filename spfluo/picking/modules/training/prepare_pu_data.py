@@ -121,6 +121,8 @@ def prepare_pu_data(
     images = [load_array(path) for path in tqdm(images_paths)]
     # 2. Load and sample annotations
     annotations = load_annotations(os.path.join(rootdir, csv_name))
+    annotations = annotations[:,[0,2,3,4]]
+    annotations[:, [1,2,3]] = annotations[:, [1,2,3]].astype(int)
     num = np.zeros(annotations.shape[0], dtype=int)
     for image_name in images_names:
         idx_image = annotations[:, 0]==image_name
