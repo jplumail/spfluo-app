@@ -339,7 +339,7 @@ def make_model(
             'num_features': num_features,
             'dim' : dim
         }
-        decoder = Decoder(out_size=max(patch_size), **decoder_kwargs).to(device)
+        decoder = Decoder(out_size=patch_size, **decoder_kwargs).to(device)
         params.append({'params': decoder.parameters()})
         train_criteria.append(torch.nn.MSELoss())
         val_criteria.append(torch.nn.MSELoss())
