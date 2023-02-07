@@ -91,23 +91,21 @@ def translate_to_have_one_connected_component(im, t_min=-20, t_max=20, t_step=4)
     trans_vecs = np.arange(t_min, t_max, t_step)
     grid_trans_vec = np.array(np.meshgrid(trans_vecs, trans_vecs, trans_vecs)).T.reshape((len(trans_vecs) ** 3, 3))
     number_connected_components = np.zeros(len(grid_trans_vec))
-    #print('len', len(number_connected_components))
+    t = 1.
     for i, trans_vec in enumerate(grid_trans_vec):
-        # #print('i', i)
         ft_shifted = fourier_shift(ft, trans_vec)
         im_shifted = np.fft.ifftn(ft_shifted)
-        im_shifted_thresholded = 1*(im_shifted>0.2)
+        im_shifted_thresholded = np.abs(im_shifted).real > t
         _, N = cc3d.connected_components(im_shifted_thresholded, return_N=True)
         number_connected_components[i] = N
 
     indicices_one_component = np.where(number_connected_components==1)
     if len(indicices_one_component) == 1:
         indicices_one_component = np.where(number_connected_components==np.min(number_connected_components))
-    #print('idx', indicices_one_component)
     transvecs_one_components = grid_trans_vec[indicices_one_component]
-    avg_transvec_one_component = np.mean(transvecs_one_components, axis=0)
+    avg_transvec_one_component = transvecs_one_components[0]
     ft_shifted = fourier_shift(ft, avg_transvec_one_component)
-    return np.fft.ifftn(ft_shifted)
+    return np.abs(np.fft.ifftn(ft_shifted)).real
 
 
 if __name__ == '__main__':
