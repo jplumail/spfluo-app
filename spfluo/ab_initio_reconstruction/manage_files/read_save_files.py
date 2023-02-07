@@ -18,10 +18,8 @@ def read_images_in_folder(fold, alphabetic_order=True):
         files = sorted(files)
     images = []
     for fn in files:
-        print(fn)
         pth = f'{fold}/{fn}'
         im = read_image(pth)
-        print(im.shape)
         images.append(im)
     return np.array(images), files
 
