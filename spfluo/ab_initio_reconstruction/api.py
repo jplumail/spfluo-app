@@ -41,7 +41,7 @@ class AbInitioReconstruction:
             X,
             imp_distrs_axes,
             imp_distrs_rot,
-            (1,1),
+            params_learning_alg.init_unif_prop,
             0,
             params_learning_alg,
             False,
