@@ -189,10 +189,12 @@ def predict_picking(
     testset_size: int=None,
     image_name: str=None,
     output_dir: str=None,
+    downscale: float=1.
 ) -> Dict[str, Tuple[np.ndarray]]:
     """ If image_name is None, predict whole folder. """
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    stride = np.array(patch_size) // 4 if stride is None else stride
+    patch_size = tuple(np.rint(np.array(patch_size)/downscale).astype(int))
+    stride = np.array(patch_size) // 4 if stride is None else tuple(np.rint(np.array(stride)/downscale).astype(int))
     summary_output = None
     if output_dir is not None:
         os.makedirs(output_dir, exist_ok=True)

@@ -140,6 +140,7 @@ def main(args: argparse.Namespace) -> None:
             args.margin,
             args.pos_ratio,
             args.positive_only,
+            args.downscale
         )
     # + -------------------------------------- PICKING -------------------------------------- + #
     if 'train' in args.stages and args.task == 'picking':
@@ -163,6 +164,7 @@ def main(args: argparse.Namespace) -> None:
             args.dim,
             args.extension,
             args.epoch_size,
+            args.downscale,
             # pu optional params
             args.radius,
             args.num_particles_per_image,
@@ -187,6 +189,7 @@ def main(args: argparse.Namespace) -> None:
             args.testset_size,
             args.image_name,
             args.output_dir,
+            args.downscale
         )
     if 'postprocess' in args.stages and args.task == 'picking':
         postprocess(
@@ -202,6 +205,7 @@ def main(args: argparse.Namespace) -> None:
             args.testset_size,
             args.image_name,
             args.output_dir,
+            args.downscale
         )
     if 'evaluate' in args.stages and args.task == 'picking':
         evaluate_picking(

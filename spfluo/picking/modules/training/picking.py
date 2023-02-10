@@ -1,4 +1,5 @@
 import os
+import numpy as np
 from typing import Tuple, Dict
 from .core import Data, Losses, F1Score, Logger, make_model, fit
 from .prepare_fs_data import make_dataloaders as make_fs_dataloaders
@@ -71,6 +72,7 @@ def train(
     dim: int,
     extension: str,
     epoch_size: int=None,
+    downscale: float=1.,
     # pu optional params
     radius: int=None,
     num_particles_per_image: int=None,
@@ -87,6 +89,8 @@ def train(
     os.makedirs(output_dir, exist_ok=True)
     summary_output = os.path.join(output_dir, 'train_config.txt')
     summary(config, title='TRAINING CONFIG', output=summary_output)
+    patch_size = np.rint(np.array(patch_size)/downscale).astype(int)
+    radius = round(radius/downscale)
     data = make_data(
         mode, rootdir, output_dir, batch_size, num_workers, num_pos_samples, augment, shuffle,
         extension, dim, epoch_size, radius, num_particles_per_image, patch_size, load_u_masks

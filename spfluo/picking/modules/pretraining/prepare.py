@@ -344,6 +344,7 @@ def prepare(
     margin: Tuple[int, ...]=0,
     pos_ratio: float=1,
     positive_only: bool=False,
+    downscale: float=1.
 ) -> None:
     """ Being given a path to a directory, prepare the image for training by doing any
     combinations of the following operations:
@@ -393,7 +394,7 @@ def prepare(
     if crop_output_dir is not None:
         print('| Generating crops inside images ...')
         crop_kwargs = {
-            'crop_size': crop_size,
+            'crop_size': tuple(np.rint(np.array(crop_size)/downscale).astype(int)),
             'margin': margin,
             'pos_ratio': pos_ratio,
             'positive_only': positive_only,
