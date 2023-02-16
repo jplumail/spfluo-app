@@ -18,7 +18,9 @@ dependencies = [
   "albumentations",
   "tensorboard",
   "cupy-cuda12x",
-  "cucim"
+  "cucim",
+  "torch",
+  "torchvision"
 ]
 version = "0.0.1"
 authors = [
