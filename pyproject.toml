@@ -16,7 +16,9 @@ dependencies = [
   "SimpleITK",
   "connected-components-3d",
   "albumentations",
-  "tensorboard"
+  "tensorboard",
+  "cupy-cuda12x",
+  "cucim"
 ]
 version = "0.0.1"
 authors = [
