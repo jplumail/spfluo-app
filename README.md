@@ -21,4 +21,9 @@ pip install .
 ### Optional dependencies
 
 - [Pytorch](https://pytorch.org/)
-- [Cupy](https://docs.cupy.dev/en/stable/install.html#installing-cupy-from-pypi)
+
+
+### To-Do
+
+- release on PyPI
+- separate download data and source code (use Pooch)
