@@ -140,7 +140,7 @@ def prepare_pu_data(
         print('| STEP [2/3]: Loading U masks ...')
         U_masks_dir = os.path.join(rootdir, 'U_masks')
         U_masks = [
-            np.load(os.path.join(U_masks_dir, name))['u_mask'] for name in tqdm(images_names)
+            np.load(os.path.join(U_masks_dir, name+'.npz'))['u_mask'] for name in tqdm(images_names)
         ]
     else:
         print('| STEP [2/3]: Making U masks ...')

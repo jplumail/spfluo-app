@@ -1,5 +1,6 @@
 import os
 import csv
+import shutil
 import numpy as np
 import tifffile
 from tqdm import tqdm
@@ -102,6 +103,8 @@ def make_U_masks(rootdir: str, extension: str='npz') -> None:
 # |                  RANDOM (NEGATIVE) AND AROUND PARTICLES (POSITIVE) CROPS                 | #
 # +------------------------------------------------------------------------------------------+ #
 
+DEFAULT_NEGATIVE_CENTERS = 8
+
 def generate_random_negative_centers(
     positive_centers: np.ndarray,
     crop_size: Tuple[int],
@@ -109,6 +112,8 @@ def generate_random_negative_centers(
     pos_ratio: float,
 ) -> np.ndarray:
     num_negative_centers = int(len(positive_centers) / pos_ratio)
+    if num_negative_centers < DEFAULT_NEGATIVE_CENTERS:
+        num_negative_centers = DEFAULT_NEGATIVE_CENTERS
     negative_centers = np.array([0, 0, 0])
     while len(negative_centers) <= num_negative_centers:
         current_centers = np.vstack((negative_centers, positive_centers))
@@ -178,7 +183,7 @@ def save(image: np.ndarray, image_name: str, crop_index: str, output_dir: str, e
     output = os.path.join(output_dir, name)
     if extension == 'npz':
         np.savez(output+'.npz', image=image)
-    elif extension == 'tiff':
+    elif extension == 'tiff' or extension == 'tif':
         image = image.astype(float)
         image = (image - image.min()) / (image.max() - image.min())
         image = (image * 255).astype(np.uint8)
@@ -259,9 +264,9 @@ def train_test_split(rootdir: str, images: List[str], image_format: str='npz', s
     os.makedirs(train_dir, exist_ok=True)
     os.makedirs(test_dir,  exist_ok=True)
     for image in train_images:
-        os.replace(os.path.join(rootdir, image), os.path.join(train_dir, image))
+        shutil.copyfile(os.path.join(rootdir, image), os.path.join(train_dir, image))
     for image in test_images:
-        os.replace(os.path.join(rootdir, image), os.path.join(test_dir, image))
+        shutil.copyfile(os.path.join(rootdir, image), os.path.join(test_dir, image))
     annotations = load_annotations(os.path.join(rootdir, 'coordinates.csv'))
     train_annotations = []
     for image in train_images:
@@ -316,6 +321,36 @@ def train_val_split(traindir: str, images: List[str], image_format: str='npz', s
         csv.writer(f).writerows(val_annotations)
 
 
+def train_val_split2(traindir: str, images: List[str], image_format: str='npz', split: float=0.8) -> None:
+    """ After a train/test split has occured, an other train/val split is required inside the
+    train subfolder. This could be done on the fly during training but hard separating the files
+    seems cleaner and force a constant validation set regardless of the training config.
+
+    Args:
+        traindir (str): The train subfolder.
+        image_format (str, optional): Used to detect images inside the given folder.
+                                      Defaults to 'npz'.
+        split (float, optional): Proportion of images to keep for training. Defaults to 0.8.
+    """
+    parent_dir = os.path.dirname(os.path.abspath(traindir))
+    val_dir = os.path.join(parent_dir, 'val')
+    os.makedirs(val_dir, exist_ok=True)
+    for image in images:
+        shutil.copyfile(os.path.join(traindir, image), os.path.join(val_dir, image))
+    annotations = load_annotations(os.path.join(traindir, 'train_coordinates.csv'))
+    train_length = int(split * len(annotations))
+    train_annotations = annotations[:train_length]
+    val_annotations = annotations[train_length:]
+    train_annotations = np.array(train_annotations, dtype=object)
+    csv_path = os.path.join(traindir, 'train_coordinates.csv')
+    with open(csv_path, "w", newline="") as f:
+        csv.writer(f).writerows(train_annotations)
+    val_annotations = np.array(val_annotations, dtype=object)
+    csv_path = os.path.join(val_dir, 'val_coordinates.csv')
+    with open(csv_path, "w", newline="") as f:
+        csv.writer(f).writerows(val_annotations)
+
+
 def train_val_test_splits(
     rootdir: str,
     images_names: List[str],
@@ -324,7 +359,8 @@ def train_val_test_splits(
     image_format: str='npz',
 ) -> None:
     train_images = train_test_split(rootdir, images_names, image_format, train_test_ratio)
-    train_val_split(os.path.join(rootdir, 'train'), train_images, image_format, train_val_ratio)
+    #train_val_split(os.path.join(rootdir, 'train'), train_images, image_format, train_val_ratio)
+    train_val_split2(os.path.join(rootdir, 'train'), train_images, image_format, train_val_ratio)
 
 
 # +------------------------------------------------------------------------------------------+ #
@@ -373,6 +409,7 @@ def prepare(
                                        Defaults to (0, 0, 0).
         pos_ratio (float, optional): Positive/Negative crop ratio. Defaults to 1..
         positive_only (bool, optional): Crop only positive. Defaults to False.
+        downscale (float, optional): Downscale factor. Default to 1 (no downscale)
     """
     summary(locals(), 'DATA PREPARATION')
     # STEP 1: Data generation
@@ -382,7 +419,8 @@ def prepare(
         generate_data(size, rootdir, pointcloud_path, extension)
     # STEP 2: Train/Val/Test splits
     if train_test_split is not None and train_val_split is not None:
-        images_names = [str(i)+'.'+extension for i in range(size)]
+        images_names = list(filter(lambda x: x.endswith(extension), os.listdir(rootdir)))
+        #images_names = [str(i)+'.'+extension for i in range(size)]
         print('| Splitting data into train, val, and test subsets ...')
         train_val_test_splits(rootdir, images_names, train_test_split, train_val_split, extension)
     # STEP 3: Make U masks
