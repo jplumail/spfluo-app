@@ -1,19 +1,25 @@
+import csv
+from glob import glob
 import os
+import shutil
+
+from spfluo.picking.modules.annotating.extract import create_annotation_image
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # Disable tensorflow INFO and WARNING
 import argparse
 import pickle
 import numpy as np
 from typing import Sequence
+from .modules.annotating import extract_annotations
 from .modules.pretraining import prepare, crop
 from .modules.training import train_picking, train_tilt
 from .modules.posttraining import predict_picking, postprocess, evaluate_picking, predict_tilt, evaluate_tilt
-from .modules.utils import seed_all, send_mail
+from .modules.utils import load_annotations, seed_all, send_mail
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser('Setup pipeline')
     # - General
-    all_stages = ['prepare', 'train', 'predict', 'postprocess', 'evaluate', 'crop']
+    all_stages = ['extract', 'prepare', 'train', 'predict', 'postprocess', 'evaluate', 'crop']
     parser.add_argument('--stages', type=str, default=all_stages, nargs='+')
     parser.add_argument('--task', type=str, default='picking', choices=['picking', 'tilt'])
     parser.add_argument('--rootdir',                  type=str,    default=None)
@@ -22,6 +28,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('--extension',                type=str,    default='npz')
     parser.add_argument('--dim',                      type=int,    default=2)
     parser.add_argument('--mail',                     action='store_true')
+    # 0 - extract
+    parser.add_argument('--slicer3d_dir',             type=str,    default=None)
+    parser.add_argument('--downscale',                type=float,  default=1.)
     # I - prepare
     parser.add_argument('--template_pointcloud',      type=str,    default=None)
     parser.add_argument('--dataset_size',             type=int,    default=None)
@@ -121,11 +130,19 @@ def mail_at_the_end(args: argparse.Namespace) -> None:
 def main(args: argparse.Namespace) -> None:
     # if shuffle is True, we want annotations shuffling to be unique for each run,
     # but the training must be deterministic, so we seed everything but numpy.
-    #seed_all(seed_numpy=not args.shuffle)
+    seed_all(seed_numpy=not args.shuffle)
     args = guess_paths(args)
     args.patch_size = arg_to_tuple_if_needed(args.patch_size)
     args.stride     = arg_to_tuple_if_needed(args.stride)
     args.margin     = arg_to_tuple_if_needed(args.margin)
+    if 'extract' in args.stages:
+        extract_annotations(
+            args.slicer3d_dir,
+            args.rootdir,
+            args.output_dir,
+            args.patch_size,
+            args.downscale
+        )
     if 'prepare' in args.stages:
         prepare(
             args.rootdir,
@@ -220,19 +237,29 @@ def main(args: argparse.Namespace) -> None:
             args.output_dir,
         )
     # + --------------------------------------- TILT ---------------------------------------- + #
-    if 'crop' in args.stages and args.task == 'tilt':
-        pred_path, ext = os.path.splitext(args.predictions)
+    if 'crop' in args.stages:
+        raw_dir = os.path.join(args.rootdir, "raw")
+
+        os.makedirs(raw_dir, exist_ok=True)
+        for image_path in glob(os.path.join(args.slicer3d_dir, '*/*.tif')):
+            image_name = os.path.basename(image_path)
+            shutil.copyfile(image_path, os.path.join(raw_dir, image_name))
+
+        _, ext = os.path.splitext(args.predictions)
         if ext == ".pickle":
             with open(args.predictions, "rb") as f:
                 predictions = pickle.load(f)
             
-            with open(pred_path+".csv", "w") as f:
+            with open(os.path.join(raw_dir, 'predictions.csv'), "w") as f:
                 for image_name in predictions:
                     pred = predictions[image_name]["last_step"]
                     centers = np.stack([(pred[:,3]+pred[:,0])/2, (pred[:,4]+pred[:,1])/2, (pred[:,5]+pred[:,2])/2], axis=1)
+                    centers *= args.downscale
                     centers = np.rint(centers).astype(int)
-                    for center in centers:
+                    for i,center in enumerate(centers):
                         f.write(image_name)
+                        f.write(',')
+                        f.write(str(i))
                         f.write(',')
                         f.write(str(center[2]))
                         f.write(',')
@@ -240,17 +267,26 @@ def main(args: argparse.Namespace) -> None:
                         f.write(',')
                         f.write(str(center[0]))
                         f.write('\n')
-        
-        crop(
-            args.rootdir,
-            args.output_dir,
-            crop_size=args.patch_size,
-            margin=0,
-            pos_ratio=1,
-            positive_only=True,
-            extension=args.extension, 
-            csv_name=pred_path, # picking predictions
-        )
+            
+            shutil.copyfile(os.path.join(args.rootdir, 'coordinates.csv'), os.path.join(raw_dir, 'annotations.csv'))
+            annotations = load_annotations(os.path.join(raw_dir, 'annotations.csv'))
+            annotations[:, 2:] = args.downscale * annotations[:, 2:].astype(float)
+            with open(os.path.join(raw_dir, 'annotations.csv'), "w", newline="") as f:
+                csv.writer(f).writerows(annotations)
+
+            crop(
+                raw_dir,
+                "cropped",
+                crop_size=args.patch_size,
+                margin=0,
+                pos_ratio=1,
+                positive_only=True,
+                extension=args.extension, 
+                csv_name='predictions', # picking predictions
+            )
+
+            create_annotation_image(raw_dir, os.path.join(raw_dir, 'annotations.csv'), args.patch_size, (0,255,0), args.extension)
+            create_annotation_image(raw_dir, os.path.join(raw_dir, 'predictions.csv'), args.patch_size, (255,0,0), args.extension)
 
     if 'train' in args.stages and args.task == 'tilt':
         train_tilt(
