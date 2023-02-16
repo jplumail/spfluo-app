@@ -3,7 +3,7 @@ from glob import glob
 import os
 import shutil
 
-from spfluo.picking.modules.annotating.extract import create_annotation_image
+from .modules.annotating.extract import create_annotation_image
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # Disable tensorflow INFO and WARNING
 import argparse
 import pickle
