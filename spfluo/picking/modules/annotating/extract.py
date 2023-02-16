@@ -1,6 +1,7 @@
 from typing import Optional, Tuple
 from ..utils import load_annotations, load_array
 
+import sys
 import json
 import os
 import shutil
@@ -84,16 +85,16 @@ def extract_annotations(
         # Copy image
         im_path = glob(os.path.join(im_dir, "*.tif")) + glob(os.path.join(im_dir, "*.tiff"))
         if len(im_path) > 1:
-            print("Too many TIF in a directory")
+            print("Too many TIF in a directory", file=sys.stderr)
         if len(im_path) > 0:
-            print(f"Current directory: {os.path.join(slicer3d_dir, d)}")
+            print(f"Current directory: {os.path.join(slicer3d_dir, d)}", file=sys.stdout)
             im_path = im_path[0]
             im_name = os.path.basename(im_path)
             im_outputpath = os.path.join(rootdir, im_name)
-            print(f"Found image {im_path}, copying to {im_outputpath}")
+            print(f"Found image {im_path}, copying to {im_outputpath}", file=sys.stdout)
             shutil.copyfile(im_path, im_outputpath)
             if downscale > 1:
-                print(f"Downscaling with factor {downscale}...")
+                print(f"Downscaling with factor {downscale}...", file=sys.stdout)
                 im = load_array(im_outputpath)
                 im = zoom(im, 1/downscale)
                 tifffile.imwrite(im_outputpath, im)
@@ -101,7 +102,7 @@ def extract_annotations(
             # Process annotations
             ann_paths = glob(os.path.join(im_dir, "*.json"))
             if len(ann_paths) > 0:
-                print(f"Found {len(ann_paths)}, processing...")
+                print(f"Found {len(ann_paths)}, processing...", file=sys.stdout)
                 centers, roi_sizes = read_rois(ann_paths)
                 if downscale > 1:
                     centers = [[c/downscale for c in center] for center in centers]
@@ -115,14 +116,14 @@ def extract_annotations(
     # Infer patch size if not provided
     if patch_size is None:
         ps = int(np.max(list_roi_sizes))
-        print(f"No patch size provided, chosing {ps}.")
+        print(f"No patch size provided, chosing {ps}.", file=sys.stdout)
     else:
         ps = patch_size
         if type(ps) == list:
             ps = max(ps)
 
     # Save annotations
-    print(f"Saving annotations at {os.path.join(rootdir, 'coordinates.csv')}")
+    print(f"Saving annotations at {os.path.join(rootdir, 'coordinates.csv')}", file=sys.stdout)
     with open(os.path.join(rootdir, 'coordinates.csv'), 'w') as f:
         for coord in coordinates:
             f.write(','.join(coord))
