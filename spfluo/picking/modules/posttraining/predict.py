@@ -33,6 +33,8 @@ def load_network(
 def make_patches(image: torch.Tensor, patch_size: Tuple[int], stride: Tuple[int]) -> torch.Tensor:
     pz, py, px = patch_size
     sz, sy, sx = stride
+    # ensures that all the image is covered
+    image = torch.nn.functional.pad(image, (max(patch_size)//2,)*6)
     return image.unfold(0, pz, sz).unfold(1, py, sy).unfold(2, px, sx)
 
 
