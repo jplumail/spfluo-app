@@ -30,18 +30,20 @@ def load_network(
     return network
 
 
-def make_patches(image: torch.Tensor, patch_size: Tuple[int], stride: Tuple[int]) -> torch.Tensor:
+def make_patches(image: torch.Tensor, patch_size: Tuple[int], stride: Tuple[int]) -> Tuple[torch.Tensor,int]:
     pz, py, px = patch_size
     sz, sy, sx = stride
     # ensures that all the image is covered
-    image = torch.nn.functional.pad(image, (max(patch_size)//2,)*6)
-    return image.unfold(0, pz, sz).unfold(1, py, sy).unfold(2, px, sx)
+    padding = max(patch_size)//2
+    image = torch.nn.functional.pad(image, (padding,)*6)
+    return image.unfold(0, pz, sz).unfold(1, py, sy).unfold(2, px, sx), padding
 
 
 def flatten_patch_index_to_image_coord(
     index: int,
     unfold_shape: torch.Size,
-    stride: Tuple[int]
+    stride: Tuple[int],
+    p: int
 ) -> Tuple[int]:
     Z, Y, X, pz, py, px = unfold_shape
     sz, sy, sx = stride
@@ -49,7 +51,7 @@ def flatten_patch_index_to_image_coord(
     yx = index % (Y * X)
     y  = yx // X
     x  = yx % X
-    return z * sz + pz // 2, y * sy + py // 2, x * sx + px // 2
+    return z * sz + pz // 2 - p, y * sy + py // 2 - p, x * sx + px // 2 - p
 
 
 # +------------------------------------------------------------------------------------------+ #
@@ -68,14 +70,14 @@ def predict_one_image_picking(
     predict_on_u_mask: bool=False,
     progress_bar: bool=True,
 ) -> Tuple[np.ndarray]:
-    patches = make_patches(image, patch_size, stride)
+    patches, padding = make_patches(image, patch_size, stride)
     Z, Y, X, pz, py, px = patches.size()
     patches = patches.contiguous().view(-1, pz, py, px)  # flatten
     if predict_on_u_mask:
         # make_u_mask works on numpy array so some casting overhead is required.
         u_mask = make_U_mask(image.numpy())
         u_mask = torch.as_tensor(u_mask, dtype=torch.float32)
-        u_mask_patches = make_patches(u_mask, patch_size, stride)
+        u_mask_patches, _ = make_patches(u_mask, patch_size, stride)
         u_mask_patches = u_mask_patches.contiguous().view(-1, pz, py, px)  # flatten
         filtered_indices = torch.where(u_mask_patches[:, pz // 2, py // 2, px // 2] > 0)[0]
         patches = patches[filtered_indices]
@@ -95,7 +97,7 @@ def predict_one_image_picking(
             patch_index = (i * batch_size + batch_index).item()
             if predict_on_u_mask:
                 patch_index = filtered_indices[patch_index].item()
-            coord = flatten_patch_index_to_image_coord(patch_index, (Z, Y, X, pz, py, px), stride)
+            coord = flatten_patch_index_to_image_coord(patch_index, (Z, Y, X, pz, py, px), stride, padding)
             coords.append(coord)
     # last batch
     if patches.size(0) % batch_size != 0:
@@ -107,7 +109,7 @@ def predict_one_image_picking(
             patch_index = (i * batch_size + batch_index).item()
             if predict_on_u_mask:
                 patch_index = filtered_indices[patch_index].item()
-            coord = flatten_patch_index_to_image_coord(patch_index, (Z, Y, X, pz, py, px), stride)
+            coord = flatten_patch_index_to_image_coord(patch_index, (Z, Y, X, pz, py, px), stride, padding)
             coords.append(coord)
     return np.array(coords), np.array(scores)
 
