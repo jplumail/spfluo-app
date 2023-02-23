@@ -81,7 +81,7 @@ def load_angles(csv_path: str) -> np.ndarray:
     return np.array(data, dtype=object)
 
 
-def center_to_corners(center: Tuple[int], size: Tuple[int]) -> Tuple[int]:
+def center_to_corners(center: Tuple[int], size: Tuple[int], image_size: Tuple[int]) -> Tuple[int]:
     depth, height, width = size
     center_z, center_y, center_x = center
     z_min = center_z - depth // 2
@@ -90,6 +90,9 @@ def center_to_corners(center: Tuple[int], size: Tuple[int]) -> Tuple[int]:
     z_max = z_min + depth
     y_max = y_min + height
     x_max = x_min + width
+    D, H, W = image_size
+    x_min, y_min, z_min = max(x_min, 0), max(y_min, 0), max(z_min, 0)
+    x_max, y_max, z_max = min(x_max, W), min(y_max, H), min(z_max, D)
     return x_min, y_min, z_min, x_max, y_max, z_max
 
 

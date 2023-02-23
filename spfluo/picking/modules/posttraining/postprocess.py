@@ -182,7 +182,7 @@ def center_of_mass_correction(bbox: np.ndarray, image: np.ndarray) -> np.ndarray
     center_relative = get_center_of_mass(crop)  # coordinates inside the crop
     center_absolute = np.array(center_relative) + np.array((z_min, y_min, x_min))
     depth, height, width = z_max - z_min, y_max - y_min, x_max - x_min
-    corners = center_to_corners(center_absolute, (depth, height, width))
+    corners = center_to_corners(center_absolute, (depth, height, width), image.shape)
     return np.array(corners)
 
 
@@ -206,7 +206,7 @@ def iterative_center_of_mass_correction(
         depth, height, width = z_max - z_min, y_max - y_min, x_max - x_min
         # stop and revert previous step if new center is too close to the border
         if x_min < 0 or y_min < 0 or z_min < 0 or x_max > w or y_max > h or z_max > d:
-            bbox = center_to_corners(old_center, (depth, height, width))
+            bbox = center_to_corners(old_center, (depth, height, width), image.shape)
             break
         # update state
         new_center = np.array((z_min + depth // 2, y_min + height // 2, x_min + width // 2))
@@ -422,8 +422,8 @@ def postprocess(
     results = {}
     for image_name in tqdm(images_names):
         centers, scores = predictions[image_name]
-        corners = np.array([center_to_corners(center, patch_size) for center in centers])
         image = load_array(os.path.join(rootdir, image_name))
+        corners = np.array([center_to_corners(center, patch_size, image.shape) for center in centers])
         results[image_name] = postprocess_one_image(image, corners, scores, **postprocess_kwargs)
     if output_dir is not None:
         with open(os.path.join(output_dir, 'raw_predictions.pickle'), 'wb') as file:
