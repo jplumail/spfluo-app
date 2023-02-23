@@ -242,7 +242,8 @@ def center_of_mass_correction_on_all_bboxes(
     corrected_boxes = []
     for bbox in boxes:
         corrected_bbox = correction(bbox, image, **correction_kwargs)
-        corrected_boxes.append(corrected_bbox)
+        if not np.isnan(corrected_bbox).any():
+            corrected_boxes.append(corrected_bbox)
     return np.array(corrected_boxes)
 
 
