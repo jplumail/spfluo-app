@@ -178,7 +178,7 @@ def center_of_mass_correction(bbox: np.ndarray, image: np.ndarray) -> np.ndarray
         np.ndarray: New recentered bbox (x_min, y_min, z_min, x_max, y_max, z_max).
     """
     x_min, y_min, z_min, x_max, y_max, z_max = bbox.round().astype(int)
-    crop = image[z_min:z_max, y_min:y_max, x_min:x_max]
+    crop = image[max(0,z_min):z_max, max(0,y_min):y_max, max(0,x_min):x_max]
     center_relative = get_center_of_mass(crop)  # coordinates inside the crop
     center_absolute = np.array(center_relative) + np.array((z_min, y_min, x_min))
     depth, height, width = z_max - z_min, y_max - y_min, x_max - x_min
