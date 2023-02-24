@@ -19,7 +19,7 @@ dependencies = [
   "torchvision",
   "pynvml",
   "psutil",
-  "matplotlib
+  "matplotlib"
 ]
 version = "0.0.1"
 authors = [
