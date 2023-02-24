@@ -16,7 +16,8 @@ dependencies = [
   "tensorboard",
   "cucim",
   "torch",
-  "torchvision"
+  "torchvision",
+  "pynvml"
 ]
 version = "0.0.1"
 authors = [
