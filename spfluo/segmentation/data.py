@@ -1099,11 +1099,9 @@ class _RepeatSampler(object):
         while True:
             yield from iter(self.sampler)
 
-import napari
-from torch.utils.data import DataLoader
-
 if __name__ == '__main__':
-    #torch.multiprocessing.set_start_method('spawn')
+    import napari
+    from torch.utils.data import DataLoader
         
     pc_path = "/data1/stage_Luc/inputs/sample_centriole_point_cloud.csv"
     ds = GeneratorDataset(ISIMGenerator(), 1000)
