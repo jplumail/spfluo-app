@@ -9,6 +9,11 @@ Pipeline :
 4. [refinement](spfluo/refinement/)
 
 ## Installation
+Depending on your CUDA install (check [cupy installation page](https://docs.cupy.dev/en/stable/install.html#installing-cupy)) :
+```bash
+pip install cupy-cudaXXX
+```
+
 ```bash
 git clone https://github.com/dfortun2/SPFluo_stage_reconstruction_symmetryC
 ```
@@ -17,11 +22,6 @@ git clone https://github.com/dfortun2/SPFluo_stage_reconstruction_symmetryC
 cd SPFluo_stage_reconstruction_symmetryC
 pip install .
 ```
-
-### Optional dependencies
-
-- [Pytorch](https://pytorch.org/)
-
 
 ### To-Do
 
