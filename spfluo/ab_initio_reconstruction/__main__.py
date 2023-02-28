@@ -4,7 +4,6 @@ from spfluo.ab_initio_reconstruction.common_image_processing_methods.others impo
 
 import argparse
 import numpy as np
-import napari
 
 
 def parse_args():
