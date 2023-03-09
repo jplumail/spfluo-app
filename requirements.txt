@@ -1,0 +1,5 @@
+scipion-pyworkflow
+scipion-em
+scipion-em-tomo
+numpy
+scipy
