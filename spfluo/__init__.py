@@ -10,6 +10,7 @@
 # **************************************************************************
 
 import os
+import subprocess
 import pyworkflow.utils as pwutils
 import pwem
 
@@ -74,7 +75,12 @@ class Plugin(pwem.Plugin):
         ]
 
         # Install Cupy (the right version)
-        cuda_version = cls.guessCudaVersion(SPFLUO_CUDA_LIB)
+        cuda_version = cls.guessCudaVersion(SPFLUO_CUDA_LIB, default="10.1")
+        if cuda_version.major == 10 and cuda_version.minor == 1: # Default version returned by guessCudaVersion
+            # Maybe the SPFLUO_CUDA_LIB path doesn't contain the version
+            result = subprocess.check_output("nvcc --version", shell=True, text=True)
+            cuda_version_str = result.split('\n')[3].split(', ')[1].split(' ')[1]
+            cuda_version = cls.guessCudaVersion(SPFLUO_CUDA_LIB, default=cuda_version_str) # gets the default cuda version
         if cuda_version.major == 10 and cuda_version.minor == 2:
             cupy_version = 'cupy-cuda102'
         elif cuda_version.major == 11:
