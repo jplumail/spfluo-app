@@ -2,7 +2,6 @@ from pwem.objects.data import Volume
 from pwem.constants import (NO_INDEX, ALIGN_NONE, ALIGN_2D, ALIGN_3D,
                             ALIGN_PROJ, ALIGNMENTS)
 from pyworkflow.object import Integer, Float, String, Pointer, Boolean, CsvList, Object, Scalar, Set
-from xmipptomo.protocols import protocol_phantom_tomo
 
 import os
 import numpy as np

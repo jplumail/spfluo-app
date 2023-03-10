@@ -47,6 +47,7 @@ class ProtSPFluoPickingPredict(ProtTomoPicking):
         self.output_dir = os.path.abspath(self._getExtraPath(PICKING_WORKING_DIR))
         self.test_dir = os.path.join(self.output_dir, "images")
         self.inputImages = self.inputTomograms.get()
+        self.image_paths = {}
 
         self._insertFunctionStep(self.prepareStep)
         self._insertFunctionStep(self.predictStep)
@@ -58,7 +59,6 @@ class ProtSPFluoPickingPredict(ProtTomoPicking):
             os.makedirs(self.test_dir, exist_ok=True)
         
         # Image links
-        self.image_paths = {}
         for im in self.inputImages:
             im_path = os.path.abspath(im.getFileName())
             ext = os.path.splitext(im_path)[1]
@@ -134,6 +134,7 @@ class ProtSPFluoPickingPredict(ProtTomoPicking):
         with open(os.path.abspath(pickleFile), 'rb') as f:
             preds = pickle.load(f)
         
+        print(self.image_paths.keys())
         for image in setOfImages.iterItems():
             if self.image_paths[image.getBaseName()] in preds:
                 boxes = preds[self.image_paths[image.getBaseName()]]['last_step']
