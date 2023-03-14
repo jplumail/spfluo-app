@@ -129,6 +129,7 @@ class ProtSPFluoAbInitio(Protocol, ProtTomoBase):
         gpu = self._GPU_libraries[self.gpu.get()]
         if gpu != 'no':
             args += [f'--gpu {gpu}']
+            args += ['--interp_order 1']
         args = " ".join(args)
         print("Launching reconstruction")
         Plugin.runSPFluo(self, Plugin.getProgram(AB_INITIO_MODULE), args=args)
