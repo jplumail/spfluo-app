@@ -113,14 +113,15 @@ class ProtSPFluoPickingTrain(Protocol):
         form.addParam(
             'swa',
             params.BooleanParam,
-            label='Enable Stohastic Weight Averaging',
-            default=True
+            label='Enable SWA',
+            default=True,
+            help='Stochastic Weight Averaging'
         )
         form.addParam(
             'swa_lr',
             params.FloatParam,
             condition='swa',
-            label='Enable Stohastic Weight Averaging',
+            label='SWA learning rate',
             default=1e-5
         )
         # PU learning params
