@@ -110,6 +110,19 @@ class ProtSPFluoPickingTrain(Protocol):
             label='Shuffle samples at each epoch',
             default=True
         )
+        form.addParam(
+            'swa',
+            params.BooleanParam,
+            label='Enable Stohastic Weight Averaging',
+            default=True
+        )
+        form.addParam(
+            'swa_lr',
+            params.FloatParam,
+            condition='swa',
+            label='Enable Stohastic Weight Averaging',
+            default=1e-5
+        )
         # PU learning params
         form.addParam(
             'radius',
@@ -195,6 +208,8 @@ class ProtSPFluoPickingTrain(Protocol):
             args += [f"--num_particles_per_image {self.num_particles_per_image.get()}"]
         if self.shuffle.get():
             args += ["--shuffle"]
+        if self.swa.get():
+            args += ["--swa", f"--swa_lr {self.swa_lr.get()}"]
         args = " ".join(args)
         Plugin.runSPFluo(self, Plugin.getProgram(PICKING_MODULE), args=args)
     
