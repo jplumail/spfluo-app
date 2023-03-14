@@ -9,8 +9,10 @@ dim = 3
 
 # Train
 epochs = 5
-epoch_size = 10
+epoch_size = 20
 batch_size = 128
+radius = 15
+n_particles_per_image = 35
 
 # Predict
 stride = 10
@@ -21,7 +23,7 @@ if os.path.exists(output_picking):
 base_command = f"python -m spfluo.picking --rootdir {rootdir} --output_dir {output_picking} --patch_size {patch_size} --ext {ext} --dim {dim}"
 os.system(base_command+" --stages prepare --crop_output_dir cropped")
 #os.system(base_command+f" --stages train --mode fs --num_epochs {epochs} --batch_size 8 --num_workers 4 --augment 0.8")
-os.system(base_command+f" --stages train --mode pu --epoch_size {epoch_size} --radius 10 --num_particles_per_image 35 --num_epochs {epochs} --batch_size {batch_size} --num_workers 8 --augment 0.8")
+os.system(base_command+f" --stages train --shuffle --mode pu --epoch_size {epoch_size} --radius {radius} --num_particles_per_image {n_particles_per_image} --num_epochs {epochs} --batch_size {batch_size} --num_workers 8 --augment 0.8")
 os.system(base_command+f" --stages predict --testdir {images_dir} --checkpoint {os.path.join(output_picking,'checkpoint.pt')} --stride {stride}")
 os.system(base_command+f" --stages postprocess --testdir {images_dir} --predictions {os.path.join(output_picking, 'predictions.pickle')} --stride {stride}")
 
