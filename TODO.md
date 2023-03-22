@@ -9,3 +9,8 @@
 - Ajouter paramètres avancés
 
 - Pouvoir supprimer des particules après inférence
+
+- Installation trop longue ! Pouvoir se passer de Xmipp et de EMAN serait bien. Récupérer le code pour l'inclure dans notre repo ?
+
+- Bugs en tout genre :
+  - nom de fichier avec espaces crash à l'import
