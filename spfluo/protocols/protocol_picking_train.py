@@ -52,90 +52,97 @@ class ProtSPFluoPickingTrain(Protocol):
     # -------------------------- DEFINE param functions ----------------------
     def _defineParams(self, form):
         form.addSection(label="Data params")
-        form.addParam('inputImages', params.PointerParam, pointerClass='SetOfTomograms',
-                      label="Images", important=True,
-                      help='Select the input images.')
-        form.addParam(
+        group = form.addGroup("Input")
+        group.addParam(
             'inputCoordinates', params.PointerParam, pointerClass='SetOfCoordinates3D',
             label='Annotations 3D coordinates', important=True
         )
-        form.addSection(label="Training params")
         form.addParam(
-            'train_val_split',
-            params.FloatParam,
-            default=0.7,
-            label="Train/val split",
-            help="By default 70% of the data is in the training set"
+            'pu',
+            params.BooleanParam,
+            label='Positive Unlabelled learning',
+            default=True,
+            expertLevel=params.LEVEL_ADVANCED
         )
-        form.addParam(
-            'patch_size',
+        group = form.addGroup("PU params", condition='pu')
+        group.addParam(
+            'num_particles_per_image',
             params.IntParam,
-            default=16,
-            label="Size of the patches",
-            help="The patch should be as small as possible, to not overlap with an adjacent particle"
+            default=None,
+            condition='pu',
+            label='Number of particles per image',
         )
-        form.addParam(
-            'mode',
-            params.StringParam,
-            label='Can be fs or pu',
-            default='pu'
-        )
-        form.addParam(
-            'batch_size',
+        group.addParam(
+            'radius',
             params.IntParam,
-            label='Batch size',
-            default=128
+            default=None,
+            condition='pu',
+            label='Radius',
+            expertLevel=params.LEVEL_ADVANCED,
+            allowsNull=True
         )
-        form.addParam(
-            'epoch_size',
-            params.IntParam,
-            label='epoch size',
-            default=100
-        )
-        form.addParam(
-            'num_epochs',
-            params.IntParam,
-            label='num epochs',
-            default=100
-        )
+        form.addSection(label="Advanced", expertLevel=params.LEVEL_ADVANCED)
         form.addParam(
             'lr',
             params.FloatParam,
             label='Learning rate',
-            default=1e-3
+            default=1e-3,
         )
-        form.addParam(
+        group = form.addGroup("Data params")
+        group.addParam(
+            'train_val_split',
+            params.FloatParam,
+            default=0.7,
+            label="Train/val split",
+            help="By default 70% of the data is in the training set",
+        )
+        group.addParam(
+            'batch_size',
+            params.IntParam,
+            label='Batch size',
+            default=128,
+        )
+        group.addParam(
+            'epoch_size',
+            params.IntParam,
+            label='epoch size',
+            default=20,
+        )
+        group.addParam(
+            'num_epochs',
+            params.IntParam,
+            label='num epochs',
+            default=5,
+        )
+        group.addParam(
             'shuffle',
             params.BooleanParam,
             label='Shuffle samples at each epoch',
-            default=True
+            default=True,
         )
+        group.addParam(
+            'augment',
+            params.FloatParam,
+            label='Augment rate',
+            default=0.8,
+        )
+        # SWA
         form.addParam(
             'swa',
             params.BooleanParam,
             label='Enable SWA',
             default=True,
-            help='Stochastic Weight Averaging'
+            help='Stochastic Weight Averaging',
+            expertLevel=params.LEVEL_ADVANCED
         )
-        form.addParam(
+        group = form.addGroup("SWA params", condition='swa')
+        group.addParam(
             'swa_lr',
             params.FloatParam,
             condition='swa',
             label='SWA learning rate',
-            default=1e-5
-        )
-        # PU learning params
-        form.addParam(
-            'radius',
-            params.FloatParam,
-            condition='mode==\'pu\'',
-            label='Radius of 1 particle'
-        )
-        form.addParam(
-            'num_particles_per_image',
-            params.IntParam,
-            condition='mode==\'pu\'',
-            label='Number of particles per image'
+            default=1e-5,
+            expertLevel=params.LEVEL_ADVANCED
         )
     
     # --------------------------- STEPS functions ------------------------------
@@ -152,7 +159,8 @@ class ProtSPFluoPickingTrain(Protocol):
         os.makedirs(os.path.join(self.rootDir, 'val'), exist_ok=True)
 
         # Image links
-        for im in self.inputImages.get():
+        images = set([coord.getVolume() for coord in self.inputCoordinates.get().iterCoordinates()])
+        for im in images:
             im_path = os.path.abspath(im.getFileName())
             ext = os.path.splitext(im_path)[1]
             im_name = im.getTsId()
@@ -162,8 +170,8 @@ class ProtSPFluoPickingTrain(Protocol):
                 convert_to_tif(im_path, im_newPath)
             else:
                 os.link(im_path, im_newPath)
-            for set in ["train", "val"]:
-                im_newPathSet = os.path.join(self.rootDir, set, im_name+'.tif')
+            for s in ["train", "val"]:
+                im_newPathSet = os.path.join(self.rootDir, s, im_name+'.tif')
                 if not os.path.exists(im_newPathSet):
                     print(f"Link {im_newPath} -> {im_newPathSet}")
                     os.link(im_newPath, im_newPathSet)
@@ -192,21 +200,28 @@ class ProtSPFluoPickingTrain(Protocol):
         write_csv(os.path.join(self.rootDir, 'val', 'val_coordinates.csv'), val_annotations)
 
     def trainStep(self):
+        ps = self.inputCoordinates.get().getBoxSize()
         args = [
             f"--stages train",
             f"--batch_size {self.batch_size.get()}",
             f"--rootdir {self.rootDir}",
             f"--output_dir {self.pickingPath}",
-            f"--patch_size {self.patch_size.get()}",
-            f"--mode {self.mode.get()}",
+            f"--patch_size {ps}",
             f"--epoch_size {self.epoch_size.get()}",
             f"--num_epochs {self.num_epochs.get()}",
             f"--lr {self.lr.get()}",
-            f"--extension tif"
+            f"--extension tif",
+            f"--augment {self.augment.get()}"
         ]
-        if self.mode.get() == 'pu':
-            args += [f"--radius {int(self.radius.get())}"]
+        if self.pu:
+            args += [f"--mode pu"]
+            if self.radius.get() is None:
+                args += [f"--radius {ps//2}"]
+            else:
+                args += [f"--radius {self.radius.get()}"]
             args += [f"--num_particles_per_image {self.num_particles_per_image.get()}"]
+        else:
+            args += ["--mode fs"]
         if self.shuffle.get():
             args += ["--shuffle"]
         if self.swa.get():
