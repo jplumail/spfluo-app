@@ -34,12 +34,10 @@ class ProtSPFluoPickingPredict(ProtTomoPicking):
         #              help='Select the input images.')
         form.addParam('patchSize', params.StringParam, label="Patch size",
                       help="Patch size in the form 'pz py px'")
-        form.addParam('stride', params.IntParam, label="Stride", default=1,
-                      help="Stride of the sliding window")
+        form.addParam('stride', params.IntParam, label="Stride", default=12,
+                      help="Stride of the sliding window. Prefere something around patch_size/2. Small values might cause Out Of Memory errors !")
         form.addParam('batch_size', params.IntParam, label="Batch size", default=1,
                       help="Batch size during inference")
-        form.addParam('predictOnUMask', params.BooleanParam, label='Predict on U-Masks',
-                      help='Predict on U-Masks (might be longer)')
 
     
     def _insertAllSteps(self):
@@ -92,7 +90,7 @@ class ProtSPFluoPickingPredict(ProtTomoPicking):
             f"--stride {self.stride.get()}",
             f"--extension tif",
         ]
-        if self.predictOnUMask.get():
+        if self.trainRun.pu.get():
             args += [f"--predict_on_u_mask"]
         args = " ".join(args)
         Plugin.runSPFluo(self, Plugin.getProgram(PICKING_MODULE), args=args)
@@ -106,6 +104,7 @@ class ProtSPFluoPickingPredict(ProtTomoPicking):
             f"--output_dir {self.output_dir}",
             f"--stride {self.stride.get()}",
             f"--extension tif",
+            f"--iterative",
         ]
         if self.patchSize.get():
             args += f"--patch_size {self.patchSize.get()}",
