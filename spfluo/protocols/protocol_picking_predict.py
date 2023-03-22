@@ -48,6 +48,10 @@ class ProtSPFluoPickingPredict(ProtTomoPicking):
         self.test_dir = os.path.join(self.output_dir, "images")
         self.inputImages = self.inputTomograms.get()
         self.image_paths = {}
+        for im in self.inputImages:
+            im_name = im.getTsId()
+            im_newPath = os.path.join(self.test_dir, im_name+'.tif')
+            self.image_paths[im.getBaseName()] = os.path.basename(im_newPath)
 
         self._insertFunctionStep(self.prepareStep)
         self._insertFunctionStep(self.predictStep)
@@ -64,7 +68,6 @@ class ProtSPFluoPickingPredict(ProtTomoPicking):
             ext = os.path.splitext(im_path)[1]
             im_name = im.getTsId()
             im_newPath = os.path.join(self.test_dir, im_name+'.tif')
-            self.image_paths[im.getBaseName()] = os.path.basename(im_newPath)
             if ext != '.tif' and ext != '.tiff':
                 print(f"Convert {im_path} to TIF in {im_newPath}")
                 convert_to_tif(im_path, im_newPath)
@@ -117,33 +120,39 @@ class ProtSPFluoPickingPredict(ProtTomoPicking):
             if not hasattr(self, outputname):
                 suffix = "user%s" % count
                 break
-        setFnCoords = self._getPath('coordinates%s.sqlite' % suffix)
-        # Close the connection to the database if
-        # it is open before deleting the file
-        pwutils.cleanPath(setFnCoords)
-        coordSet = tomoobj.SetOfCoordinates3D(filename=setFnCoords)
-        setOfImages = self.inputImages
-        coordSet.setPrecedents(setOfImages)
-
-        boxsize = self.trainRun.inputCoordinates.get().getBoxSize()
-        coordSet.setBoxSize(boxsize)
-        coordSet.setName("predCoord")
-        coordSet.setSamplingRate(setOfImages.getSamplingRate())
 
         pickleFile = self._getExtraPath("picking", "predictions.pickle")
         with open(os.path.abspath(pickleFile), 'rb') as f:
             preds = pickle.load(f)
         
-        print(self.image_paths.keys())
+        setOfImages = self.inputImages
+        coordSets = {}
+        for k in preds[self.image_paths[next(setOfImages.iterItems()).getBaseName()]]:
+            setFnCoords = self._getPath(k+'_coordinates%s.sqlite' % suffix)
+            # Close the connection to the database if
+            # it is open before deleting the file
+            pwutils.cleanPath(setFnCoords)
+            coordSet = tomoobj.SetOfCoordinates3D(filename=setFnCoords)
+            coordSet.setPrecedents(setOfImages)
+
+            boxsize = self.trainRun.inputCoordinates.get().getBoxSize()
+            coordSet.setBoxSize(boxsize)
+            coordSet.setName("predCoord")
+            coordSet.setSamplingRate(setOfImages.getSamplingRate())
+            coordSets[k] = coordSet
         for image in setOfImages.iterItems():
             if self.image_paths[image.getBaseName()] in preds:
-                boxes = preds[self.image_paths[image.getBaseName()]]['last_step']
-                readSetOfCoordinates3D(boxes, coordSet, image, origin=tomo.constants.SCIPION)
+                for k in preds[self.image_paths[image.getBaseName()]]:
+                    boxes = preds[self.image_paths[image.getBaseName()]][k]
+                    readSetOfCoordinates3D(boxes, coordSets[k], image, origin=tomo.constants.SCIPION)
         
         # Subsets do not have this
-        outputname = self.OUTPUT_PREFIX + suffix
-        self._defineOutputs(**{outputname: coordSet})
-        self._defineRelation(pwobj.RELATION_SOURCE, setOfImages, coordSet)
+        for k in coordSets:
+            if k != 'raw':
+                coordSet = coordSets[k]
+                outputname = self.OUTPUT_PREFIX + "_" + k + "_" + suffix
+                self._defineOutputs(**{outputname: coordSet})
+                self._defineRelation(pwobj.RELATION_SOURCE, setOfImages, coordSet)
 
         
 def readSetOfCoordinates3D(boxes, coord3DSet, inputImage, updateItem=None,
