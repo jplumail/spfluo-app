@@ -262,8 +262,8 @@ class Trainset(Dataset):
     def __init__(self, images: Tuple[np.ndarray], labels: Tuple[np.ndarray],
                  patch_size: Tuple[int], dim: int, augment: float, training: bool) -> None:
         super().__init__()
-        self.images     = np.pad(images, ((0,0),)+tuple([(p//2,p//2) for p in patch_size]))
-        self.labels     = labels
+        self.images = images
+        self.labels = labels
         self.patch_size = patch_size
         self.dim        = dim
         self.augment    = get_augment_policy(patch_size, p=augment, dim=dim)
@@ -281,7 +281,6 @@ class Trainset(Dataset):
     def get_patch_slices(self, shape, z, y, x) -> Tuple[int]:
         d, h, w = self.patch_size
         D, H, W = shape
-        z, y, x = z + self.patch_size[0]//2, y + self.patch_size[1]//2, x + self.patch_size[2]//2
         z_min, y_min, x_min = z - d // 2, y - h // 2, x - w // 2
         z_min, y_min, x_min = max(0, z_min), max(0, y_min), max(0, x_min)
         z_max, y_max, x_max = z_min + d, y_min + h, x_min + w
