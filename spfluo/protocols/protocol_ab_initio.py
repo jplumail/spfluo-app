@@ -74,6 +74,10 @@ class ProtSPFluoAbInitio(Protocol, ProtTomoBase):
         form.addParam('inputPSF', params.PointerParam, pointerClass='SetOfTomograms',
                       label="PSF", important=True,
                       help='Select the PSF.')
+        form.addParam('voxelSizeZ', params.FloatParam,
+                      label="Voxel size Z", default=1.)
+        form.addParam('voxelSizeXY', params.FloatParam,
+                      label="Voxel size XY", default=1.)
         form.addParam('gpu', params.EnumParam, choices=self._GPU_libraries,
                        display=params.EnumParam.DISPLAY_LIST,
                        label='GPU Library')
@@ -97,11 +101,16 @@ class ProtSPFluoAbInitio(Protocol, ProtTomoBase):
             os.makedirs(self.particlesDir, exist_ok=True)
 
         # Image links for particles
-        for im in self.inputParticles.get():
+        particles_paths = []
+        inputParticles : SetOfSubTomograms = self.inputParticles.get()
+        max_dim = 0
+        for im in inputParticles:
+            max_dim = max(max_dim, max(im.getDim()))
             im_path = os.path.abspath(im.getFileName())
             ext = os.path.splitext(im_path)[1]
             im_name = im.getNameId()
             im_newPath = os.path.join(self.particlesDir, im_name+'.tif')
+            particles_paths.append(im_newPath)
             if ext != '.tif' and ext != '.tiff':
                 print(f"Convert {im_path} to TIF in {im_newPath}")
                 convert_to_tif(im_path, im_newPath)
@@ -117,7 +126,39 @@ class ProtSPFluoAbInitio(Protocol, ProtTomoBase):
             convert_to_tif(psf_path, self.psfPath)
         else:
             os.link(psf_path, self.psfPath)
+        
+        # Make isotropic
+        input_paths = particles_paths + [self.psfPath]
+        args = ["-f isotropic_resample"]
+        args += ["-i"] + input_paths
+        folder_isotropic = os.path.abspath(self._getExtraPath('isotropic'))
+        if not os.path.exists(folder_isotropic):
+            os.makedirs(folder_isotropic, exist_ok=True)
+        args += [f"-o {folder_isotropic}"]
+        args += [f"--spacing {self.voxelSizeZ} {self.voxelSizeXY} {self.voxelSizeXY}"]
+        args = ' '.join(args)
+        Plugin.runSPFluo(self, Plugin.getProgram(UTILS_MODULE), args=args)
 
+        # Resize
+        folder_resized = os.path.abspath(self._getExtraPath('isotropic_cropped'))
+        if not os.path.exists(folder_resized):
+            os.makedirs(folder_resized, exist_ok=True)
+        input_paths = [os.path.join(folder_isotropic, f) for f in os.listdir(folder_isotropic)]
+        args = ["-f resize"]
+        args += ["-i"] + input_paths
+        args += [f"--size {int(max_dim*2*(2**0.5))+1}"]
+        args += [f"-o {folder_resized}"]
+        args = ' '.join(args)
+        Plugin.runSPFluo(self, Plugin.getProgram(UTILS_MODULE), args=args)
+
+        # Links
+        os.remove(self.psfPath)
+        for p in particles_paths: os.remove(p)
+        # Link to psf
+        os.link(os.path.join(folder_resized, os.path.basename(self.psfPath)), self.psfPath)
+        # Links to particles
+        for p in particles_paths:
+            os.link(os.path.join(folder_resized, os.path.basename(p)), p)
 
     def reconstructionStep(self):
         args = [
