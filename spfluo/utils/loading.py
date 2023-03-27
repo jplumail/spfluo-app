@@ -4,13 +4,14 @@ import random
 import imageio
 import numpy as np
 from typing import Tuple, Dict
+import tifffile
 import torch
 from tqdm.auto import tqdm
+from scipy import ndimage
+from spfluo.ab_initio_reconstruction.common_image_processing_methods.others import crop_center
 
-from utils import pad_to_size
 
-
-def load_data(rootdir, crop_size=None, extension='.tiff'):
+"""def load_data(rootdir, crop_size=None, extension='.tiff'):
 
     views, patches_names = load_views(os.path.join(rootdir, "views.csv"), extension=extension)
     ann = load_annotations(os.path.join(rootdir, 'coordinates.csv'))
@@ -40,7 +41,7 @@ def load_data(rootdir, crop_size=None, extension='.tiff'):
     psf = load_array(os.path.join(rootdir, 'psf.tif'))
 
     return patches, coords, angles, views, poses, psf
-
+"""
 
 def seed_all(seed_numpy: bool=True) -> None:
     """ For reproductibility.
@@ -234,3 +235,42 @@ def reframe_corners_if_needed(
     z_max, y_max, x_max = min(D, z_max), min(H, y_max), min(W, x_max)
     #z_min, y_min, x_min = z_max - d, y_max - h, x_max - w
     return x_min, y_min, z_min, x_max, y_max, z_max
+
+
+def get_spacing(im_path: str) -> Tuple[Tuple[float], str]:
+    """
+    Returns spacing (inverse of resolution) in x,y,z directions and unit (usually microns)
+    """
+    tif = tifffile.TiffFile(im_path)
+    if tif.is_imagej:
+        meta = tif.imagej_metadata
+        res = tif.pages[0].resolution
+        xy_spacing = (1 / res[0], 1 / res[1])
+        z_spacing = float(meta['spacing'])
+        spacing = xy_spacing + (z_spacing,)
+        unit = meta["unit"]
+    elif tif.is_ome:
+        import xml.etree.ElementTree as ET
+        root = ET.fromstring(tif.ome_metadata)
+        metadata = root[1][1].attrib
+        spacing = (float(metadata["PhysicalSizeX"]), float(metadata["PhysicalSizeY"]), float(metadata["PhysicalSizeZ"]))
+        unit = metadata['PhysicalSizeZUnit']
+    return spacing, unit
+
+
+def isotropic_resample(im_paths: str, folder_path: str) -> None:
+    spacings = np.array([get_spacing(p)[0] for p in im_paths])
+    best_spacing = spacings.min()
+    zooms = spacings / best_spacing
+    os.makedirs(folder_path)
+    for im_path, zoom in zip(im_paths, zooms):
+        im = tifffile.imread(im_path)
+        im_resampled = ndimage.zoom(im, zoom[::-1])
+        tifffile.imwrite(os.path.join(folder_path, os.path.basename(im_path)), im_resampled)
+
+
+def resize(im_paths: str, size: int, folder_path: str):
+    for im_path in im_paths:
+        im = tifffile.imread(im_path)
+        im_resized = crop_center(im, (size,)*3)
+        tifffile.imwrite(os.path.join(folder_path, os.path.basename(im_path)), im_resized)
