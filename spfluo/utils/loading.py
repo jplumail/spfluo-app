@@ -255,14 +255,20 @@ def get_spacing(im_path: str) -> Tuple[Tuple[float], str]:
         metadata = root[1][1].attrib
         spacing = (float(metadata["PhysicalSizeX"]), float(metadata["PhysicalSizeY"]), float(metadata["PhysicalSizeZ"]))
         unit = metadata['PhysicalSizeZUnit']
+    else:
+        return None, None
     return spacing, unit
 
 
-def isotropic_resample(im_paths: str, folder_path: str) -> None:
-    spacings = np.array([get_spacing(p)[0] for p in im_paths])
-    best_spacing = spacings.min()
+def isotropic_resample(im_paths: str, folder_path: str, spacing=None) -> None:
+    if spacing is None:
+        spacings = np.array([get_spacing(p)[0] for p in im_paths], dtype=float)
+        best_spacing = spacings.min()
+    else:
+        spacings = np.ones((len(im_paths), 3))
+        spacings[:] = np.array(spacing)
     zooms = spacings / best_spacing
-    os.makedirs(folder_path)
+    os.makedirs(folder_path, exist_ok=True)
     for im_path, zoom in zip(im_paths, zooms):
         im = tifffile.imread(im_path)
         im_resampled = ndimage.zoom(im, zoom[::-1])
