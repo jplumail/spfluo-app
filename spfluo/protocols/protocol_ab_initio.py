@@ -83,6 +83,9 @@ class ProtSPFluoAbInitio(Protocol, ProtTomoBase):
                        label='GPU Library')
         form.addSection(label="Reconstruction params")
         form.addParam('numIterMax', params.IntParam, default=20, label="Max number of epochs")
+        form.addParam('N_axes', params.IntParam, default=25, label="N axes", expertLevel=params.LEVEL_ADVANCED)
+        form.addParam('N_rot', params.IntParam, default=20, label="N rot", expertLevel=params.LEVEL_ADVANCED)
+        form.addParam('lr', params.FloatParam, default=0.1, label="learning rate", expertLevel=params.LEVEL_ADVANCED)
     
     # --------------------------- STEPS functions ------------------------------
     def _insertAllSteps(self):
@@ -166,6 +169,9 @@ class ProtSPFluoAbInitio(Protocol, ProtTomoBase):
             f"--psf_path {self.psfPath}",
             f"--output_dir {self.outputDir}",
             f"--N_iter_max {self.numIterMax.get()}",
+            f"--lr {self.lr.get()}",
+            f"--N_axes {self.N_axes.get()}",
+            f"--N_rot {self.N_rot.get()}",
         ]
         gpu = self._GPU_libraries[self.gpu.get()]
         if gpu != 'no':
