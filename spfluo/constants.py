@@ -9,6 +9,7 @@ SPFLUO_ACTIVATION_CMD = f'conda activate {getSPFluoEnvName(SPFLUO_VERSION)}'
 PICKING_MODULE = "picking"
 AB_INITIO_MODULE = "ab_initio_reconstruction"
 REFINEMENT_MODULE = "refinement"
+UTILS_MODULE = "utils"
 
 PICKING_WORKING_DIR = "picking"
 CROPPING_SUBDIR = "cropped"
