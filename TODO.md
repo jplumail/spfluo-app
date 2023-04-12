@@ -52,8 +52,8 @@ Estimation PSF
     ou comme un second terme dans la reconstuction ab initio
 
 ## Plugin imageJ
-- Symétrisation Paul multichannel
-- Symétrisation Denis
+- Symétrisation Paul : centrioleJ + multicanaux
+- Symétrisation Denis : raffinement
 - reconstruction ab initio à partir d'un petit nombre de particules
 
 ## Evaluation
