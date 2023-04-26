@@ -21,7 +21,7 @@ def crop_center(image, size):
         else:
             padding.append((0,0))
     padding = tuple(padding)
-    image = np.pad(image, padding, mode='linear_ramp')
+    image = np.pad(image, padding, mode='constant')
     size = np.array(size)
     c = [image.shape[0]//2, image.shape[1]//2, image.shape[2]//2]
     cropped = image[c[0]-size[0]//2:c[0]+size[0]//2, c[1]-size[1]//2:c[1]+size[1]//2, c[2]-size[2]//2:c[2]+size[2]//2]
