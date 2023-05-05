@@ -1,6 +1,7 @@
 import math
-from typing import Callable, Iterable, List, Literal, Optional, Tuple, Union
-from pyworkflow.object import Integer, Float, String, Pointer, Boolean, CsvList, Object, Scalar, Set # type: ignore
+from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple, Union
+from pyworkflow.object import Integer, String, Pointer, CsvList, Object, Scalar, Set, Boolean # type: ignore
+import pyworkflow.utils as pwutils # type: ignore
 
 import os
 import numpy as np
@@ -452,6 +453,9 @@ class Image(Object):
         filePaths.add(self.getFileName())
         return filePaths
 
+class PSFModel(Image):
+    """ Represents a generic PSF model. """
+
 class FluoImage(Image):
     """Represents a fluo object"""
 
@@ -464,6 +468,16 @@ class FluoImage(Image):
         Image.__init__(self, **kwargs)
         # Image location is composed by an index and a filename
         self._psfModel: Optional[PSFModel] = None
+        self._imgId: String = String(kwargs.get('imgId', None))
+    
+    def getImgId(self) -> Union[str, None]:
+        """ Get unique image ID, usually retrieved from the
+        file pattern provided by the user at the import time.
+        """
+        return self._imgId.get()
+
+    def setImgId(self, value: str) -> None:
+        self._imgId.set(value)
 
     def hasPSF(self) -> bool:
         return self._psfModel is not None
@@ -475,180 +489,19 @@ class FluoImage(Image):
     def setPSF(self, newPSF: PSFModel) -> None:
         self._psfModel = newPSF
 
-
-class PSFModel(Image):
-    """ Represents a generic PSF model. """
-
-class Particle(FluoImage):
-    """The coordinate associated to each particle is not scaled. To do that, the coordinates and the particles
-    sampling rates should be compared (because of how the extraction protocol works). But when shifts are applied to
-    the coordinates, it has to be considered that if we're operating with coordinates coming from particles, those
-    shifts will be scaled, but if the coordinates come from coordinates, they won't be."""
-
-    VOL_NAME_FIELD = "_volName"
-    COORD_VOL_NAME_FIELD = "_coordinate.%s" % Coordinate3D.TOMO_ID_ATTR
-    def __init__(self, **kwargs):
-        FluoImage.__init__(self, **kwargs)
-        self._acquisition = None
-        # This coordinate is NOT SCALED. To do that, the coordinates and subtomograms sampling rates
-        # should be compared (because of how the extraction protocol works)
-        self._coordinate = None
-        self._volName = String()
-
-    def hasCoordinate3D(self):
-        return self._coordinate is not None
-
-    def setCoordinate3D(self, coordinate):
-        self._coordinate = coordinate
-        self.setVolId(coordinate.getVolId())
-
-    def getCoordinate3D(self)->Coordinate3D:
-        """Since the object Coordinate3D needs a volume, use the information stored in the
-        SubTomogram to reconstruct the corresponding Tomogram associated to its Coordinate3D"""
-        # We do not do this here but in the set iterator tha will "plug" the volume (tomogram) is exists
-        # tomo = Tomogram()
-        # subtomoOrigin = self.getOrigin()
-        # if subtomoOrigin:
-        #     tomo.setOrigin(subtomoOrigin)
-        # tomo.setLocation(self.getVolName())
-        # tomo.setSamplingRate(self.getSamplingRate())
-        # coord = self._coordinate
-        # coord.setVolume(tomo)
-        # return coord
-        return self._coordinate
-
-    def getAcquisition(self):
-        return self._acquisition
-
-    def setAcquisition(self, acquisition):
-        self._acquisition = acquisition
-
-    def hasAcquisition(self):
-        return self._acquisition is not None and \
-               self._acquisition.getAngleMin() is not None and \
-               self._acquisition.getAngleMax() is not None
-
-    def getVolName(self):
-        """ Return the tomogram filename if the coordinate is not None.
-        or have set the _volName property.
-        """
-        if self._volName.hasValue():
-            return self._volName.get()
-        # getVolume does not exists!
-        # if self.getVolume():
-        #     return self.getVolume().getFileName()
-
-        return "Missing"
-
-    def setVolName(self, volName):
-        self._volName.set(volName)
-
-    def getVolumeOrigin(self, angstrom=False):
-        """Return the a vector that can be used to move the position of the Coordinate3D
-        associated to the SubTomogram (referred to the center of the Tomogram or other
-        origin specified by the user) to the bottom left corner of the Tomogram
-        """
-        if angstrom:
-            return self.getShiftsFromOrigin()
-        else:
-            sr = self.getSamplingRate()
-            origin = self.getShiftsFromOrigin()
-            return int(origin[0] / sr), int(origin[1] / sr), int(origin[2] / sr)
-
-    def setTransform(self, newTransform, convention=None):
-        if newTransform is None:
-            newTransform = Transform()
-            matrix = np.eye(4)
-        else:
-            matrix = newTransform.getMatrix()
-        newTransform.setMatrix(convertMatrix(matrix, direction=const.SET, convention=convention))
-        self._transform = newTransform
-
-    def getTransform(self, convention=None):
-
-        if convention is not None:
-            matrix = self._transform.getMatrix()
-            return Transform(convertMatrix(matrix, direction=const.GET, convention=convention))
-        else:
-            return self._transform
-
 class Coordinate3D(Object):
     """This class holds the (x,y,z) position and other information
     associated with a coordinate"""
 
     IMAGE_ID_ATTR: str = "_imageId"
-    OFFSETFUNC_TYPE = Callable[[int, int, int], Tuple[float, float, float]]
 
     def __init__(self, **kwargs) -> None:
         Object.__init__(self, **kwargs)
         self._boxSize: int = 0
         self._imagePointer: Pointer = Pointer(objDoStore=False) # points to a FluoImage
-        self._x: Float = Float()
-        self._y: Float = Float()
-        self._z: Float = Float()
         self._transform: Transform = Transform()
         self._groupId: Integer = Integer(0)  # This may refer to a mesh, ROI, vesicle or any group of coordinates
-        self._imageId = String(kwargs.get('tomoId', None))  # Used to access to the corresponding tomogram from each
-        # coord (it's the tsId)
-
-    def _getOffset(self, dim: Literal[0, 1, 2], originFunction: Optional[OFFSETFUNC_TYPE]=None) -> float:
-        """ Returns the offset to apply to a one of the coordinates
-        :param dim integer to get the dimension from (X=0, Y=1, Z=2)
-        :param originFunction function to call to do the conversion
-        """
-        im = self.getFluoImage()
-        if originFunction is None or im is None:
-            return 0
-        
-        dims = im.getDim()
-        if dims is None:
-            return 0
-
-        origin_Scipion = self.getFluoImageOrigin()[dim]
-        aux = originFunction(*dims)
-        origin = aux[dim] if aux is not None else -origin_Scipion
-        return origin + origin_Scipion
-
-    def getX(self, originFunction: Optional[OFFSETFUNC_TYPE]=None) -> float:
-        """ See getPosition method for a full description of how "originFunction"
-        works"""
-        return self._x.get() - self._getOffset(0, originFunction)
-
-    def setX(self, x: float, originFunction: Optional[OFFSETFUNC_TYPE]=None) -> None:
-        """ See setPosition method for a full description of how "originFunction"
-        works"""
-        self._x.set(x + self._getOffset(0, originFunction))
-
-    def shiftX(self, shiftX: float) -> None:
-        self._x.sum(shiftX)
-
-    def getY(self, originFunction: Optional[OFFSETFUNC_TYPE]=None) -> float:
-        """ See getPosition method for a full description of how "originFunction"
-        works"""
-
-        return self._y.get() - self._getOffset(1, originFunction)
-
-    def setY(self, y: float, originFunction: Optional[OFFSETFUNC_TYPE]=None) -> None:
-        """ See setPosition method for a full description of how "originFunction"
-        works"""
-
-        self._y.set(y + self._getOffset(1, originFunction))
-
-    def shiftY(self, shiftY: float) -> None:
-        self._y.sum(shiftY)
-
-    def getZ(self, originFunction: Optional[OFFSETFUNC_TYPE]=None) -> float:
-        """ See getPosition method for a full description of how "originFunction"
-        works"""
-        return self._z.get() - self._getOffset(2, originFunction)
-
-    def setZ(self, z: float, originFunction: Optional[OFFSETFUNC_TYPE]=None) -> None:
-        """ See setPosition method for a full description of how "originFunction"
-        works"""
-        self._z.set(z + self._getOffset(2, originFunction))
-
-    def shiftZ(self, shiftZ: float) -> None:
-        self._z.sum(shiftZ)
+        self._imageId = String(kwargs.get('tomoId', None))  # Used to access to the corresponding image from each coord (it's the tsId)
 
     def setMatrix(self, matrix: NDArray[np.float64], convention: Optional[str]=None) -> None:
         #self._eulerMatrix.setMatrix(convertMatrix(matrix, direction=const.SET, convention=convention))
@@ -673,76 +526,6 @@ class Coordinate3D(Object):
 
         return np.array([x, y, z])
 
-    def scale(self, factor: float) -> None:
-        """ Scale x, y and z coordinates by a given factor.
-        """
-        self._x.multiply(factor)
-        self._y.multiply(factor)
-        self._z.multiply(factor)
-
-    def getPosition(self, originFunction: OFFSETFUNC_TYPE) -> Tuple[float, float, float]:
-        """Get the position a Coordinate3D refered to a given origin defined by originFunction.
-        The input of the method is a funtion (originFunction) which moves the coordinate
-        position refered to the bottom left corner to other origin (retrieved by originFunction) in the grid.
-
-        Parameters:
-
-            :param function originFunction: Function to return a Vector to refer a coordinate to the bottom left corner
-                                            from a given convention.
-
-        Example:
-
-            >>> origin = originFunction((Lx, Ly, Lz))
-            >>> (vx, vy, vz)  # Vector to refer (x,y,z) coordinate to an origin from the bottom left corner
-
-        Firstly, the Scipion origin vector stored in the Tomogram associated to the Coordinate3D
-        will be applied to refer the current coordinate to the bottom left coordinate of the Tomogram.
-        """
-        return self.getX(originFunction), self.getY(originFunction), self.getZ(originFunction)
-
-    def setPosition(self, x: float, y: float, z: float, originFunction: OFFSETFUNC_TYPE) -> None:
-        """Set the position of the coordinate to be saved in the Coordinate3D object.
-        The inputs of the method are the (x,y,z) position of the coordinate and a
-        funtion (originFunction) which moves the current position to the bottom left
-        corner of the Tomogram with dimensions Lx, Ly, Lz.
-
-        Parameters:
-
-            :param float x: Position of the coordinate in the X axis
-            :param float y: Position of the coordinate in the Y axis
-            :param float z: Position of the coordinate in the Z axis
-            :param function originFunction: Function to return a Vector to refer a coordinate to the bottom left corner from a
-                                            given convention.
-
-        Example:
-
-            >>> origin = originFunction((Lx, Ly, Lz))
-            >>> (vx, vy, vz)  # Vector to refer (x,y,z) coordinate to the bottom left corner
-
-        In this way, it is possible to apply the Scipion origin vector stored in the
-        Tomogram associated to the Coordinate3D which moves the positions referred to
-        the bottom left corner of a grid to the center of gravity of the grid (or any
-        other origin specified by the user).
-
-        IMPORTANT NOTE: For this method to work properly, it is needed to associate the Tomogram
-        before doing a call to this method.
-
-        Example:
-
-            >>> coord = Coordinate3D()
-            >>> coord.setPosition(x, y, z, originFunction)
-            >>> Error: Tomogram is still NoneType
-            >>> coord.setVolume(Tomogram)
-            >>> coord.setPosition(x, y, z, originFunction)
-            >>> Exit: Everything runs normally
-
-        This requirement is only needed for "setPostion" method. The remaining attributes of the object
-        can be set either before or after calling "setVolume" method.
-        """
-        self.setX(x, originFunction)
-        self.setY(y, originFunction)
-        self.setZ(z, originFunction)
-
     def getFluoImage(self) -> Union[FluoImage, None]:
         """ Return the tomogram object to which
         this coordinate is associated.
@@ -759,16 +542,7 @@ class Coordinate3D(Object):
     def setImageId(self, imageId) -> None:
         self._imageId.set(imageId)
 
-    def invertY(self) -> None:
-        im = self.getFluoImage()
-        if im is not None:
-            dims = im.getDim()
-            if dims is not None:
-                height = dims[1]
-                self.setY(float(height) - self.getY())
-        # else: error TODO
-
-    def getVolName(self) -> Union[str, None]:
+    def getImageName(self) -> Union[str, None]:
         im = self.getFluoImage()
         if im is None:
             return None
@@ -783,77 +557,443 @@ class Coordinate3D(Object):
     def hasGroupId(self) -> bool:
         return self._groupId is not None
 
-    def getFluoImageOrigin(self, angstrom: bool=False) -> Tuple[float, float, float]:
-        """Return the vector that can be used to move the position of the Coordinate3D
-        (referred to the center of the Tomogram or other origin specified by the user)
-        to the bottom left corner of the Tomogram
-        """
-        vol = self.getFluoImage()
-        if not vol:
-            raise Exception("3D coordinate must be referred to a volume to get its origin.")
-
-        # Tomogram origin
-        origin = vol.getShiftsFromOrigin()
-        sr = vol.getSamplingRate()
-
-        if angstrom or sr is None:
-            return origin
-        else:
-            return origin[0] / sr[0], origin[1] / sr[0], origin[2] / sr[1]
-
-    def composeCoordId(self, sampligRate: float) -> str:
-        return "%s,%s,%s,%s" % (self.getImageId(),
-                                int(sampligRate * self._x.get()),
-                                int(sampligRate * self._y.get()),
-                                int(sampligRate * self._z.get()))
-
     def __str__(self) -> str:
-        return "%s, G%s" % (self.composeCoordId(1), self.getGroupId())
+        return f"Coordinate3D: <{str(self._imagePointer)}, {self._imageId}, {self._groupId}, {self._transform}>"
 
 
-class SetOfCoordinates3D(data.EMSet):
+class Particle(FluoImage):
+    """The coordinate associated to each particle is not scaled. To do that, the coordinates and the particles
+    sampling rates should be compared (because of how the extraction protocol works). But when shifts are applied to
+    the coordinates, it has to be considered that if we're operating with coordinates coming from particles, those
+    shifts will be scaled, but if the coordinates come from coordinates, they won't be."""
+
+    IMAGE_NAME_FIELD = "_imageName"
+    COORD_VOL_NAME_FIELD = "_coordinate.%s" % Coordinate3D.IMAGE_ID_ATTR
+    def __init__(self, **kwargs) -> None:
+        FluoImage.__init__(self, **kwargs)
+        # This coordinate is NOT SCALED. To do that, the coordinates and subtomograms sampling rates
+        # should be compared (because of how the extraction protocol works)
+        self._coordinate: Optional[Coordinate3D] = None
+        self._imageName: String = String()
+
+    def hasCoordinate3D(self) -> bool:
+        return self._coordinate is not None
+
+    def setCoordinate3D(self, coordinate: Coordinate3D) -> None:
+        self._coordinate = coordinate
+
+    def getCoordinate3D(self) -> Union[Coordinate3D, None]:
+        """Since the object Coordinate3D needs a volume, use the information stored in the
+        SubTomogram to reconstruct the corresponding Tomogram associated to its Coordinate3D"""
+        return self._coordinate
+
+    def getImageName(self) -> Union[String, None]:
+        """ Return the tomogram filename if the coordinate is not None.
+        or have set the _imageName property.
+        """
+        if self._imageName.hasValue():
+            return self._imageName.get()
+        return None
+
+    def setImageName(self, imageName: str) -> None:
+        self._imageName.set(imageName)
+
+class FluoSet(Set):
+    _classesDict = None
+
+    def _loadClassesDict(self) -> Dict:
+
+        if self._classesDict is None:
+            from pyworkflow.plugin import Domain # type: ignore
+            self._classesDict = Domain.getObjects()
+            self._classesDict.update(globals())
+
+        return self._classesDict
+
+    def copyInfo(self, other: 'FluoSet') -> None:
+        """ Define a dummy copyInfo function to be used
+        for some generic operations on sets.
+        """
+        pass
+
+    def clone(self):
+        """ Override the clone defined in Object
+        to avoid copying _mapperPath property
+        """
+        pass
+
+    def copyItems(
+        self,
+        otherSet: 'FluoSet',
+        updateItemCallback: Optional[Callable[[Object, Optional[Any]], Any]]=None,
+        itemDataIterator: Optional[Iterator]=None,
+        copyDisabledItems: bool=False,
+        doClone: bool=True
+    ) -> None:
+        """ Copy items from another set, allowing to update items information
+        based on another source of data, paired with each item.
+
+        Params:
+            otherSet: input set from where the items will be copied.
+            updateItemCallback: if not None, this will be called for each item
+                and each data row (if the itemDataIterator is not None). Apart
+                from setting item values or new attributes, it is possible to
+                set the special flag _appendItem to False, and then this item
+                will not be added to the set.
+            itemDataIterator: if not None, it must be an iterator that have one
+                data item for each item in the set. Usually the data item is a
+                data row, coming from a table stored in text files (e.g STAR)
+            copyDisabledItems: By default, disabled items are not copied from the other
+                set. If copyDisable=True, then the enabled property of the item
+                will be ignored.
+            doClone: By default, the new item that will be inserted is a "clone"
+                of the input item. By using doClone=False, the same input item
+                will be passed to the callback and added to the set. This will
+                avoid the clone operation and the related overhead.
+        """
+        itemDataIter = itemDataIterator  # shortcut
+
+        for item in otherSet:
+            # copy items if enabled or copyDisabledItems=True
+            if copyDisabledItems or item.isEnabled():
+                newItem = item.clone() if doClone else item
+                if updateItemCallback:
+                    row = None if itemDataIter is None else next(itemDataIter)
+                    updateItemCallback(newItem, row)
+                # If updateCallBack function returns attribute
+                # _appendItem to False do not append the item
+                if getattr(newItem, "_appendItem", True):
+                    self.append(newItem)
+            else:
+                if itemDataIter is not None:
+                    next(itemDataIter)  # just skip disabled data row
+
+    @classmethod
+    def create(
+        cls,
+        outputPath: str,
+        prefix: Optional[str]=None,
+        suffix: Optional[str]=None,
+        ext: Optional[str]=None,
+        **kwargs
+    ) -> 'FluoSet':
+        """ Create an empty set from the current Set class.
+         Params:
+            outputPath: where the output file will be written.
+            prefix: prefix of the created file, if None, it will be deduced
+                from the ClassName.
+            suffix: additional suffix that will be added to the prefix with a
+                "_" in between.
+            ext: extension of the output file, be default will use .sqlite
+        """
+        fn = prefix or cls.__name__.lower().replace('setof', '')
+
+        if suffix:
+            fn += '_%s' % suffix
+
+        if ext and ext[0] == '.':
+            ext = ext[1:]
+        fn += '.%s' % (ext or 'sqlite')
+
+        setPath = os.path.join(outputPath, fn)
+        pwutils.cleanPath(setPath)
+
+        return cls(filename=setPath, **kwargs)
+
+    def createCopy(
+        self,
+        outputPath: str,
+        prefix: Optional[str]=None,
+        suffix: Optional[str]=None,
+        ext: Optional[str]=None,
+        copyInfo: bool=False,
+        copyItems: bool=False
+    ) -> 'FluoSet':
+        """ Make a copy of the current set to another location (e.g file).
+        Params:
+            outputPath: where the output file will be written.
+            prefix: prefix of the created file, if None, it will be deduced
+                from the ClassName.
+            suffix: additional suffix that will be added to the prefix with a
+                "_" in between.
+            ext: extension of the output file, be default will use the same
+                extension of this set filename.
+            copyInfo: if True the copyInfo will be called after set creation.
+            copyItems: if True the copyItems function will be called.
+        """
+        setObj = self.create(
+            outputPath, 
+            prefix=prefix,
+            suffix=suffix,
+            ext=ext or pwutils.getExt(self.getFileName())
+        )
+
+        if copyInfo:
+            setObj.copyInfo(self)
+
+        if copyItems:
+            setObj.copyItems(self)
+
+        return setObj
+
+    def getFiles(self) -> set:
+        return Set.getFiles(self)
+
+
+class SetOfImages(Set):
+    """ Represents a set of Images """
+    ITEM_TYPE = Image
+
+    def __init__(self, **kwargs):
+        Set.__init__(self, **kwargs)
+        self._samplingRate = SamplingRate()
+        self._hasPSF = Boolean(kwargs.get('ctf', False))
+        self._firstDim = ImageDim()  # Dimensions of the first image
+
+    def hasPSF(self) -> bool:
+        """Return True if the SetOfImages has associated a CTF model"""
+        return self._hasPSF.get()
+
+    def setHasPSF(self, value: bool) -> None:
+        self._hasPSF.set(value)
+
+    def append(self, image: Image) -> None:
+        """ Add a image to the set. """
+        # If the sampling rate was set before, the same value
+        # will be set for each image added to the set
+        sr = self.getSamplingRate()
+        if (sr is not None) and (image.getSamplingRate() is None):
+            image.setSamplingRate(sr)
+        # Store the dimensions of the first image, just to
+        # avoid reading image files for further queries to dimensions
+        # only check this for first time append is called
+        if self.isEmpty():
+            self._setFirstDim(image)
+
+        Set.append(self, image)
+
+    def _setFirstDim(self, image: Image) -> None:
+        """ Store dimensions when the first image is found.
+        This function should be called only once, to avoid reading
+        dimension from image file. """
+        if self._firstDim.isEmpty():
+            d = image.getDim()
+            if d is not None:
+                self._firstDim.set(d)
+
+    def copyInfo(self, other: Image) -> None:
+        """ Copy basic information (sampling rate and psf)
+        from other set of images to current one"""
+        self.copyAttributes(other, '_samplingRate')
+
+    def getFiles(self) -> set:
+        filePaths = set()
+        uniqueFiles = self.aggregate(['count'], '_filename', ['_filename'])
+
+        for row in uniqueFiles:
+            filePaths.add(row['_filename'])
+        return filePaths
+
+    def setDownsample(self, downFactor: float) -> None:
+        """ Update the values of samplingRate and scannedPixelSize
+        after applying a downsampling factor of downFactor.
+        """
+        sr = self.getSamplingRate()
+        if sr is None:
+            raise RuntimeError("Couldn't downsample, sampling rate is not set")
+        self.setSamplingRate((sr[0]*downFactor, sr[1]*downFactor))
+
+    def setSamplingRate(self, samplingRate: Tuple[float, float]) -> None:
+        """ Set the sampling rate and adjust the scannedPixelSize. """
+        self._samplingRate.setSR(*samplingRate)
+
+    def getSamplingRate(self) -> Union[Tuple[float, float], None]:
+        return self._samplingRate.getSR()
+
+    def writeStack(
+        self,
+        fnStack,
+        orderBy='id',
+        direction='ASC',
+        applyTransform=False
+    ):
+        # TODO create empty file to improve efficiency
+        from spfluo.imglib import ImageHandler
+        ih = ImageHandler()
+        applyTransform = applyTransform and self.hasAlignment2D()
+
+        for i, img in enumerate(self.iterItems(orderBy=orderBy,
+                                               direction=direction)):
+            transform = img.getTransform() if applyTransform else None
+            ih.convert(img, (i + 1, fnStack), transform=transform)
+
+    # TODO: Check whether this function can be used.
+    # for example: protocol_apply_mask
+    def readStack(self, fnStack, postprocessImage=None):
+        """ Populate the set with the images in the stack """
+        from pwem.emlib.image import ImageHandler
+
+        _, _, _, ndim = ImageHandler().getDimensions(fnStack)
+        img = self.ITEM_TYPE()
+        for i in range(1, ndim + 1):
+            img.setObjId(None)
+            img.setLocation(i, fnStack)
+            if postprocessImage is not None:
+                postprocessImage(img)
+            self.append(img)
+
+    def getDim(self):
+        """ Return the dimensions of the first image in the set. """
+        if self._firstDim.isEmpty():
+            return None
+        x, y, z = self._firstDim
+        return x, y, z
+
+    def setDim(self, newDim):
+        self._firstDim.set(newDim)
+
+    def getXDim(self):
+        return self.getDim()[0] if self.getDim() is not None else 0
+
+    def isOddX(self):
+        """ Return True if the first item x dimension is odd. """
+        return self.getXDim() % 2 == 1
+
+    def getDimensions(self):
+        """Return first image dimensions as a tuple: (xdim, ydim, zdim)"""
+        return self.getFirstItem().getDim()
+
+    def __str__(self):
+        """ String representation of a set of images. """
+        s = "%s (%d items, %s, %s%s)" % \
+            (self.getClassName(), self.getSize(),
+             self._dimStr(), self._samplingRateStr(), self._appendStreamState())
+        return s
+    def _samplingRateStr(self):
+        """ Returns how the sampling rate is presented in a 'str' context."""
+        sampling = self.getSamplingRate()
+
+        if not sampling:
+            logger.error("FATAL ERROR: Object %s has no sampling rate!!!"
+                  % self.getName())
+            sampling = -999.0
+
+        return "%0.2f Å/px" % sampling
+
+    def _dimStr(self):
+        """ Return the string representing the dimensions. """
+        return str(self._firstDim)
+
+    def iterItems(self, orderBy='id', direction='ASC', where='1', limit=None, iterate=True):
+        """ Redefine iteration to set the acquisition to images. """
+        for img in Set.iterItems(self, orderBy=orderBy, direction=direction,
+                                 where=where, limit=limit, iterate=iterate):
+
+            # Sometimes the images items in the set could
+            # have the acquisition info per data row and we
+            # don't want to override with the set acquisition for this case
+            if not img.hasAcquisition():
+                img.setAcquisition(self.getAcquisition())
+            yield img
+
+    def appendFromImages(self, imagesSet):
+        """ Iterate over the images and append
+        every image that is enabled.
+        """
+        for img in imagesSet:
+            if img.isEnabled():
+                self.append(img)
+
+    def appendFromClasses(self, classesSet):
+        """ Iterate over the classes and the element inside each
+        class and append to the set all that are enabled.
+        """
+        for cls in classesSet:
+            if cls.isEnabled() and cls.getSize() > 0:
+                for img in cls:
+                    if img.isEnabled():
+                        self.append(img)
+
+
+class SetOfFluoImages(SetOfImages):
+    """Represents a set of fluo images"""
+    ITEM_TYPE = FluoImage
+    REP_TYPE = FluoImage
+    EXPOSE_ITEMS = True
+
+    def __init__(self, *args, **kwargs):
+        data.SetOfVolumes.__init__(self, **kwargs)
+        self._acquisition = TomoAcquisition()
+        self._hasOddEven = Boolean(False)
+
+    def hasOddEven(self):
+        return self._hasOddEven.get()
+
+    def updateDim(self):
+        """ Update dimensions of this set base on the first element. """
+        self.setDim(self.getFirstItem().getDim())
+
+    def __str__(self):
+        sampling = self.getSamplingRate()
+        tomoStr = "+oe," if self.hasOddEven() else ''
+
+        if not sampling:
+            logger.error("FATAL ERROR: Object %s has no sampling rate!!!"
+                         % self.getName())
+            sampling = -999.0
+
+        s = "%s (%d items, %s, %s %0.2f Å/px%s)" % \
+            (self.getClassName(), self.getSize(),
+             self._dimStr(), tomoStr, sampling, self._appendStreamState())
+        return s
+
+    def update(self, item: Tomogram):
+        self._hasOddEven.set(item.hasHalfMaps())
+        super().update(item)
+
+class SetOfCoordinates3D(FluoSet):
     """ Encapsulate the logic of a set of volumes coordinates.
     Each coordinate has a (x,y,z) position and is related to a Volume
     The SetOfCoordinates3D can also have information about TiltPairs.
     """
     ITEM_TYPE = Coordinate3D
 
-    def __init__(self, **kwargs):
-        data.EMSet.__init__(self, **kwargs)
-        self._boxSize = Integer()
-        self._samplingRate = Float()
-        self._precedentsPointer = Pointer()
-        self._tomos = None
+    def __init__(self, **kwargs) -> None:
+        FluoSet.__init__(self, **kwargs)
+        self._boxSize: Integer = Integer()
+        self._samplingRate: SamplingRate = SamplingRate()
+        self._precedentsPointer: Pointer = Pointer() # Points to the SetOfFluoImages associated to
+        self._images: Optional[Dict[str, FluoImage]] = None
 
-    def getBoxSize(self):
+    def getBoxSize(self) -> int:
         """ Return the box size of the particles.
         """
         return self._boxSize.get()
 
-    def setBoxSize(self, boxSize):
+    def setBoxSize(self, boxSize: int) -> None:
         """ Set the box size of the particles. """
         self._boxSize.set(boxSize)
 
-    def getSamplingRate(self):
+    def getSamplingRate(self) -> Union[Tuple[float, float], None]:
         """ Return the sampling rate of the particles. """
-        return self._samplingRate.get()
+        return self._samplingRate.getSR()
 
-    def setSamplingRate(self, sampling):
+    def setSamplingRate(self, sampling: Tuple[float, float]) -> None:
         """ Set the sampling rate of the particles. """
-        self._samplingRate.set(sampling)
+        self._samplingRate.setSR(*sampling)
 
-    def iterVolumes(self):
+    def iterImages(self) -> Iterable[FluoImage]:
         """ Iterate over the objects set associated with this
         set of coordinates.
         """
-        return self.getPrecedents()
+        return iter(self.getPrecedents())
 
-    def iterVolumeCoordinates(self, volume):
+    def iterImageCoordinates(self, image: FluoImage):
         """ Iterates over the set of coordinates belonging to that micrograph.
         """
         pass
 
-    def iterCoordinates(self, volume: Tomogram = None, orderBy='id') -> Coordinate3D:
+    def iterCoordinates(self, image: Optional[FluoImage] = None, orderBy: str='id') -> Iterable[Coordinate3D]:
         """ Iterate over the coordinates associated with a tomogram.
         If volume=None, the iteration is performed over the whole
         set of coordinates.
@@ -876,82 +1016,84 @@ class SetOfCoordinates3D(data.EMSet):
 
         """
 
-        # Iterate over all coordinates if tomoId is None,
-        # otherwise use tomoId to filter the where selection
-        if volume is None:
+        # Iterate over all coordinates if imgId is None,
+        # otherwise use imgId to filter the where selection
+        if image is None:
             coordWhere = '1'
-        elif isinstance(volume, int):
-            logger.warning("FOR DEVELOPERS: Do not use volId, use volName")
-            coordWhere = '_volId=%d' % volume
-        elif isinstance(volume, Tomogram):
-            coordWhere = '%s="%s"' % (Coordinate3D.TOMO_ID_ATTR, volume.getTsId())
+        elif isinstance(image, FluoImage):
+            coordWhere = '%s="%s"' % ('_imgId', image.getImgId())
         else:
-            raise Exception('Invalid input tomogram of type %s'
-                            % type(volume))
+            raise Exception('Invalid input image of type %s'
+                            % type(image))
 
 
-        # Iterate over all coordinates if tomoId is None,
-        # otherwise use tomoId to filter the where selection
+        # Iterate over all coordinates if imgId is None,
+        # otherwise use imgId to filter the where selection
         for coord in self.iterItems(where=coordWhere, orderBy=orderBy):
-            # Associate the tomogram
-            self._associateVolume(coord)
+            # Associate the fluo image
+            self._associateImage(coord)
             yield coord
 
-    def _getTomogram(self, tsId):
-        """ Returns  the tomogram from a tsId"""
-        tomos = self._getTomograms()
-
-        if tsId not in tomos.keys():
-            tomo = self.getPrecedents()[{Tomogram.TS_ID_FIELD: tsId}]
-            self._tomos[tsId] = tomo
-            return tomo
+    def _getFluoImage(self, imgId: str) -> FluoImage:
+        """ Returns the image from an imgId"""
+        imgs = self._images
+        if imgs is None:
+            imgs = dict()
+        
+        images = self._getFluoImages()
+        if imgId not in images.keys():
+            im = self.getPrecedents()[{"_imgId": imgId}]
+            imgs[imgId] = im
+            return im
         else:
-            return self._tomos[tsId]
+            return imgs[imgId]
 
-    def _getTomograms(self):
-        if self._tomos is None:
-            self.initTomos()
+    def _getFluoImages(self) -> Dict[str, FluoImage]:
+        imgs = self._images
+        if imgs is None:
+            imgs = dict()
 
-        return self._tomos
+        return imgs
 
-    def getPrecedents(self):
-        """ Returns the SetOfTomograms associated with
+    def getPrecedents(self) -> SetOfFluoImages:
+        """ Returns the SetOfFluoImages associated with
                 this SetOfCoordinates"""
         return self._precedentsPointer.get()
 
-    def getPrecedent(self, tomoId):
-        return self.getPrecedentsInvolved()[tomoId]
+    def getPrecedent(self, imgId):
+        return self.getPrecedentsInvolved()[imgId]
 
-    def setPrecedents(self, precedents):
-        """ Set the tomograms  or Tilt Series associated with this set of coordinates.
-                Params:
-                    tomograms: Either a SetOfTomograms or Tilt Series object or a pointer to it.
-                """
+    def setPrecedents(self, precedents: Union[SetOfFluoImages, Pointer]) -> None:
+        """ Set the images associated with this set of coordinates.
+        Params:
+            precedents: Either a SetOfFluoImages or a pointer to it.
+        """
         if precedents.isPointer():
             self._precedentsPointer.copy(precedents)
         else:
             self._precedentsPointer.set(precedents)
 
-    def getFiles(self):
+    def getFiles(self) -> set:
         filePaths = set()
         filePaths.add(self.getFileName())
         return filePaths
 
-    def getSummary(self):
+    def getSummary(self) -> str:
         summary = []
-        summary.append("Number of particles picked: %s" % self.getSize())
+        summary.append("Number of particles: %s" % self.getSize())
         summary.append("Particle size: %s" % self.getBoxSize())
         return "\n".join(summary)
 
-    def copyInfo(self, other):
+    def copyInfo(self, other: 'SetOfCoordinates3D') -> None:
         """ Copy basic information (id and other properties) but not _mapperPath or _size
         from other set of objects to current one.
         """
         self.setBoxSize(other.getBoxSize())
-        self.setSamplingRate(other.getSamplingRate())
+        if sr := other.getSamplingRate():
+            self.setSamplingRate(sr)
         self.setPrecedents(other.getPrecedents())
 
-    def __str__(self):
+    def __str__(self) -> str:
         """ String representation of a set of coordinates. """
         if self._boxSize.hasValue():
             boxSize = self._boxSize.get()
@@ -963,47 +1105,40 @@ class SetOfCoordinates3D(data.EMSet):
 
         return s
 
-    def getFirstItem(self):
-        coord = data.EMSet.getFirstItem(self)
+    def getFirstItem(self) -> Coordinate3D:
+        coord = FluoSet.getFirstItem(self)
         self._associateVolume(coord)
         return coord
 
-    def _associateVolume(self, coord):
-        coord.setVolume(self._getTomogram(coord.getTomoId()))
+    def _associateVolume(self, coord: Coordinate3D) -> None:
+        coord.setFluoImage(self._getFluoImage(coord.getImageId()))
 
-    def __getitem__(self, itemId):
-        """Add a pointer to a Tomogram before returning the Coordinate3D"""
-        coord = data.EMSet.__getitem__(self, itemId)
+    def __getitem__(self, itemId: int) -> Coordinate3D:
+        """Add a pointer to a FluoImage before returning the Coordinate3D"""
+        coord = FluoSet.__getitem__(self, itemId)
         self._associateVolume(coord)
         return coord
 
-    def initTomos(self):
-        """ Initialize internal _tomos to a dictionary if not done already"""
-        if self._tomos is None:
-            self._tomos = dict()
-
-    def getPrecedentsInvolved(self):
-        """ Returns a list  with only the tomograms involved in the subtomograms. May differ when
+    def getPrecedentsInvolved(self) -> dict:
+        """ Returns a list with only the images involved in the particles. May differ when
         subsets are done."""
 
-        tomoId_attr = Coordinate3D.TOMO_ID_ATTR
-
-        uniqueTomos = self.aggregate(['count'], tomoId_attr, [tomoId_attr])
+        uniqueTomos = self.aggregate(['count'], '_imgId', ['_imgId'])
 
         for row in uniqueTomos:
-            tsId = row[tomoId_attr]
-            # This should register the tomogram in the internal _tomos
-            self._getTomogram(tsId)
+            imgId = row['_imgId']
+            # This should register the image in the internal _images
+            self._getFluoImage(imgId)
 
-        return self._tomos
+        return self._images # type: ignore
 
-    def append(self, item: Coordinate3D):
+    def append(self, item: Coordinate3D) -> None:
         if self.getBoxSize() is None and item._boxSize:
             self.setBoxSize(item._boxSize)
         super().append(item)
 
-    def getTSIds(self):
+    def getImgIds(self):
         """ Returns all the TS ID (tomoId) present in this set"""
-        volIds = self.aggregate(["MAX"], Coordinate3D.TOMO_ID_ATTR, [Coordinate3D.TOMO_ID_ATTR])
-        volIds = [d[Coordinate3D.TOMO_ID_ATTR] for d in volIds]
-        return volIds
+        imgIds = self.aggregate(["MAX"], '_imgId', ['_imgId'])
+        imgIds = [d['_imgId'] for d in imgIds]
+        return imgIds
