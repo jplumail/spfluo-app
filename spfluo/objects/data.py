@@ -8,7 +8,10 @@ import numpy as np
 from numpy.typing import NDArray
 import json
 
+from ome_types import OME
 from aicsimageio import AICSImage
+from aicsimageio.writers.ome_tiff_writer import OmeTiffWriter
+from scipy.ndimage import affine_transform # type: ignore
 
 
 NO_INDEX = 0
@@ -207,6 +210,13 @@ class ImageDim(CsvList):
             return None
         return self[2]
 
+    def set(self, dims: Tuple[int, int, int]):
+        if self.isEmpty():
+            for i in range(3):
+                self.append(dims[i])
+        else:
+            self[:] = dims
+
     def __str__(self) -> str:
         x, y, z = self.getX(), self.getY(), self.getZ()
         if (x is None) or (y is None) or (z is None):
@@ -255,7 +265,7 @@ class SamplingRate(CsvList):
 class Image(Object):
     """Represents an image object"""
 
-    def __init__(self, location: Optional[Union[int, str, Tuple[int, str]]]=None, **kwargs) -> None:
+    def __init__(self, filename: Optional[str]=None, **kwargs) -> None:
         """
          Params:
         :param location: Could be a valid location: (index, filename)
@@ -263,7 +273,6 @@ class Image(Object):
         """
         Object.__init__(self, **kwargs)
         # Image location is composed by an index and a filename
-        self._index: Integer = Integer(0)
         self._filename: String = String()
         self._img: Optional[AICSImage] = None
         self._samplingRate: SamplingRate = SamplingRate()
@@ -280,8 +289,11 @@ class Image(Object):
         # units are A.
         self._origin: Transform = Transform()
         self._imageDim: ImageDim = ImageDim()
-        if location:
-            self.setLocation(location)
+        if filename:
+            self.setFileName(filename)
+    
+    def isEmpty(self):
+        return self._img is None
 
     def getSamplingRate(self) -> Optional[Tuple[float, float]]:
         """ Return image sampling rate. (A/pix) """
@@ -320,50 +332,19 @@ class Image(Object):
             return None
         return self._imageDim.getY()
 
-    def getIndex(self) -> int:
-        return self._index.get()
-
-    def setIndex(self, index: int) -> None:
-        self._index.set(index)
-
     def getFileName(self) -> str:
         """ Use the _objValue attribute to store filename. """
-        return self._filename.get()
+        fname = self._filename.get()
+        if fname is None:
+            raise ValueError("Image has no filename!")
+        return fname
 
     def setFileName(self, filename: str) -> None:
         """ Use the _objValue attribute to store filename. """
         self._filename.set(filename)
         self._img = AICSImage(filename)
-        self._imageDim.set(self._img.dims.shape)
-
-    def getLocation(self) -> Tuple[int, str]:
-        """ This function return the image index and filename.
-        It will only differs from getFileName, when the image
-        is contained in a stack and the index make sense.
-        """
-        return self.getIndex(), self.getFileName()
-
-    def setLocation(self, *args) -> None:
-        """ Set the image location, see getLocation.
-        Params:
-            First argument can be:
-             1. a tuple with (index, filename)
-             2. a index, this implies a second argument with filename
-             3. a filename, this implies index=NO_INDEX
-        """
-        first = args[0]
-        t = type(first)
-        if t == tuple:
-            index, filename = first
-        elif t == int:
-            index, filename = first, args[1]
-        elif t == str:
-            index, filename = NO_INDEX, first
-        else:
-            raise Exception('setLocation: unsupported type %s as input.' % t)
-
-        self.setIndex(index)
-        self.setFileName(filename)
+        x, y, z = self._img.dims.shape
+        self._imageDim.set((x, y, z))
     
     def getBaseName(self) -> str:
         return os.path.basename(self.getFileName())
@@ -372,9 +353,8 @@ class Image(Object):
         """ Copy basic information """
         self.copyAttributes(other, '_samplingRate')
 
-    def copyLocation(self, other: 'Image')-> None:
+    def copyFilename(self, other: 'Image')-> None:
         """ Copy location index and filename from other image. """
-        self.setIndex(other.getIndex())
         self.setFileName(other.getFileName())
 
     def hasTransform(self) -> bool:
@@ -449,9 +429,36 @@ class Image(Object):
         return ("%s (%s, %0.2fx%0.2fx%0.2f Å/px)" % (self.getClassName(), dimStr, 1., 1., 1.))
 
     def getFiles(self) -> set:
-        filePaths = set()
-        filePaths.add(self.getFileName())
-        return filePaths
+        return set([self.getFileName()])
+    
+    def build_ome(self, image_name: Optional[str]=None) -> OME:
+        im = self._img
+        if im is None:
+            raise ValueError("Image is None.")
+        return OmeTiffWriter.build_ome(
+            data_shapes=[im.shape],
+            data_types=[im.dtype],
+            dimension_order=[im.dims.order],
+            channel_names=[im.channel_names],
+            image_name=[image_name] if image_name else [None],
+            physical_pixel_sizes=[im.physical_pixel_sizes],
+            channel_colors=[None],
+        )
+    
+    def save(self, apply_transform=False) -> None:
+        if self._img is None:
+            raise ValueError("Image is None.")
+        if apply_transform:
+            im_data = affine_transform(self._img, self.getTransform().getMatrix())
+        else:
+            im_data = self._img.data
+        
+        OmeTiffWriter.save(
+            data=im_data,
+            uri=self.getFileName(),
+            ome_xml=self.build_ome()
+        )
+
 
 class PSFModel(Image):
     """ Represents a generic PSF model. """
@@ -742,44 +749,48 @@ class FluoSet(Set):
 
 class SetOfImages(Set):
     """ Represents a set of Images """
-    ITEM_TYPE = Image
+    ITEM_TYPE: Object = Image
 
     def __init__(self, **kwargs):
         Set.__init__(self, **kwargs)
         self._samplingRate = SamplingRate()
-        self._hasPSF = Boolean(kwargs.get('ctf', False))
-        self._firstDim = ImageDim()  # Dimensions of the first image
-
-    def hasPSF(self) -> bool:
-        """Return True if the SetOfImages has associated a CTF model"""
-        return self._hasPSF.get()
-
-    def setHasPSF(self, value: bool) -> None:
-        self._hasPSF.set(value)
+        self._dim = ImageDim()  # Dimensions of the first image
 
     def append(self, image: Image) -> None:
         """ Add a image to the set. """
+        if image.isEmpty():
+            raise ValueError(f"Image {image} is empty!")
         # If the sampling rate was set before, the same value
         # will be set for each image added to the set
         sr = self.getSamplingRate()
-        if (sr is not None) and (image.getSamplingRate() is None):
+        im_sr = image.getSamplingRate()
+        if (sr is not None) and (im_sr is None):
             image.setSamplingRate(sr)
-        # Store the dimensions of the first image, just to
-        # avoid reading image files for further queries to dimensions
-        # only check this for first time append is called
-        if self.isEmpty():
-            self._setFirstDim(image)
+        elif (sr is not None) and (im_sr is not None):
+            if sr != im_sr:
+                raise ValueError(f"{image} has different sampling rate than {self}, found {sr} and {im_sr}")
+        elif (sr is None) and (im_sr is not None):
+            self.setSamplingRate(im_sr)
+        else:
+            pass
+
+        dim = self.getDim()
+        im_dim = image.getDim()
+        if im_dim is None:
+            raise ValueError(f"Image {image} dimension is None.")
+        if dim is not None:
+            if dim != im_dim:
+                raise ValueError(f"{image} has different dimension than {self}, found {dim} and {im_dim}")
+        else:
+            self.setDim(im_dim)
 
         Set.append(self, image)
 
-    def _setFirstDim(self, image: Image) -> None:
-        """ Store dimensions when the first image is found.
+    def setDim(self, dim: Tuple[int, int, int]) -> None:
+        """ Store dimensions.
         This function should be called only once, to avoid reading
         dimension from image file. """
-        if self._firstDim.isEmpty():
-            d = image.getDim()
-            if d is not None:
-                self._firstDim.set(d)
+        self._dim.set(dim)
 
     def copyInfo(self, other: Image) -> None:
         """ Copy basic information (sampling rate and psf)
@@ -809,94 +820,58 @@ class SetOfImages(Set):
 
     def getSamplingRate(self) -> Union[Tuple[float, float], None]:
         return self._samplingRate.getSR()
-
-    def writeStack(
+    
+    def writeSet(
         self,
-        fnStack,
-        orderBy='id',
-        direction='ASC',
-        applyTransform=False
-    ):
-        # TODO create empty file to improve efficiency
-        from spfluo.imglib import ImageHandler
-        ih = ImageHandler()
-        applyTransform = applyTransform and self.hasAlignment2D()
+        applyTransform: bool=False
+    ) -> None:
+        for img in self:
+            img.save(apply_transform=applyTransform)
 
-        for i, img in enumerate(self.iterItems(orderBy=orderBy,
-                                               direction=direction)):
-            transform = img.getTransform() if applyTransform else None
-            ih.convert(img, (i + 1, fnStack), transform=transform)
+    @classmethod
+    def create_image(cls, filename):
+        return cls.ITEM_TYPE(filename=filename)
 
-    # TODO: Check whether this function can be used.
-    # for example: protocol_apply_mask
-    def readStack(self, fnStack, postprocessImage=None):
+    def readSet(self, files: List[str]) -> None:
         """ Populate the set with the images in the stack """
-        from pwem.emlib.image import ImageHandler
-
-        _, _, _, ndim = ImageHandler().getDimensions(fnStack)
-        img = self.ITEM_TYPE()
-        for i in range(1, ndim + 1):
-            img.setObjId(None)
-            img.setLocation(i, fnStack)
-            if postprocessImage is not None:
-                postprocessImage(img)
+        for i in range(len(files)):
+            img = self.create_image(files[i])
             self.append(img)
 
-    def getDim(self):
+    def getDim(self) -> Union[Tuple[int, int, int], None]:
         """ Return the dimensions of the first image in the set. """
-        if self._firstDim.isEmpty():
+        if self._dim.isEmpty():
             return None
-        x, y, z = self._firstDim
+        dims = self._dim
+        x, y, z = dims.getX(), dims.getY(), dims.getZ()
+        if (x is None) or (y is None) or (z is None):
+            return None
         return x, y, z
 
-    def setDim(self, newDim):
-        self._firstDim.set(newDim)
-
-    def getXDim(self):
-        return self.getDim()[0] if self.getDim() is not None else 0
-
-    def isOddX(self):
-        """ Return True if the first item x dimension is odd. """
-        return self.getXDim() % 2 == 1
-
-    def getDimensions(self):
+    def getDimensions(self) -> Union[Tuple[int, int, int], None]:
         """Return first image dimensions as a tuple: (xdim, ydim, zdim)"""
         return self.getFirstItem().getDim()
 
-    def __str__(self):
+    def __str__(self) -> str:
         """ String representation of a set of images. """
         s = "%s (%d items, %s, %s%s)" % \
             (self.getClassName(), self.getSize(),
              self._dimStr(), self._samplingRateStr(), self._appendStreamState())
         return s
-    def _samplingRateStr(self):
+    def _samplingRateStr(self) -> str:
         """ Returns how the sampling rate is presented in a 'str' context."""
         sampling = self.getSamplingRate()
 
         if not sampling:
-            logger.error("FATAL ERROR: Object %s has no sampling rate!!!"
-                  % self.getName())
-            sampling = -999.0
+            raise RuntimeError("Sampling rate is not set")
 
-        return "%0.2f Å/px" % sampling
+        return f"{sampling:.2f} Å/px" # FIXME unités
 
-    def _dimStr(self):
+    def _dimStr(self) -> str:
         """ Return the string representing the dimensions. """
-        return str(self._firstDim)
+        return str(self._dim)
 
-    def iterItems(self, orderBy='id', direction='ASC', where='1', limit=None, iterate=True):
-        """ Redefine iteration to set the acquisition to images. """
-        for img in Set.iterItems(self, orderBy=orderBy, direction=direction,
-                                 where=where, limit=limit, iterate=iterate):
-
-            # Sometimes the images items in the set could
-            # have the acquisition info per data row and we
-            # don't want to override with the set acquisition for this case
-            if not img.hasAcquisition():
-                img.setAcquisition(self.getAcquisition())
-            yield img
-
-    def appendFromImages(self, imagesSet):
+    def appendFromImages(self, imagesSet: 'SetOfImages') -> None:
         """ Iterate over the images and append
         every image that is enabled.
         """
@@ -921,40 +896,29 @@ class SetOfFluoImages(SetOfImages):
     REP_TYPE = FluoImage
     EXPOSE_ITEMS = True
 
-    def __init__(self, *args, **kwargs):
-        data.SetOfVolumes.__init__(self, **kwargs)
-        self._acquisition = TomoAcquisition()
-        self._hasOddEven = Boolean(False)
+    def __init__(self, *args, **kwargs) -> None:
+        SetOfImages.__init__(self, **kwargs)
+        self._psf: Optional[PSFModel] = None
+    
+    def hasPSF(self) -> bool:
+        return self._psf is not None
 
-    def hasOddEven(self):
-        return self._hasOddEven.get()
+    def append(self, image: FluoImage) -> None:
+        """ Add a fluo image to the set. """
+        if image.isEmpty():
+            raise ValueError(f"Image {image} is empty!")
 
-    def updateDim(self):
-        """ Update dimensions of this set base on the first element. """
-        self.setDim(self.getFirstItem().getDim())
-
-    def __str__(self):
-        sampling = self.getSamplingRate()
-        tomoStr = "+oe," if self.hasOddEven() else ''
-
-        if not sampling:
-            logger.error("FATAL ERROR: Object %s has no sampling rate!!!"
-                         % self.getName())
-            sampling = -999.0
-
-        s = "%s (%d items, %s, %s %0.2f Å/px%s)" % \
-            (self.getClassName(), self.getSize(),
-             self._dimStr(), tomoStr, sampling, self._appendStreamState())
-        return s
-
-    def update(self, item: Tomogram):
-        self._hasOddEven.set(item.hasHalfMaps())
-        super().update(item)
+        if image.hasPSF() and self.hasPSF():
+            if self._psf != image.getPSF():
+                raise ValueError(f"Image {image} PSF does not match with {self}'s PSF, found {image.getPSF()} and {self._psf}!")
+        elif image.hasPSF() and not self.hasPSF():
+            self._psf = image.getPSF()
+        
+        SetOfImages.append(self, image)
 
 class SetOfCoordinates3D(FluoSet):
     """ Encapsulate the logic of a set of volumes coordinates.
     Each coordinate has a (x,y,z) position and is related to a Volume
-    The SetOfCoordinates3D can also have information about TiltPairs.
     """
     ITEM_TYPE = Coordinate3D
 
@@ -994,13 +958,13 @@ class SetOfCoordinates3D(FluoSet):
         pass
 
     def iterCoordinates(self, image: Optional[FluoImage] = None, orderBy: str='id') -> Iterable[Coordinate3D]:
-        """ Iterate over the coordinates associated with a tomogram.
-        If volume=None, the iteration is performed over the whole
+        """ Iterate over the coordinates associated with an image.
+        If image=None, the iteration is performed over the whole
         set of coordinates.
 
         IMPORTANT NOTE: During the storing process in the database, Coordinates3D will lose their
-        pointer to ther associated Tomogram. This method overcomes this problem by retrieving and
-        relinking the Tomogram as if nothing would ever happened.
+        pointer to ther associated FluoImage. This method overcomes this problem by retrieving and
+        relinking the FluoImage as if nothing would ever happened.
 
         It is recommended to use this method when working with Coordinates3D, being the common
         "iterItems" deprecated for this set.
@@ -1107,16 +1071,16 @@ class SetOfCoordinates3D(FluoSet):
 
     def getFirstItem(self) -> Coordinate3D:
         coord = FluoSet.getFirstItem(self)
-        self._associateVolume(coord)
+        self._associateImage(coord)
         return coord
 
-    def _associateVolume(self, coord: Coordinate3D) -> None:
+    def _associateImage(self, coord: Coordinate3D) -> None:
         coord.setFluoImage(self._getFluoImage(coord.getImageId()))
 
     def __getitem__(self, itemId: int) -> Coordinate3D:
         """Add a pointer to a FluoImage before returning the Coordinate3D"""
         coord = FluoSet.__getitem__(self, itemId)
-        self._associateVolume(coord)
+        self._associateImage(coord)
         return coord
 
     def getPrecedentsInvolved(self) -> dict:
