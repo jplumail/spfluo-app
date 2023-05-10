@@ -25,20 +25,27 @@
 # **************************************************************************
 
 import pyworkflow as pw
+from pyworkflow.object import Set
 from pyworkflow.protocol.params import (PointerParam, EnumParam, PathParam,
                                         FloatParam, StringParam,
                                         BooleanParam, LEVEL_ADVANCED)
 from pyworkflow.mapper.sqlite_db import SqliteDb
 from pyworkflow.utils.properties import Message
 
-import spfluo.objects
+import spfluo.objects as spobj
+
+from typing import TypeVar, Type
+
 
 
 class ProtTomoBase:
-    def _createSet(self, SetClass, template, suffix, **kwargs):
+    T = TypeVar('T', bound=Set)
+
+    @classmethod
+    def _createSet(cls, SetClass: type[T], template, suffix, **kwargs) -> T:
         """ Create a set and set the filename using the suffix.
         If the file exists, it will be deleted. """
-        setFn = self._getPath(template % suffix)
+        setFn = cls._getPath(template % suffix)
         # Close the connection to the database if
         # it is open before deleting the file
         pw.utils.cleanPath(setFn)
@@ -47,37 +54,42 @@ class ProtTomoBase:
         setObj = SetClass(filename=setFn, **kwargs)
         return setObj
 
-    def _createSetOfCoordinates3D(self, volSet, suffix='')->spfluo.objects.SetOfCoordinates3D:
-        coord3DSet = self._createSet(spfluo.objects.SetOfCoordinates3D,
-                                     'coordinates%s.sqlite', suffix,
-                                     indexes=['_volId'])
+    def _createSetOfCoordinates3D(self, volSet: spobj.SetOfFluoImages, suffix: str='') -> spobj.SetOfCoordinates3D:
+        coord3DSet: spobj.SetOfCoordinates3D = self._createSet(
+            spobj.SetOfCoordinates3D,
+            'coordinates%s.sqlite',
+            suffix, indexes=['_imageId']
+        )
         coord3DSet.setPrecedents(volSet)
         return coord3DSet
 
-    def _createSetOfFluoImages(self, suffix='')->spfluo.objects.SetOfFluoImages:
-        return self._createSet(spfluo.objects.SetOfTomograms,
-                               'tomograms%s.sqlite', suffix)
+    def _createSetOfFluoImages(self, suffix: str='') -> spobj.SetOfFluoImages:
+        return self._createSet(
+            spobj.SetOfFluoImages,
+            'tomograms%s.sqlite',
+            suffix
+        )
 
-    def _createSetOfParticles(self, suffix='') -> spfluo.objects.SetOfParticles:
-        return self._createSet(spfluo.objects.SetOfSubTomograms,
+    def _createSetOfParticles(self, suffix: str='') -> spobj.SetOfParticles:
+        return self._createSet(spobj.SetOfSubTomograms,
                                'subtomograms%s.sqlite', suffix)
 
-    def _createSetOfAverageSubTomograms(self, suffix='')-> spfluo.objects.SetOfAverageSubTomograms:
-        return self._createSet(spfluo.objects.SetOfAverageSubTomograms,
+    def _createSetOfAverageSubTomograms(self, suffix='')-> spobj.SetOfAverageSubTomograms:
+        return self._createSet(spobj.SetOfAverageSubTomograms,
                                'avgSubtomograms%s.sqlite', suffix)
 
-    def _createSetOfClassesSubTomograms(self, subTomograms, suffix='')->spfluo.objects.SetOfClassesSubTomograms:
-        classes = self._createSet(spfluo.objects.SetOfClassesSubTomograms,
+    def _createSetOfClassesSubTomograms(self, subTomograms, suffix='')->spobj.SetOfClassesSubTomograms:
+        classes = self._createSet(spobj.SetOfClassesSubTomograms,
                                   'subtomogramClasses%s.sqlite', suffix)
         classes.setImages(subTomograms)
 
         return classes
 
-    def _createSetOfLandmarkModels(self, suffix='') -> spfluo.objects.SetOfLandmarkModels:
-        return self._createSet(spfluo.objects.SetOfLandmarkModels, 'setOfLandmarks%s.sqlite', suffix)
+    def _createSetOfLandmarkModels(self, suffix='') -> spobj.SetOfLandmarkModels:
+        return self._createSet(spobj.SetOfLandmarkModels, 'setOfLandmarks%s.sqlite', suffix)
 
-    def _createSetOfMeshes(self, volSet, suffix='')->spfluo.objects.SetOfMeshes:
-        meshSet = self._createSet(spfluo.objects.SetOfMeshes,
+    def _createSetOfMeshes(self, volSet, suffix='')->spobj.SetOfMeshes:
+        meshSet = self._createSet(spobj.SetOfMeshes,
                                   'meshes%s.sqlite', suffix)
         meshSet.setPrecedents(volSet)
         return meshSet
@@ -292,7 +304,7 @@ class ProtTomoImportAcquisition:
         else:
             acquisitionParams = self.acquisitionParameters
 
-        return spfluo.objects.TomoAcquisition(**acquisitionParams)
+        return spobj.TomoAcquisition(**acquisitionParams)
 
     def _summary(self, summary, setOfObject):
         for obj in setOfObject:
