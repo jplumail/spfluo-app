@@ -1,5 +1,6 @@
 import math
 from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple, Union
+import typing
 from pyworkflow.object import Integer, String, Pointer, CsvList, Object, Scalar, Set, Boolean # type: ignore
 import pyworkflow.utils as pwutils # type: ignore
 
@@ -465,6 +466,7 @@ class PSFModel(Image):
 
 class FluoImage(Image):
     """Represents a fluo object"""
+    IMG_ID_FIELD = '_imgId'
 
     def __init__(self, **kwargs) -> None:
         """
@@ -508,7 +510,7 @@ class Coordinate3D(Object):
         self._imagePointer: Pointer = Pointer(objDoStore=False) # points to a FluoImage
         self._transform: Transform = Transform()
         self._groupId: Integer = Integer(0)  # This may refer to a mesh, ROI, vesicle or any group of coordinates
-        self._imageId = String(kwargs.get('tomoId', None))  # Used to access to the corresponding image from each coord (it's the tsId)
+        self._imageId = String(kwargs.get('imageId', None))  # Used to access to the corresponding image from each coord (it's the tsId)
 
     def setMatrix(self, matrix: NDArray[np.float64], convention: Optional[str]=None) -> None:
         #self._eulerMatrix.setMatrix(convertMatrix(matrix, direction=const.SET, convention=convention))
@@ -792,7 +794,7 @@ class SetOfImages(Set):
         dimension from image file. """
         self._dim.set(dim)
 
-    def copyInfo(self, other: Image) -> None:
+    def copyInfo(self, other: 'SetOfImages') -> None:
         """ Copy basic information (sampling rate and psf)
         from other set of images to current one"""
         self.copyAttributes(other, '_samplingRate')
@@ -1106,3 +1108,132 @@ class SetOfCoordinates3D(FluoSet):
         imgIds = self.aggregate(["MAX"], '_imgId', ['_imgId'])
         imgIds = [d['_imgId'] for d in imgIds]
         return imgIds
+
+class SetOfParticles(SetOfImages):
+    ITEM_TYPE = Particle
+    REP_TYPE = Particle
+    EXPOSE_ITEMS = False
+
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self._coordsPointer: Pointer = Pointer()
+        self._images: Optional[Dict[str, FluoImage]] = None
+
+    def copyInfo(self, other: 'SetOfParticles') -> None:
+        """ Copy basic information (sampling rate and ctf)
+        from other set of images to current one"""
+        super().copyInfo(other)
+        if hasattr(other, '_coordsPointer'):  # Like the vesicles in pyseg
+            self.copyAttributes(other, '_coordsPointer')
+
+    def hasCoordinates3D(self) -> bool:
+        return self._coordsPointer.hasValue()
+
+    def getCoordinates3D(self, asPointer: bool=False) -> Union[Pointer, SetOfCoordinates3D]:
+        """ Returns the SetOfCoordinates associated with
+        this SetOfParticles"""
+
+        return self._coordsPointer if asPointer else self._coordsPointer.get()
+
+    def setCoordinates3D(self, coordinates: Union[Pointer, SetOfCoordinates3D]) -> None:
+        """ Set the SetOfCoordinates associated with
+        this set of particles.
+         """
+        if isinstance(coordinates, Pointer):
+            self._coordsPointer = coordinates
+        else:
+            self._coordsPointer.set(coordinates) # FIXME: strange?
+
+    def iterCoordinates(self, image: Optional[FluoImage]=None, orderBy: str='id') -> Iterator[Union[Coordinate3D, None]]:
+        """ Mimics SetOfCoordinates.iterCoordinates so can be passed to viewers or protocols transparently"""
+        if self.hasCoordinates3D():
+            for particle in self.iterParticles(image, orderBy=orderBy):
+                coord = particle.getCoordinate3D()
+                if coord is not None:
+                    coord.setObjId(particle.getObjId())
+                yield coord
+        else:
+            yield None
+
+    def iterParticles(self, image: Optional[FluoImage] =None, orderBy: str='id')-> Iterator[Particle]:
+        """ Iterates over the particles, enriching them with the related image if apply so coordinate getters and setters will work
+        If image=None, the iteration is performed over the whole
+        set of particles.
+
+        IMPORTANT NOTE: During the storing process in the database, Coordinates3D will lose their
+        pointer to the associated Image. This method overcomes this problem by retrieving and
+        relinking the Image as if nothing would ever happend.
+
+        It is recommended to use this method when working with subtomograms, anytime you want to properly use
+        its coordinate3D attached object.
+
+        Example:
+
+            >>> for subtomo in subtomos.iterItems()
+            >>>     print(subtomo.getCoordinate3D().getX(SCIPION))
+            >>>     Error: Tomogram associated to Coordinate3D is NoneType (pointer lost)
+            >>> for subtomo in subtomos.iterSubtomos()
+            >>>     print(subtomo.getCoordinate3D().getX(SCIPION))
+            >>>     330 retrieved correctly
+
+        """
+        # Iterate over all Subtomograms if tomoId is None,
+        # otherwise use tomoId to filter the where selection
+        if image is None:
+            particleWhere = '1'
+        elif isinstance(image, FluoImage):
+            particleWhere = '%s="%s"' % (Particle.IMAGE_NAME_FIELD, image.getImgId()) # TODO: add docs Particle _imageName refers to an FluoImage _imgId
+        else:
+            raise Exception('Invalid input tomogram of type %s'
+                            % type(image))
+
+        for particle in self.iterItems(where=particleWhere, orderBy=orderBy):
+            if particle.hasCoordinate3D():
+                particle.getCoordinate3D().setVolume(self.getFluoImage(particle))
+            yield particle
+
+    def getFluoImage(self, particle: Particle) -> Union[FluoImage, None]:
+        """ returns and caches the tomogram related with a subtomogram.
+        If the subtomograms were imported and not associated to any tomogram returns None."""
+
+        # Tomogram is stored with the coordinate data
+        coord = particle.getCoordinate3D()
+
+        # If there is no coordinate associated
+        if coord is None:
+            return None
+
+        # Else, there are coordinates
+        imgId = coord.getImageId()
+
+        self.initFluoImages()
+        self._images = typing.cast(Dict[str, FluoImage], self._images)
+
+        # If tsId is not cached, save both identifiers.
+        if imgId not in self._images:
+            img = self.getCoordinates3D().getPrecedents()[{FluoImage.IMG_ID_FIELD: imgId}] # type: ignore
+            self._images[imgId] = img
+            return img
+        else:
+            return self._images[imgId]
+
+    def initFluoImages(self):
+        """ Initialize internal _tomos to a dictionary if not done already"""
+        if self._images is None:
+            self._images = dict()
+        #self._images = typing.cast(Dict[str, FluoImage], self._images)
+
+    def getFluoImages(self) -> Dict[str, FluoImage]:
+        """ Returns a list  with only the tomograms involved in the subtomograms. May differ when
+        subsets are done."""
+
+        imageId_attr = Particle.COORD_VOL_NAME_FIELD
+        if self._images is None:
+            self.initFluoImages()
+            self._images = typing.cast(Dict[str, FluoImage], self._images)
+            uniqueImages = self.aggregate(['count'], imageId_attr, [imageId_attr])
+            for row in uniqueImages:
+                imgId = row[imageId_attr]
+                self._images[imgId] = self.getCoordinates3D().getPrecedents()[{FluoImage.IMG_ID_FIELD: imgId}] # type: ignore
+
+        return self._images
