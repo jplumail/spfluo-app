@@ -1240,3 +1240,10 @@ class SetOfParticles(SetOfImages):
                 self._images[imgId] = self.getCoordinates3D().getPrecedents()[{FluoImage.IMG_ID_FIELD: imgId}] # type: ignore
 
         return self._images
+
+class AverageParticle(Particle):
+    """Represents a Average Particle.
+        It is a Particle but it is useful to differentiate outputs."""
+
+    def __init__(self, **kwargs):
+        Particle.__init__(self, **kwargs)

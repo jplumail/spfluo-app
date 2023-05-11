@@ -42,6 +42,7 @@ from pyworkflow.utils import Message
 from pyworkflow import BETA
 import pyworkflow.object as pwobj
 from pwem.emlib.image import ImageHandler
+from spfluo.objects import SetOfParticles
 from tomo.objects import AverageSubTomogram, SetOfSubTomograms
 from tomo.protocols import ProtTomoBase
 
