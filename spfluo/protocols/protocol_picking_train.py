@@ -199,6 +199,19 @@ class ProtSPFluoPickingTrain(Protocol):
         write_csv(os.path.join(self.rootDir, 'train', 'train_coordinates.csv'), train_annotations)
         write_csv(os.path.join(self.rootDir, 'val', 'val_coordinates.csv'), val_annotations)
 
+        # Prepare stage
+        ps = self.inputCoordinates.get().getBoxSize()
+        args = [
+            f"--stages prepare",
+            f"--rootdir {self.rootDir}",
+            f"--extension tif",
+            "--crop_output_dir cropped",
+            "--make_u_masks",
+            f"--patch_size {ps}",
+        ]
+        args = " ".join(args)
+        Plugin.runSPFluo(self, Plugin.getProgram(PICKING_MODULE), args=args)
+
     def trainStep(self):
         ps = self.inputCoordinates.get().getBoxSize()
         args = [
@@ -216,7 +229,7 @@ class ProtSPFluoPickingTrain(Protocol):
         if self.pu:
             args += [f"--mode pu"]
             if self.radius.get() is None:
-                args += [f"--radius {ps//2}"]
+                args += [f"--radius {ps//2}", "--load_u_masks"]
             else:
                 args += [f"--radius {self.radius.get()}"]
             args += [f"--num_particles_per_image {self.num_particles_per_image.get()}"]

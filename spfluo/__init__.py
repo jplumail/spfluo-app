@@ -11,6 +11,7 @@
 
 import os
 import subprocess
+import sys
 import pyworkflow.utils as pwutils
 import pwem
 
@@ -76,11 +77,16 @@ class Plugin(pwem.Plugin):
 
         # Install Cupy (the right version)
         cuda_version = cls.guessCudaVersion(SPFLUO_CUDA_LIB, default="10.1")
+        cupy_version = None
         if cuda_version.major == 10 and cuda_version.minor == 1: # Default version returned by guessCudaVersion
             # Maybe the SPFLUO_CUDA_LIB path doesn't contain the version
-            result = subprocess.check_output("nvcc --version", shell=True, text=True)
-            cuda_version_str = result.split('\n')[3].split(', ')[1].split(' ')[1]
-            cuda_version = cls.guessCudaVersion(SPFLUO_CUDA_LIB, default=cuda_version_str) # gets the default cuda version
+            try:
+                result = subprocess.check_output("nvcc --version", shell=True, text=True)
+                cuda_version_str = result.split('\n')[3].split(', ')[1].split(' ')[1]
+                cuda_version = cls.guessCudaVersion(SPFLUO_CUDA_LIB, default=cuda_version_str) # gets the default cuda version
+            except subprocess.CalledProcessError:
+                print("nvcc not in $PATH. Not installing CuPY. Exiting...")
+                sys.exit(1)
         if cuda_version.major == 10 and cuda_version.minor == 2:
             cupy_version = 'cupy-cuda102'
         elif cuda_version.major == 11:
@@ -92,7 +98,8 @@ class Plugin(pwem.Plugin):
             cupy_version = f'cupy-cuda12x'
         else:
             print(f"Your CUDA version {cuda_version} doesn't match one of cupy. You need to have versions CUDA 10.2, 11.x or 12.x.")
-        installCmd.append(f"pip install --default-timeout=100 {cupy_version}")
+        if cupy_version is not None:
+            installCmd.append(f"pip install --default-timeout=100 {cupy_version}")
         
         # Download and install spfluo
         installCmd.append(f"git clone https://jplumail:{GITHUB_TOKEN}@github.com/dfortun2/SPFluo_stage_reconstruction_symmetryC.git")

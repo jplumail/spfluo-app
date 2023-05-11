@@ -1,5 +1,6 @@
 # Python compilation files
 *.pyc
+build/
 
 # Ignore temporary packaging folder
 *.egg-info
@@ -7,3 +8,5 @@
 # IDE files
 .idea
 .vscode
+
+stubs/
