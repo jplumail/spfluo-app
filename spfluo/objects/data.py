@@ -463,8 +463,9 @@ class Image(Object):
         )
 
 
-class PSFModel(Image): # TODO: intérêt de cette classe?
-    """ Represents a generic PSF model. """
+class PSFModel(Image):
+    """Represents a PSF.
+    It is an Image but it is useful to differentiate inputs/outputs."""
 
 class FluoImage(Image):
     """Represents a fluo object"""
