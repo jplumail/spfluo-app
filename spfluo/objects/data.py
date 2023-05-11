@@ -461,7 +461,7 @@ class Image(Object):
         )
 
 
-class PSFModel(Image):
+class PSFModel(Image): # TODO: intérêt de cette classe?
     """ Represents a generic PSF model. """
 
 class FluoImage(Image):
