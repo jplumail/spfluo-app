@@ -211,12 +211,13 @@ class ImageDim(CsvList):
             return None
         return self[2]
 
-    def set(self, dims: Tuple[int, int, int]):
-        if self.isEmpty():
-            for i in range(3):
-                self.append(dims[i])
-        else:
-            self[:] = dims
+    def set(self, dims: Optional[Tuple[int, int, int]]) -> None:
+        if dims is not None:
+            if self.isEmpty():
+                for i in range(3):
+                    self.append(dims[i])
+            else:
+                self[:] = dims
 
     def __str__(self) -> str:
         x, y, z = self.getX(), self.getY(), self.getZ()
@@ -318,7 +319,7 @@ class Image(Object):
 
     def getDim(self) -> Union[Tuple[int, int, int], None]:
         """Return image dimensions as tuple: (Xdim, Ydim, Zdim)"""
-        x, y, z = self._imageDim.get()
+        x, y, z = self._imageDim.getX(), self._imageDim.getY(), self._imageDim.getZ()
         if (x is None) or (y is None) or (z is None):
             return None
         return x, y, z
@@ -344,7 +345,8 @@ class Image(Object):
         """ Use the _objValue attribute to store filename. """
         self._filename.set(filename)
         self._img = AICSImage(filename)
-        x, y, z = self._img.dims.shape
+        d = self._img.dims
+        x, y, z = d.X, d.Y, d.Z
         self._imageDim.set((x, y, z))
     
     def getBaseName(self) -> str:
@@ -867,7 +869,7 @@ class SetOfImages(Set):
         if not sampling:
             raise RuntimeError("Sampling rate is not set")
 
-        return f"{sampling:.2f} Å/px" # FIXME unités
+        return f"{sampling[0]:.2f}x{sampling[1]:.2f} Å/px" # FIXME unités
 
     def _dimStr(self) -> str:
         """ Return the string representing the dimensions. """

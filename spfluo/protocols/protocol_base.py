@@ -44,18 +44,17 @@ from pyworkflow.protocol.params import Form, ElementGroup
 import spfluo.objects as spobj
 from spfluo.protocols.import_.base import ProtImportFiles, ProtImport
 
-from typing import Any, Iterator, List, TypeVar, Type, Union
+from typing import List, TypeVar, Type
 
 
 class ProtFluoBase:
     T = TypeVar("T", bound=Set)
     OUTPUT_PREFIX: str
 
-    @classmethod
-    def _createSet(cls, SetClass: Type[T], template, suffix, **kwargs) -> T:
+    def _createSet(self, SetClass: Type[T], template, suffix, **kwargs) -> T:
         """Create a set and set the filename using the suffix.
         If the file exists, it will be deleted."""
-        setFn = cls._getPath(template % suffix)
+        setFn = self._getPath(template % suffix)
         # Close the connection to the database if
         # it is open before deleting the file
         pw.utils.cleanPath(setFn)
@@ -100,9 +99,6 @@ class ProtFluoBase:
     #                              'meshes%s.sqlite', suffix)
     #    meshSet.setPrecedents(volSet)
     #    return meshSet
-
-    def iterOutputAttributes(self, cls: type) -> Iterator[str, Any]:
-        ...
 
     def _getOutputSuffix(self, cls: type) -> str:
         """Get the name to be used for a new output.

@@ -257,7 +257,7 @@ class ProtImportFiles(ProtImport):
         self.debug("   Modification time: %s" % pwutils.prettyTime(mTime))
         self.debug("   Delta: %s" % pwutils.prettyDelta(delta))
 
-        return delta < fileTimeout
+        return delta.seconds < fileTimeout
 
     def isBlacklisted(self, fileName: str) -> bool:
         """Overwrite in subclasses"""

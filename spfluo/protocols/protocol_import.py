@@ -24,7 +24,6 @@ def _getUniqueFileName(pattern, filename, filePaths=None):
 
 OUTPUT_NAME = "FluoImages"
 
-
 class ProtImportFluoImages(ProtFluoImportFiles):
     """Protocol to import a set of fluoimages to the project"""
 
@@ -78,9 +77,9 @@ class ProtImportFluoImages(ProtFluoImportFiles):
                 raise ValueError("Image '%s' has no dimension" % fileName)
             x, y, z = dim
             origin.setShifts(
-                x / -2.0 * samplingRate,
-                y / -2.0 * samplingRate,
-                z / -2.0 * samplingRate,
+                x / -2.0 * samplingRate[0],
+                y / -2.0 * samplingRate[0],
+                z / -2.0 * samplingRate[1],
             )
             img.setOrigin(origin)
 
@@ -110,7 +109,7 @@ class ProtImportFluoImages(ProtFluoImportFiles):
     def _getTomMessage(self) -> str:
         return "FluoImages %s" % self.getObjectTag(OUTPUT_NAME)
 
-    def _summary(self) -> str:
+    def _summary(self) -> List[str]:
         try:
             summary = []
             if self._hasOutput():
@@ -118,18 +117,10 @@ class ProtImportFluoImages(ProtFluoImportFiles):
                     "%s imported from:\n%s" % (self._getTomMessage(), self.getPattern())
                 )
 
-                if self.samplingRate.get():
+                if (sr_xy := self.sr_xy.get()) and (sr_z := self.sr_z.get()):
                     summary.append(
-                        "Sampling rate: *%0.2f* (Å/px)" % self.samplingRate.get()
+                        f"Sampling rate: *{sr_xy:.2f}x{sr_z:.2f}* (Å/px)"
                     )
-
-                x, y, z = self.FluoImages.getFirstItem().getShiftsFromOrigin()
-                summary.append(
-                    "FluoImages Origin (x,y,z):\n"
-                    "    x: *%0.2f* (Å/px)\n"
-                    "    y: *%0.2f* (Å/px)\n"
-                    "    z: *%0.2f* (Å/px)" % (x, y, z)
-                )
 
         except Exception as e:
             print(e)
@@ -139,9 +130,9 @@ class ProtImportFluoImages(ProtFluoImportFiles):
     def _methods(self) -> List[str]:
         methods = []
         if self._hasOutput():
+            sr_xy, sr_z = self.sr_xy.get(), self.sr_z.get()
             methods.append(
-                " %s imported with a sampling rate *%0.2f*"
-                % (self._getTomMessage(), self.samplingRate.get()),
+                f"{self._getTomMessage()} imported with a sampling rate *{sr_xy:.2f}x{sr_z:.2f}* (Å/px)"
             )
         return methods
 
