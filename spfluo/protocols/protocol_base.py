@@ -52,7 +52,7 @@ class ProtFluoBase:
     OUTPUT_PREFIX: str
 
     @classmethod
-    def _createSet(cls, SetClass: type[T], template, suffix, **kwargs) -> T:
+    def _createSet(cls, SetClass: Type[T], template, suffix, **kwargs) -> T:
         """Create a set and set the filename using the suffix.
         If the file exists, it will be deleted."""
         setFn = cls._getPath(template % suffix)

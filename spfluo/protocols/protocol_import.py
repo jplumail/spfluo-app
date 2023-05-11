@@ -4,7 +4,6 @@ from os.path import abspath, basename
 import re
 from typing import List, Optional, Tuple
 
-from pwem.convert.headers import Ccp4Header
 from spfluo.objects import Transform
 from pyworkflow import BETA
 from pyworkflow import utils as pwutils

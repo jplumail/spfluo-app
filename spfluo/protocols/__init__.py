@@ -6,3 +6,5 @@
 from .protocol_picking_train import ProtSPFluoPickingTrain
 from .protocol_picking_predict import ProtSPFluoPickingPredict
 from .protocol_ab_initio import ProtSPFluoAbInitio, ProtSPFluoSubTomoAverage
+
+from .protocol_import import ProtImportFluoImages
