@@ -126,12 +126,12 @@ class ProtFluoPicking(ProtImport, ProtFluoBase):
     def _defineParams(self, form: Form) -> None:
         form.addSection(label="Input")
         form.addParam(
-            "inputTomograms",
+            "inputFluoImages",
             PointerParam,
-            label="Input Tomograms",
+            label="Input Images",
             important=True,
-            pointerClass="SetOfTomograms",
-            help="Select the Tomogram to be used during picking.",
+            pointerClass="SetOfFluoImages",
+            help="Select the Image to be used during picking.",
         )
 
     def _summary(self) -> List[str]:

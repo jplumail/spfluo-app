@@ -33,13 +33,12 @@ This module will provide the traditional Hello world example
 import os
 import random
 from pyworkflow import BETA
-from pyworkflow.protocol import Protocol, params, Integer
-from pyworkflow.utils import Message
-import tomo.constants
+from pyworkflow.protocol import Protocol, params
 
 from spfluo import Plugin
 from spfluo.constants import *
-from spfluo.convert import convert_to_tif, write_csv
+from spfluo.convert import write_csv
+from spfluo.objects.data import SetOfCoordinates3D
 
 
 class ProtSPFluoPickingTrain(Protocol):
@@ -159,15 +158,15 @@ class ProtSPFluoPickingTrain(Protocol):
         os.makedirs(os.path.join(self.rootDir, 'val'), exist_ok=True)
 
         # Image links
-        images = set([coord.getVolume() for coord in self.inputCoordinates.get().iterCoordinates()])
+        inputCoordinates: SetOfCoordinates3D = self.inputCoordinates.get()
+        images = set([coord.getVolume() for coord in inputCoordinates.iterCoordinates()])
         for im in images:
             im_path = os.path.abspath(im.getFileName())
             ext = os.path.splitext(im_path)[1]
             im_name = im.getTsId()
             im_newPath = os.path.join(self.rootDir, im_name+'.tif')
             if ext != '.tif' and ext != '.tiff':
-                print(f"Convert {im_path} to TIF in {im_newPath}")
-                convert_to_tif(im_path, im_newPath)
+                raise NotImplementedError(f"Found ext {ext} in particles: {im_path}. Only tiff file are supported.") # FIXME: allow formats accepted by AICSImageio
             else:
                 os.link(im_path, im_newPath)
             for s in ["train", "val"]:
@@ -176,21 +175,19 @@ class ProtSPFluoPickingTrain(Protocol):
                     print(f"Link {im_newPath} -> {im_newPathSet}")
                     os.link(im_newPath, im_newPathSet)
         
-        # Splitting annotations in train/val
-        origin_func = tomo.constants.SCIPION
-        
+        # Splitting annotations in train/val        
         annotations = []
-        for i, coord in enumerate(self.inputCoordinates.get().iterCoordinates()):
-            Lx, Ly, Lz = coord.getVolume().getDim()
+        for i, coord in enumerate(inputCoordinates.iterCoordinates()):
+            x, y, z = coord.getPosition()
             annotations.append((
-                coord.getVolume().getTsId()+'.tif',
+                coord.getFluoImage().getImgId()+'.tif',
                 i,
-                -(coord.getZ(origin_func)-Lz/2),
-                coord.getY(origin_func)+Ly/2,
-                coord.getX(origin_func)+Lx/2
+                z,
+                y,
+                x
             ))
 
-        print(f"Found {len(annotations)} annotations in SetOfCoordinates created at {self.inputCoordinates.get().getObjCreationAsDate()}")
+        print(f"Found {len(annotations)} annotations in SetOfCoordinates created at {inputCoordinates.getObjCreationAsDate()}")
         random.shuffle(annotations)
         i = int(self.train_val_split.get() * len(annotations))
         train_annotations, val_annotations = annotations[:i], annotations[i:]
@@ -200,7 +197,7 @@ class ProtSPFluoPickingTrain(Protocol):
         write_csv(os.path.join(self.rootDir, 'val', 'val_coordinates.csv'), val_annotations)
 
         # Prepare stage
-        ps = self.inputCoordinates.get().getBoxSize()
+        ps = inputCoordinates.getBoxSize()
         args = [
             f"--stages prepare",
             f"--rootdir {self.rootDir}",
@@ -213,7 +210,8 @@ class ProtSPFluoPickingTrain(Protocol):
         Plugin.runSPFluo(self, Plugin.getProgram(PICKING_MODULE), args=args)
 
     def trainStep(self):
-        ps = self.inputCoordinates.get().getBoxSize()
+        inputCoordinates: SetOfCoordinates3D = self.inputCoordinates.get()
+        ps = inputCoordinates.getBoxSize()
         args = [
             f"--stages train",
             f"--batch_size {self.batch_size.get()}",

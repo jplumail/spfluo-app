@@ -1,6 +1,6 @@
 scipion-pyworkflow
-scipion-em @ git+https://github.com/jplumail/scipion-em@devel#egg=scipion-em
-scipion-em-tomo @ git+https://github.com/jplumail/scipion-em-tomo@devel#egg=scipion-em-tomo
+#scipion-em @ git+https://github.com/jplumail/scipion-em@devel#egg=scipion-em
+#scipion-em-tomo @ git+https://github.com/jplumail/scipion-em-tomo@devel#egg=scipion-em-tomo
 numpy
 scipy
 napari[all]

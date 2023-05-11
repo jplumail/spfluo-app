@@ -12,21 +12,35 @@
 import os
 import subprocess
 import sys
+import re
+from packaging.version import parse, InvalidVersion
 import pyworkflow.utils as pwutils
-import pwem
+from pyworkflow import plugin
+import pyworkflow as pw
 
-from .constants import *
+from .constants import CUDA_LIB_VAR, FLUO_ROOT_VAR, GITHUB_TOKEN, PYTHON_VERSION, SPFLUO_ACTIVATION_CMD, SPFLUO_CUDA_LIB, SPFLUO_HOME, SPFLUO_VERSION, getSPFluoEnvName
 
 _logo = "icon.png"
 _references = ['Fortun2017']
 
 
-class Plugin(pwem.Plugin):
+class Config(pw.Config):
+    _get = pw.Config._get
+    _join = pw.Config._join
+
+    FLUO_ROOT = _join(_get(FLUO_ROOT_VAR, _join(pw.Config.SCIPION_SOFTWARE, 'fluo')))
+
+    # CUDA
+    CUDA_LIB = _get(CUDA_LIB_VAR, '/usr/local/cuda/lib64')
+    CUDA_BIN = _get('CUDA_BIN', '/usr/local/cuda/bin')
+
+
+class Plugin(plugin.Plugin):
     _homeVar = SPFLUO_HOME
 
     @classmethod
     def _defineVariables(cls):
-        cls._defineVar(SPFLUO_CUDA_LIB, pwem.Config.CUDA_LIB)
+        cls._defineVar(SPFLUO_CUDA_LIB, Config.CUDA_LIB)
 
     @classmethod
     def getDependencies(cls):
@@ -45,7 +59,7 @@ class Plugin(pwem.Plugin):
         environ = pwutils.Environ(os.environ)
 
         # Take Scipion CUDA library path
-        environ.addLibrary(pwem.Config.CUDA_LIB)
+        environ.addLibrary(Config.CUDA_LIB)
 
         return environ
     
@@ -76,17 +90,29 @@ class Plugin(pwem.Plugin):
         ]
 
         # Install Cupy (the right version)
-        cuda_version = cls.guessCudaVersion(SPFLUO_CUDA_LIB, default="10.1")
-        cupy_version = None
-        if cuda_version.major == 10 and cuda_version.minor == 1: # Default version returned by guessCudaVersion
+        spfluo_cuda_lib: str = cls.getVar(SPFLUO_CUDA_LIB)
+        match = re.search('(cuda)-([0-9]+.[0-9])', os.path.realpath(spfluo_cuda_lib))
+        if match and len(match.groups()) == 2:
+            cuda_version = parse(match.group(2))
+        else:
+            print("Couldn't find CUDA version from path", os.path.realpath(spfluo_cuda_lib))
+            cuda_version = None
+        if cuda_version is None:
             # Maybe the SPFLUO_CUDA_LIB path doesn't contain the version
             try:
                 result = subprocess.check_output("nvcc --version", shell=True, text=True)
                 cuda_version_str = result.split('\n')[3].split(', ')[1].split(' ')[1]
-                cuda_version = cls.guessCudaVersion(SPFLUO_CUDA_LIB, default=cuda_version_str) # gets the default cuda version
             except subprocess.CalledProcessError:
                 print("nvcc not in $PATH. Not installing CuPY. Exiting...")
                 sys.exit(1)
+            try:
+                cuda_version = parse(cuda_version_str)
+            except InvalidVersion:
+                cuda_version = None
+                print(f"Couldn't version cuda version: {cuda_version_str}")
+                sys.exit(1)
+        
+        cupy_version = None
         if cuda_version.major == 10 and cuda_version.minor == 2:
             cupy_version = 'cupy-cuda102'
         elif cuda_version.major == 11:
@@ -98,11 +124,12 @@ class Plugin(pwem.Plugin):
             cupy_version = f'cupy-cuda12x'
         else:
             print(f"Your CUDA version {cuda_version} doesn't match one of cupy. You need to have versions CUDA 10.2, 11.x or 12.x.")
+            sys.exit(1)
         if cupy_version is not None:
             installCmd.append(f"pip install --default-timeout=100 {cupy_version}")
         
         # Download and install spfluo
-        installCmd.append(f"git clone https://jplumail:{GITHUB_TOKEN}@github.com/dfortun2/SPFluo_stage_reconstruction_symmetryC.git")
+        installCmd.append(f"git clone https://jplumail:{GITHUB_TOKEN}@github.com/jplumail/SPFluo_stage_reconstruction_symmetryC.git")
         installCmd.append("mv SPFluo_stage_reconstruction_symmetryC spfluo")
         installCmd.append("cd spfluo && pip install .")
         installCmd.append(f'touch ../{SPFLUO_INSTALLED}')

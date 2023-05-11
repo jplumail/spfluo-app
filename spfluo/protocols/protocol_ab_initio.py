@@ -41,23 +41,21 @@ from pyworkflow.protocol import Protocol, params, Integer
 from pyworkflow.utils import Message
 from pyworkflow import BETA
 import pyworkflow.object as pwobj
-from pwem.emlib.image import ImageHandler
-from spfluo.objects import SetOfParticles
-from tomo.objects import AverageSubTomogram, SetOfSubTomograms
-from tomo.protocols import ProtTomoBase
+from spfluo.objects import AverageParticle, SetOfParticles
+from spfluo.protocols import ProtFluoBase
 
 
 from spfluo import Plugin
 from spfluo.constants import *
-from spfluo.convert import convert_to_tif, getLastParticlesParams, updateSetOfSubTomograms
+from spfluo.convert import getLastParticlesParams, updateSetOfParticles
 
 
 class outputs(Enum):
-    reconstructedVolume = AverageSubTomogram
-    particles = SetOfSubTomograms
+    reconstructedVolume = AverageParticle
+    particles = SetOfParticles
 
 
-class ProtSPFluoAbInitio(Protocol, ProtTomoBase):
+class ProtSPFluoAbInitio(Protocol, ProtFluoBase):
     """
     Ab initio reconstruction
     """
@@ -69,16 +67,12 @@ class ProtSPFluoAbInitio(Protocol, ProtTomoBase):
     # -------------------------- DEFINE param functions ----------------------
     def _defineParams(self, form):
         form.addSection(label="Data params")
-        form.addParam('inputParticles', params.PointerParam, pointerClass='SetOfSubTomograms',
+        form.addParam('inputParticles', params.PointerParam, pointerClass='SetOfParticles',
                       label="Particles", important=True,
                       help='Select the input particles.')
-        form.addParam('inputPSF', params.PointerParam, pointerClass='SetOfTomograms',
+        form.addParam('inputPSF', params.PointerParam, pointerClass='SetOfFluoImages',
                       label="PSF", important=True,
                       help='Select the PSF.')
-        form.addParam('voxelSizeZ', params.FloatParam,
-                      label="Voxel size Z", default=1.)
-        form.addParam('voxelSizeXY', params.FloatParam,
-                      label="Voxel size XY", default=1.)
         form.addParam('gpu', params.EnumParam, choices=self._GPU_libraries,
                        display=params.EnumParam.DISPLAY_LIST,
                        label='GPU Library')
@@ -93,10 +87,9 @@ class ProtSPFluoAbInitio(Protocol, ProtTomoBase):
         self.particlesDir = os.path.abspath(self._getExtraPath("particles"))
         self.outputDir = os.path.abspath(self._getExtraPath("working_dir"))
         self.psfPath = os.path.abspath(self._getExtraPath("psf.tif"))
-        self.final_reconstruction = self._getExtraPath("final_recon.mrc")
+        self.final_reconstruction = self._getExtraPath("final_reconstruction.tif")
         self._insertFunctionStep(self.prepareStep)
         self._insertFunctionStep(self.reconstructionStep)
-        self._insertFunctionStep(self.convertOutputStep)
         self._insertFunctionStep(self.createOutputStep)
     
     def prepareStep(self):
@@ -106,7 +99,7 @@ class ProtSPFluoAbInitio(Protocol, ProtTomoBase):
 
         # Image links for particles
         particles_paths = []
-        inputParticles : SetOfSubTomograms = self.inputParticles.get()
+        inputParticles : SetOfParticles = self.inputParticles.get()
         max_dim = 0
         for im in inputParticles:
             max_dim = max(max_dim, max(im.getDim()))
@@ -116,8 +109,7 @@ class ProtSPFluoAbInitio(Protocol, ProtTomoBase):
             im_newPath = os.path.join(self.particlesDir, im_name+'.tif')
             particles_paths.append(im_newPath)
             if ext != '.tif' and ext != '.tiff':
-                print(f"Convert {im_path} to TIF in {im_newPath}")
-                convert_to_tif(im_path, im_newPath)
+                raise NotImplementedError(f"Found ext {ext} in particles: {im_path}. Only tiff file are supported.") # FIXME: allow formats accepted by AICSImageio
             else:
                 os.link(im_path, im_newPath)
 
@@ -126,12 +118,15 @@ class ProtSPFluoAbInitio(Protocol, ProtTomoBase):
         psf_path = os.path.abspath(psf.getFileName())
         ext = os.path.splitext(psf_path)[1]
         if ext != '.tif' and ext != '.tiff':
-            print(f"Convert {psf_path} to TIF in {self.psfPath}")
-            convert_to_tif(psf_path, self.psfPath)
+            raise NotImplementedError(f"Found ext {ext} in particles: {im_path}. Only tiff file are supported.")
         else:
             os.link(psf_path, self.psfPath)
         
         # Make isotropic
+        sr = inputParticles.getSamplingRate()
+        if sr is None:
+            raise RuntimeError("Input Particles don't have a sampling rate.")
+        
         input_paths = particles_paths + [self.psfPath]
         args = ["-f isotropic_resample"]
         args += ["-i"] + input_paths
@@ -139,7 +134,7 @@ class ProtSPFluoAbInitio(Protocol, ProtTomoBase):
         if not os.path.exists(folder_isotropic):
             os.makedirs(folder_isotropic, exist_ok=True)
         args += [f"-o {folder_isotropic}"]
-        args += [f"--spacing {self.voxelSizeZ} {self.voxelSizeXY} {self.voxelSizeXY}"]
+        args += [f"--spacing {sr[1]} {sr[0]} {sr[0]}"]
         args = ' '.join(args)
         Plugin.runSPFluo(self, Plugin.getProgram(UTILS_MODULE), args=args)
 
@@ -181,25 +176,22 @@ class ProtSPFluoAbInitio(Protocol, ProtTomoBase):
         args = " ".join(args)
         print("Launching reconstruction")
         Plugin.runSPFluo(self, Plugin.getProgram(AB_INITIO_MODULE), args=args)
-    
-    def convertOutputStep(self):
-        ih = ImageHandler()
-        ih.convert(os.path.join(self.outputDir, 'intermediar_results', 'final_recons.tif'), self.final_reconstruction)
+        os.link(os.path.join(self.outputDir, 'intermediar_results', 'final_recons.tif'), self.final_reconstruction)
 
     def createOutputStep(self):
         inputSetOfParticles = self.inputParticles.get()
         # Output 1 : reconstruction Volume
-        reconstruction = AverageSubTomogram()
+        reconstruction = AverageParticle()
         reconstruction.setFileName(self.final_reconstruction)
         self._defineOutputs(**{outputs.reconstructedVolume.name: reconstruction})
 
-        # Output 2 : SetOfSubTomograms
+        # Output 2 : SetOfParticles
         particleParams = getLastParticlesParams(os.path.join(self.outputDir, "intermediar_results"))
-        outputSetOfParticles = self._createSet(SetOfSubTomograms, 'subtomograms%s.sqlite', "particles")
+        outputSetOfParticles = self._createSet(SetOfParticles, 'particles%s.sqlite', "particles")
         outputSetOfParticles.copyInfo(inputSetOfParticles)
         outputSetOfParticles.setCoordinates3D(inputSetOfParticles.getCoordinates3D())
         print(particleParams)
-        updateSetOfSubTomograms(inputSetOfParticles, outputSetOfParticles, particleParams)
+        updateSetOfParticles(inputSetOfParticles, outputSetOfParticles, particleParams)
         self._defineOutputs(**{outputs.particles.name: outputSetOfParticles})
         # Transform relation
         self._defineRelation(pwobj.RELATION_TRANSFORM, inputSetOfParticles, outputSetOfParticles)
@@ -221,7 +213,7 @@ class ProtSPFluoAbInitio(Protocol, ProtTomoBase):
         return methods
 
 
-class ProtSPFluoSubTomoAverage(Protocol):
+class ProtSPFluoParticleAverage(Protocol):
     _label = 'Particle average test'
     _devStatus = BETA
     _possibleOutputs = outputs
@@ -229,14 +221,14 @@ class ProtSPFluoSubTomoAverage(Protocol):
     # -------------------------- DEFINE param functions ----------------------
     def _defineParams(self, form):
         form.addSection(label="Input")
-        form.addParam('inputSubTomo', params.PointerParam, pointerClass='SetOfSubTomograms',
-                      label="Input Subtomo", important=True,
-                      help='Select the input subtomograms.')
+        form.addParam('inputParticle', params.PointerParam, pointerClass='SetOfParticles',
+                      label="Input Particle", important=True,
+                      help='Select the input particles.')
     
     def _insertAllSteps(self):
         self.particlesDir = os.path.abspath(self._getExtraPath("particles"))
         self.outputDir = os.path.abspath(self._getExtraPath("working_dir"))
-        self.final_reconstruction = self._getExtraPath("final_recon.mrc")
+        self.final_reconstruction = self._getExtraPath("final_recon.tif")
         self._insertFunctionStep(self.prepareStep)
         self._insertFunctionStep(self.launchStep)
         self._insertFunctionStep(self.createOuputStep)
@@ -246,18 +238,17 @@ class ProtSPFluoSubTomoAverage(Protocol):
         if not os.path.exists(self.particlesDir):
             os.makedirs(self.particlesDir, exist_ok=True)
         
-        inputSubTomo: SetOfSubTomograms = self.inputSubTomo.get()
+        inputParticles: SetOfParticles = self.inputParticle.get()
 
         # Image links for particles
         matrices = {}
-        for im in inputSubTomo:
+        for im in inputParticles:
             im_path = os.path.abspath(im.getFileName())
             ext = os.path.splitext(im_path)[1]
             im_name = im.getNameId()
             im_newPath = os.path.join(self.particlesDir, im_name+'.tif')
             if ext != '.tif' and ext != '.tiff':
-                print(f"Convert {im_path} to TIF in {im_newPath}")
-                convert_to_tif(im_path, im_newPath)
+                raise NotImplementedError(f"Found ext {ext} in particles: {im_path}. Only tiff file are supported.")
             else:
                 os.link(im_path, im_newPath)
             
@@ -278,9 +269,5 @@ class ProtSPFluoSubTomoAverage(Protocol):
     
     def createOuputStep(self):
         avrg_path = self._getExtraPath('average.tif')
-        avrg_new_path = self._getExtraPath("average.mrc")
-        ih = ImageHandler()
-        ih.convert(avrg_path, avrg_new_path)
-        average_output = AverageSubTomogram()
-        average_output.setFileName(avrg_new_path)
+        average_output = AverageParticle(filename=avrg_path)
         self._defineOutputs(**{"output": average_output})

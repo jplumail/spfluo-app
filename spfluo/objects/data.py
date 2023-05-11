@@ -515,6 +515,12 @@ class Coordinate3D(Object):
         self._groupId: Integer = Integer(0)  # This may refer to a mesh, ROI, vesicle or any group of coordinates
         self._imageId = String(kwargs.get('imageId', None))  # Used to access to the corresponding image from each coord (it's the tsId)
 
+    def setPosition(self, x: float, y: float, z: float) -> None:
+        self._transform.setShifts(x, y, z)
+    
+    def getPosition(self) -> NDArray[np.float64]:
+        return self._transform.getShifts()
+
     def setMatrix(self, matrix: NDArray[np.float64], convention: Optional[str]=None) -> None:
         #self._eulerMatrix.setMatrix(convertMatrix(matrix, direction=const.SET, convention=convention))
         self._transform.setMatrix(matrix)
@@ -895,7 +901,7 @@ class SetOfImages(Set):
                         self.append(img)
 
 
-class SetOfFluoImages(SetOfImages):
+class SetOfFluoImages(SetOfImages, FluoSet):
     """Represents a set of fluo images"""
     ITEM_TYPE = FluoImage
     REP_TYPE = FluoImage
@@ -1112,7 +1118,7 @@ class SetOfCoordinates3D(FluoSet):
         imgIds = [d['_imgId'] for d in imgIds]
         return imgIds
 
-class SetOfParticles(SetOfImages):
+class SetOfParticles(SetOfImages, FluoSet):
     ITEM_TYPE = Particle
     REP_TYPE = Particle
     EXPOSE_ITEMS = False

@@ -1,6 +1,8 @@
 def getSPFluoEnvName(version):
     return f'spfluo-{version}'
 
+FLUO_ROOT_VAR = "FLUO_ROOT"
+CUDA_LIB_VAR = "CUDA_LIB"
 
 SPFLUO_HOME = "SPFLUO_HOME"
 SPFLUO_VERSION = "0.0.1"
