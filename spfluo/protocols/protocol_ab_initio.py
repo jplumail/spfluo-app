@@ -42,7 +42,7 @@ from pyworkflow.utils import Message
 from pyworkflow import BETA
 import pyworkflow.object as pwobj
 from spfluo.objects import AverageParticle, SetOfParticles
-from spfluo.protocols import ProtFluoBase
+from .protocol_base import ProtFluoBase
 
 
 from spfluo import Plugin

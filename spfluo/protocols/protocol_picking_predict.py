@@ -7,7 +7,7 @@ import pyworkflow.object as pwobj
 from pyworkflow.protocol import Protocol, params
 import pyworkflow.utils as pwutils
 from spfluo.objects.data import Coordinate3D, FluoImage, SetOfCoordinates3D, SetOfFluoImages
-from spfluo.protocols import ProtFluoPicking
+from .protocol_base import ProtFluoPicking
 from spfluo import Plugin
 from spfluo.constants import *
 from spfluo.protocols.protocol_picking_train import ProtSPFluoPickingTrain

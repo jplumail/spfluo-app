@@ -1,5 +1,5 @@
 
-from pwem.viewers.viewer_volumes import viewerProtImportVolumes
+from pwem.viewers.viewer_volumes import viewerProtImportVolumes # FIXME
 from ..protocols import ProtSPFluoAbInitio
 
 
