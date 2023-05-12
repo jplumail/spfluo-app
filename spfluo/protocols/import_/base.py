@@ -29,33 +29,11 @@ class ProtImportFiles(ProtImport):
 
     # --------------------------- DEFINE param functions ----------------------
     def _defineParams(self, form: Form) -> None:
-        importChoices = self._getImportChoices()
-        filesCondition = self._getFilesCondition()
-
         form.addSection(label="Import")
 
-        if len(importChoices) > 1:  # not only from files
-            form.addParam(
-                "importFrom",
-                params.EnumParam,
-                choices=importChoices,
-                default=self._getDefaultChoice(),
-                label="Import from",
-                help="Select the type of import.",
-            )
-        else:
-            form.addHidden(
-                "importFrom",
-                params.EnumParam,
-                choices=importChoices,
-                default=self.IMPORT_FROM_FILES,
-                label="Import from",
-                help="Select the type of import.",
-            )
         form.addParam(
             "filesPath",
             params.PathParam,
-            condition=filesCondition,
             label="Files directory",
             help="Directory with the files you want to import.\n\n"
             "The path can also contain wildcards to select"
@@ -75,7 +53,6 @@ class ProtImportFiles(ProtImport):
             "filesPattern",
             params.StringParam,
             label="Pattern",
-            condition=filesCondition,
             help="Pattern of the files to be imported.\n\n"
             "The pattern can contain standard wildcards such as\n"
             "*, ?, etc, or special ones like ### to mark some\n"
@@ -167,16 +144,15 @@ class ProtImportFiles(ProtImport):
     # --------------------------- INFO functions ------------------------------
     def _validate(self) -> List[str]:
         errors = []
-        if self.importFrom == self.IMPORT_FROM_FILES:
-            if not self.getPattern():
-                errors.append("The path and pattern can not be both empty!!!")
-            else:
-                # Just check the number of files matching the pattern
-                self.getMatchFiles()
-                if self.numberOfFiles == 0:
-                    errors.append(
-                        "There are no files matching the pattern %s" % self.getPattern()
-                    )
+        if not self.getPattern():
+            errors.append("The path and pattern can not be both empty!!!")
+        else:
+            # Just check the number of files matching the pattern
+            self.getMatchFiles()
+            if self.numberOfFiles == 0:
+                errors.append(
+                    "There are no files matching the pattern %s" % self.getPattern()
+                )
 
         return errors
 
@@ -187,13 +163,6 @@ class ProtImportFiles(ProtImport):
         (usually packages formats such as: xmipp3, eman2, relion...etc.
         """
         return ["files"]
-
-    def _getFilesCondition(self) -> str:
-        """Return an string representing the condition
-        when to display the files path and pattern to grab
-        files.
-        """
-        return "(importFrom == %d)" % self.IMPORT_FROM_FILES
 
     # --------------------------- UTILS functions -----------------------------
     def getPattern(self) -> str:
@@ -291,3 +260,84 @@ class ProtImportFiles(ProtImport):
     def worksInStreaming(cls):
         # Import protocols always work in streaming
         return True
+
+
+class ProtImportFile(ProtImport):
+    """Base class for other Import protocols.
+    All imports protocols will have:
+    1) Several options to import from (_getImportOptions function)
+    2) First option will always be "from files". (for this option
+      files with a given pattern will be retrieved  and the ### will
+      be used to mark an ID part from the filename.
+      - For each file a function to process it will be called
+        (_importFile(fileName, fileId))
+    """
+
+    IMPORT_FROM_FILES = 0
+
+    # --------------------------- DEFINE param functions ----------------------
+    def _defineParams(self, form: Form) -> None:
+        form.addSection(label="Import")
+
+        form.addParam(
+            "filePath",
+            params.PathParam,
+            label="File path",
+            help="Path to the file you want to import",
+        )
+        form.addParam(
+            "copyFiles",
+            params.BooleanParam,
+            default=False,
+            expertLevel=params.LEVEL_ADVANCED,
+            label="Copy file?",
+            help="By default the file is not copied into the "
+            "project to avoid data duplication and to save "
+            "disk space. Instead of copying, symbolic links are "
+            "created pointing to original files. This approach "
+            "has the drawback that if the project is moved to "
+            "another computer, the links need to be restored.",
+        )
+
+        self._defineImportParams(form)
+
+        self._defineAcquisitionParams(form)
+
+        self._defineBlacklistParams(form)
+
+    def _defineImportParams(self, form: Form) -> None:
+        """Override to add options related to the different types
+        of import that are allowed by each protocol.
+        """
+        pass
+
+    def _defineAcquisitionParams(self, form: Form) -> None:
+        """Override to add options related to acquisition info."""
+        pass
+
+    def _defineBlacklistParams(self, form: Form) -> None:
+        """Override to add options related to blacklist info."""
+        pass
+
+    def _getDefaultChoice(self) -> int:
+        return self.IMPORT_FROM_FILES
+
+    # --------------------------- INFO functions ------------------------------
+    def _validate(self) -> List[str]:
+        errors = []
+        if not os.path.isfile(self.filePath.get()):
+            errors.append(f"{self.filePath.get()} is not a file.")
+        return errors
+
+    # --------------------------- BASE methods to be overwritten ----------------
+    def _getImportChoices(self) -> List[str]:
+        """Return a list of possible choices
+        from which the import can be done.
+        (usually packages formats such as: xmipp3, eman2, relion...etc.
+        """
+        return ["files"]
+
+    # --------------------------- UTILS functions -----------------------------
+    def isBlacklisted(self, fileName: str) -> bool:
+        """Overwrite in subclasses"""
+        return False
