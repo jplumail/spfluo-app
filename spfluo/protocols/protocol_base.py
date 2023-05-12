@@ -42,7 +42,7 @@ from pyworkflow.utils.properties import Message
 from pyworkflow.protocol.params import Form, ElementGroup
 
 import spfluo.objects as spobj
-from spfluo.protocols.import_.base import ProtImportFiles, ProtImport
+from spfluo.protocols.import_.base import ProtImportFiles, ProtImportFile, ProtImport
 
 from typing import List, TypeVar, Type
 
@@ -145,61 +145,17 @@ class ProtFluoPicking(ProtImport, ProtFluoBase):
 
 
 class ProtFluoImportFiles(ProtImportFiles, ProtFluoBase):
-    def _defineParams(self, form: Form) -> None:
-        self._defineImportParams(form)
 
-        self._defineAcquisitionParams(form)
+    def _defineAcquisitionParams(self, form: Form) -> None:
+        """Override to add options related to acquisition info."""
+        form.addGroup("Sampling rate")
+        form.addParam("sr_xy", FloatParam, label="XY")
+        form.addParam("sr_z", FloatParam, label="Z")
 
-    def _defineImportParams(self, form: Form) -> None:
-        """Override to add options related to the different types
-        of import that are allowed by each protocol.
-        """
+    def _validate(self):
+        pass
 
-        form.addSection(label="Import")
-
-        form.addParam(
-            "filesPath",
-            PathParam,
-            label="Files directory",
-            help="Directory with the files you want to import.\n\n"
-            "The path can also contain wildcards to select"
-            "from several folders. \n\n"
-            "Examples:\n"
-            "  ~/Images/data/day??_img/\n"
-            "Each '?' represents one unknown character\n\n"
-            "  ~/Images/data/day*_images/\n"
-            "'*' represents any number of unknown characters\n\n"
-            "  ~/Images/data/day#_images/\n"
-            "'#' represents one digit that will be used as "
-            "image ID\n\n"
-            "NOTE: wildcard characters ('*', '?', '#') "
-            "cannot appear in the actual path.)",
-        )
-        form.addParam(
-            "filesPattern",
-            StringParam,
-            label="Pattern",
-            help="Pattern of the files to be imported.\n\n"
-            "The pattern can contain standard wildcards such as\n"
-            "*, ?, etc, or special ones like ### to mark some\n"
-            "digits in the filename as ID.\n\n"
-            "NOTE: wildcards and special characters "
-            "('*', '?', '#', ':', '%') cannot appear in the "
-            "actual path.",
-        )
-        form.addParam(
-            "copyFiles",
-            BooleanParam,
-            default=False,
-            expertLevel=LEVEL_ADVANCED,
-            label="Copy files?",
-            help="By default the files are not copied into the "
-            "project to avoid data duplication and to save "
-            "disk space. Instead of copying, symbolic links are "
-            "created pointing to original files. This approach "
-            "has the drawback that if the project is moved to "
-            "another computer, the links need to be restored.",
-        )
+class ProtFluoImportFile(ProtImportFile, ProtFluoBase): # TODO: find a better architecture
 
     def _defineAcquisitionParams(self, form: Form) -> None:
         """Override to add options related to acquisition info."""

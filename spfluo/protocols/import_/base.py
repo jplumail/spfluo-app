@@ -260,3 +260,84 @@ class ProtImportFiles(ProtImport):
     def worksInStreaming(cls):
         # Import protocols always work in streaming
         return True
+
+
+class ProtImportFile(ProtImport):
+    """Base class for other Import protocols.
+    All imports protocols will have:
+    1) Several options to import from (_getImportOptions function)
+    2) First option will always be "from files". (for this option
+      files with a given pattern will be retrieved  and the ### will
+      be used to mark an ID part from the filename.
+      - For each file a function to process it will be called
+        (_importFile(fileName, fileId))
+    """
+
+    IMPORT_FROM_FILES = 0
+
+    # --------------------------- DEFINE param functions ----------------------
+    def _defineParams(self, form: Form) -> None:
+        form.addSection(label="Import")
+
+        form.addParam(
+            "filePath",
+            params.PathParam,
+            label="File path",
+            help="Path to the file you want to import",
+        )
+        form.addParam(
+            "copyFiles",
+            params.BooleanParam,
+            default=False,
+            expertLevel=params.LEVEL_ADVANCED,
+            label="Copy file?",
+            help="By default the file is not copied into the "
+            "project to avoid data duplication and to save "
+            "disk space. Instead of copying, symbolic links are "
+            "created pointing to original files. This approach "
+            "has the drawback that if the project is moved to "
+            "another computer, the links need to be restored.",
+        )
+
+        self._defineImportParams(form)
+
+        self._defineAcquisitionParams(form)
+
+        self._defineBlacklistParams(form)
+
+    def _defineImportParams(self, form: Form) -> None:
+        """Override to add options related to the different types
+        of import that are allowed by each protocol.
+        """
+        pass
+
+    def _defineAcquisitionParams(self, form: Form) -> None:
+        """Override to add options related to acquisition info."""
+        pass
+
+    def _defineBlacklistParams(self, form: Form) -> None:
+        """Override to add options related to blacklist info."""
+        pass
+
+    def _getDefaultChoice(self) -> int:
+        return self.IMPORT_FROM_FILES
+
+    # --------------------------- INFO functions ------------------------------
+    def _validate(self) -> List[str]:
+        errors = []
+        if not os.path.isfile(self.filePath.get()):
+            errors.append(f"{self.filePath.get()} is not a file.")
+        return errors
+
+    # --------------------------- BASE methods to be overwritten ----------------
+    def _getImportChoices(self) -> List[str]:
+        """Return a list of possible choices
+        from which the import can be done.
+        (usually packages formats such as: xmipp3, eman2, relion...etc.
+        """
+        return ["files"]
+
+    # --------------------------- UTILS functions -----------------------------
+    def isBlacklisted(self, fileName: str) -> bool:
+        """Overwrite in subclasses"""
+        return False
