@@ -154,27 +154,8 @@ class ProtFluoImportFiles(ProtImportFiles, ProtFluoBase):
         """Override to add options related to the different types
         of import that are allowed by each protocol.
         """
-        importChoices = self._getImportChoices()
 
         form.addSection(label="Import")
-        if len(importChoices) > 1:  # not only from files
-            form.addParam(
-                "importFrom",
-                EnumParam,
-                choices=importChoices,
-                default=self._getDefaultChoice(),
-                label="Import from",
-                help="Select the type of import.",
-            )
-        else:
-            form.addHidden(
-                "importFrom",
-                EnumParam,
-                choices=importChoices,
-                default=self.IMPORT_FROM_FILES,
-                label="Import from",
-                help="Select the type of import.",
-            )
 
         form.addParam(
             "filesPath",

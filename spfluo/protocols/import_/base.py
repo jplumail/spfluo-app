@@ -29,33 +29,11 @@ class ProtImportFiles(ProtImport):
 
     # --------------------------- DEFINE param functions ----------------------
     def _defineParams(self, form: Form) -> None:
-        importChoices = self._getImportChoices()
-        filesCondition = self._getFilesCondition()
-
         form.addSection(label="Import")
 
-        if len(importChoices) > 1:  # not only from files
-            form.addParam(
-                "importFrom",
-                params.EnumParam,
-                choices=importChoices,
-                default=self._getDefaultChoice(),
-                label="Import from",
-                help="Select the type of import.",
-            )
-        else:
-            form.addHidden(
-                "importFrom",
-                params.EnumParam,
-                choices=importChoices,
-                default=self.IMPORT_FROM_FILES,
-                label="Import from",
-                help="Select the type of import.",
-            )
         form.addParam(
             "filesPath",
             params.PathParam,
-            condition=filesCondition,
             label="Files directory",
             help="Directory with the files you want to import.\n\n"
             "The path can also contain wildcards to select"
@@ -75,7 +53,6 @@ class ProtImportFiles(ProtImport):
             "filesPattern",
             params.StringParam,
             label="Pattern",
-            condition=filesCondition,
             help="Pattern of the files to be imported.\n\n"
             "The pattern can contain standard wildcards such as\n"
             "*, ?, etc, or special ones like ### to mark some\n"
@@ -167,16 +144,15 @@ class ProtImportFiles(ProtImport):
     # --------------------------- INFO functions ------------------------------
     def _validate(self) -> List[str]:
         errors = []
-        if self.importFrom == self.IMPORT_FROM_FILES:
-            if not self.getPattern():
-                errors.append("The path and pattern can not be both empty!!!")
-            else:
-                # Just check the number of files matching the pattern
-                self.getMatchFiles()
-                if self.numberOfFiles == 0:
-                    errors.append(
-                        "There are no files matching the pattern %s" % self.getPattern()
-                    )
+        if not self.getPattern():
+            errors.append("The path and pattern can not be both empty!!!")
+        else:
+            # Just check the number of files matching the pattern
+            self.getMatchFiles()
+            if self.numberOfFiles == 0:
+                errors.append(
+                    "There are no files matching the pattern %s" % self.getPattern()
+                )
 
         return errors
 
@@ -187,13 +163,6 @@ class ProtImportFiles(ProtImport):
         (usually packages formats such as: xmipp3, eman2, relion...etc.
         """
         return ["files"]
-
-    def _getFilesCondition(self) -> str:
-        """Return an string representing the condition
-        when to display the files path and pattern to grab
-        files.
-        """
-        return "(importFrom == %d)" % self.IMPORT_FROM_FILES
 
     # --------------------------- UTILS functions -----------------------------
     def getPattern(self) -> str:
