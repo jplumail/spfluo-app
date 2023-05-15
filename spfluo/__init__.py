@@ -17,7 +17,13 @@ from packaging.version import parse, InvalidVersion
 import pyworkflow.utils as pwutils
 from pyworkflow import plugin
 import pyworkflow as pw
+from pyworkflow.utils import  getSubclasses
+from pyworkflow.object import Object
+from pyworkflow.viewer import Viewer
+from pyworkflow.wizard import Wizard
+from pyworkflow.protocol import Protocol
 
+from spfluo.objects import FluoObject
 from .constants import CUDA_LIB_VAR, FLUO_ROOT_VAR, GITHUB_TOKEN, PYTHON_VERSION, SPFLUO_ACTIVATION_CMD, SPFLUO_CUDA_LIB, SPFLUO_HOME, SPFLUO_VERSION, getSPFluoEnvName
 
 _logo = "icon.png"
@@ -33,6 +39,16 @@ class Config(pw.Config):
     # CUDA
     CUDA_LIB = _get(CUDA_LIB_VAR, '/usr/local/cuda/lib64')
     CUDA_BIN = _get('CUDA_BIN', '/usr/local/cuda/bin')
+
+
+class Domain(plugin.Domain):
+    _name = __name__
+    _objectClass = FluoObject
+    _protocolClass = Protocol
+    _viewerClass = Viewer
+    _wizardClass = Wizard
+    _baseClasses = getSubclasses(FluoObject, globals())
+    print("Base classes: ", _baseClasses)
 
 
 class Plugin(plugin.Plugin):
@@ -64,7 +80,7 @@ class Plugin(plugin.Plugin):
         return environ
     
     @classmethod
-    def runSPFluo(cls, protocol, program, args, cwd=None, useCpu=False):
+    def runSPFluo(cls, protocol: Protocol, program, args, cwd=None, useCpu=False):
         """ Run IsonNet command from a given protocol. """
         fullProgram = '%s && %s && %s' % (cls.getCondaActivationCmd().replace("&&",""),
                                           SPFLUO_ACTIVATION_CMD,

@@ -381,18 +381,13 @@ class MultipleViewerWidget(QSplitter):
         finally:
             self._block = False
 
-
-if __name__ == "__main__":
-    import tifffile
-    from skimage.data import cells3d
-    im = cells3d()
-    #im = tifffile.imread("/home/plumail/Téléchargements/1.tif")
-
+def undock_widget():
+    # allow to undock the widget with additional viewers
     from qtpy import QtCore, QtWidgets
     QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_ShareOpenGLContexts)
-    # above two lines are needed to allow to undock the widget with
-    # additional viewers
-    view = napari.Viewer()
+
+
+def add_multiple_viewer_widget(view, image_layer):
     dock_widget1 = MultipleViewerWidget(view, dim=1)
     dock_widget2 = MultipleViewerWidget(view, dim=2)
     
@@ -409,17 +404,13 @@ if __name__ == "__main__":
     view.window.add_dock_widget(dock_widget1, name="Sample1", area="bottom")
     view.window.add_dock_widget(dock_widget2, name="Sample2", area="right")
 
-    image_layer = view.add_image(
-        im,
-        channel_axis=1,
-        name=["membrane", "nuclei"],
-        colormap=["green", "magenta"],
-        contrast_limits=[[1000, 20000], [1000, 50000]],
-    )
-
     cross = CrossWidget(view, image_layer[0])
     view.window.add_dock_widget(cross, name="Cross", area="left")
 
+    return dock_widget1, dock_widget2, cross
+
+
+def add_points_layer(view, dock_widget1, dock_widget2):
     points_layer = Points(
         ndim=3,
         edge_color=[0,0,255,255],
@@ -467,7 +458,40 @@ if __name__ == "__main__":
     
     points_layer.events.size.connect(on_size_change)
 
+    return points_layer
+
+def annotate_ortho_view(im, *args, **kwargs):
+    undock_widget()
+    view = napari.Viewer()
+    image_layer = view.add_image(im, *args, **kwargs)
+    dock_widget1, dock_widget2, _ = add_multiple_viewer_widget(view, image_layer)
+    add_points_layer(view, dock_widget1, dock_widget2)
+    view.camera.zoom = 10. # dumb value
+    napari.run()
+
+
+def main():
+    from skimage.data import cells3d
+    im = cells3d()
+
+    undock_widget()
+
+    view = napari.Viewer()
+    image_layer = view.add_image(
+        im,
+        channel_axis=1,
+        name=["membrane", "nuclei"],
+        colormap=["green", "magenta"],
+        contrast_limits=[[1000, 20000], [1000, 50000]],
+    )
+
+    dock_widget1, dock_widget2, _ = add_multiple_viewer_widget(view, image_layer)
+
+    add_points_layer(view, dock_widget1, dock_widget2)
+
     view.camera.zoom = 10. # dumb value
 
-
     napari.run()
+
+if __name__ == "__main__":
+    main()

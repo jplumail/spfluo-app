@@ -17,6 +17,18 @@ from scipy.ndimage import affine_transform # type: ignore
 
 NO_INDEX = 0
 
+
+class FluoObject(Object):
+    """Base object for all Fluo classes"""
+
+    def __str__(self):
+        return self.getClassName()
+
+    def getFiles(self):
+        """ Get all filePaths """
+        return None
+
+
 class Matrix(Scalar):
     def __init__(self, **kwargs) -> None:
         Scalar.__init__(self, **kwargs)
@@ -55,7 +67,7 @@ class Matrix(Scalar):
         self._objValue = other._objValue
 
 
-class Transform(Object):
+class Transform(FluoObject):
     """ This class will contain a transformation matrix
     that can be applied to 2D/3D objects like images and volumes.
     It should contain information about euler angles, translation(or shift)
@@ -72,7 +84,7 @@ class Transform(Object):
     ROT_Z_90_COUNTERCLOCKWISE = 'rotZ90cc'
 
     def __init__(self, matrix: Optional[NDArray[np.float64]]=None, **kwargs):
-        Object.__init__(self, **kwargs)
+        FluoObject.__init__(self, **kwargs)
         self._matrix = Matrix()
         if matrix is not None:
             self.setMatrix(matrix)
@@ -211,13 +223,16 @@ class ImageDim(CsvList):
             return None
         return self[2]
 
-    def set(self, dims: Optional[Tuple[int, int, int]]) -> None:
+    def set_(self, dims: Optional[Tuple[int, int, int]]) -> None:
         if dims is not None:
-            if self.isEmpty():
-                for i in range(3):
-                    self.append(dims[i])
+            if all(type(dims[i]) is int for i in range(3)):
+                if self.isEmpty():
+                    for i in range(3):
+                        self.append(dims[i])
+                else:
+                    self[:] = dims
             else:
-                self[:] = dims
+                raise Exception(f'Dimensions must be a tuple of int, got {dims} of type {type(dims)}')
 
     def __str__(self) -> str:
         x, y, z = self.getX(), self.getY(), self.getZ()
@@ -264,7 +279,7 @@ class SamplingRate(CsvList):
         return s
 
 
-class Image(Object):
+class Image(FluoObject):
     """Represents an image object"""
 
     def __init__(self, filename: Optional[str]=None, **kwargs) -> None:
@@ -273,7 +288,7 @@ class Image(Object):
         :param location: Could be a valid location: (index, filename)
         or  filename
         """
-        Object.__init__(self, **kwargs)
+        FluoObject.__init__(self, **kwargs)
         # Image location is composed by an index and a filename
         self._filename: String = String()
         self._img: Optional[AICSImage] = None
@@ -347,7 +362,7 @@ class Image(Object):
         self._img = AICSImage(filename)
         d = self._img.dims
         x, y, z = d.X, d.Y, d.Z
-        self._imageDim.set((x, y, z))
+        self._imageDim.set_((x, y, z))
     
     def getBaseName(self) -> str:
         return os.path.basename(self.getFileName())
@@ -501,14 +516,14 @@ class FluoImage(Image):
     def setPSF(self, newPSF: PSFModel) -> None:
         self._psfModel = newPSF
 
-class Coordinate3D(Object):
+class Coordinate3D(FluoObject):
     """This class holds the (x,y,z) position and other information
     associated with a coordinate"""
 
     IMAGE_ID_ATTR: str = "_imageId"
 
     def __init__(self, **kwargs) -> None:
-        Object.__init__(self, **kwargs)
+        FluoObject.__init__(self, **kwargs)
         self._boxSize: int = 0
         self._imagePointer: Pointer = Pointer(objDoStore=False) # points to a FluoImage
         self._transform: Transform = Transform()
@@ -616,7 +631,7 @@ class Particle(FluoImage):
     def setImageName(self, imageName: str) -> None:
         self._imageName.set(imageName)
 
-class FluoSet(Set):
+class FluoSet(Set, FluoObject):
     _classesDict = None
 
     def _loadClassesDict(self) -> Dict:
@@ -801,7 +816,7 @@ class SetOfImages(Set):
         """ Store dimensions.
         This function should be called only once, to avoid reading
         dimension from image file. """
-        self._dim.set(dim)
+        self._dim.set_(dim)
 
     def copyInfo(self, other: 'SetOfImages') -> None:
         """ Copy basic information (sampling rate and psf)
