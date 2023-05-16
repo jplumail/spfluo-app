@@ -100,6 +100,7 @@ class ProtImportFluoImages(ProtFluoImportFiles):
             img.setFileName(self._getExtraPath(newFileName))
             imgSet.append(img)
 
+        imgSet.write()
         self._defineOutputs(**{self.OUTPUT_NAME: imgSet})
 
     # --------------------------- INFO functions ------------------------------
