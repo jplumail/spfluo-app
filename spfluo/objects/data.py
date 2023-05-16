@@ -309,6 +309,11 @@ class Image(FluoObject):
         if filename:
             self.setFileName(filename)
     
+    def getData(self) -> Union[NDArray, None]:
+        if self.isEmpty():
+            return None
+        return self._img.data
+    
     def isEmpty(self):
         return self._img is None
 
@@ -800,16 +805,6 @@ class SetOfImages(Set):
         else:
             pass
 
-        dim = self.getDim()
-        im_dim = image.getDim()
-        if im_dim is None:
-            raise ValueError(f"Image {image} dimension is None.")
-        if dim is not None:
-            if dim != im_dim:
-                raise ValueError(f"{image} has different dimension than {self}, found {dim} and {im_dim}")
-        else:
-            self.setDim(im_dim)
-
         Set.append(self, image)
 
     def setDim(self, dim: Tuple[int, int, int]) -> None:
@@ -1261,6 +1256,19 @@ class SetOfParticles(SetOfImages, FluoSet):
                 self._images[imgId] = self.getCoordinates3D().getPrecedents()[{FluoImage.IMG_ID_FIELD: imgId}] # type: ignore
 
         return self._images
+    
+    def append(self, particle: Particle):
+        dim = self.getDim()
+        im_dim = particle.getDim()
+        if im_dim is None:
+            raise ValueError(f"Particle {particle} dimension is None.")
+        if dim is not None:
+            if dim != im_dim:
+                raise ValueError(f"{particle} has different dimension than {self}, found {dim} and {im_dim}")
+        else:
+            self.setDim(im_dim)
+        
+        SetOfImages.append(self, particle)
 
 class AverageParticle(Particle):
     """Represents a Average Particle.
