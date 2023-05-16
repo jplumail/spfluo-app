@@ -48,7 +48,6 @@ class Domain(plugin.Domain):
     _viewerClass = Viewer
     _wizardClass = Wizard
     _baseClasses = getSubclasses(FluoObject, globals())
-    print("Base classes: ", _baseClasses)
 
 
 class Plugin(plugin.Plugin):
