@@ -58,7 +58,7 @@ class Matrix(Scalar):
     def __str__(self) -> str:
         return np.array_str(self._matrix)
 
-    def _copy(self, other: 'Matrix') -> None:
+    def _copy(self, other: 'Matrix', *args, **kwargs) -> None:
         """ Override the default behaviour of copy
         to also copy array data.
         Copy other into self.
