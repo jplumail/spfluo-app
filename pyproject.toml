@@ -19,7 +19,8 @@ dependencies = [
   "torchvision",
   "pynvml",
   "psutil",
-  "matplotlib"
+  "matplotlib",
+  "napari[all] @ git+https://github.com/napari/napari.git",
 ]
 version = "0.0.1"
 authors = [
