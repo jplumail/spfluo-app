@@ -1,3 +1,4 @@
+from spfluo.objects.data import FluoImage, SetOfFluoImages
 from .protocol_base import ProtFluoPicking
 from spfluo import Plugin
 from spfluo.viewers.views_tkinter_tree import FluoImagesTreeProvider, NapariDialog
@@ -45,7 +46,9 @@ class ProtSPFluoPickingNapari(ProtFluoPicking):
         #    volIds = dict()
 
         fluoList = []
-        for fluo in self.inputFluoImages.get().iterItems():
+        set_of_fluoimages: SetOfFluoImages = self.inputFluoImages.get()
+        for i, fluo in enumerate(set_of_fluoimages.iterItems()):
+            fluo: FluoImage = fluo
             fluoImage = fluo.clone()
             # get last outputs count
             #if tomo.getObjId() in volIds:
@@ -54,7 +57,6 @@ class ProtSPFluoPickingNapari(ProtFluoPicking):
             #    tomogram.count = 0
             fluoImage.count = 0
             fluoList.append(fluoImage)
-        print(self.inputFluoImages.get(), fluoList)
 
         fluoProvider = FluoImagesTreeProvider(fluoList, self.info_path, "json")
 
