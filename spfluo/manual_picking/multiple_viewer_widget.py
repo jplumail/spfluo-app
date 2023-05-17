@@ -13,6 +13,7 @@ current dims point (`viewer.dims.point`).
 """
 
 from copy import deepcopy
+import os
 
 import numpy as np
 from packaging.version import parse as parse_version
@@ -441,7 +442,7 @@ class MultipleViewerWidget(QSplitter):
             self._block = False
 
 
-if __name__ == "__main__":
+def annotate(im_path, output_path):
     from qtpy import QtCore, QtWidgets
     QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_ShareOpenGLContexts)
     # above two lines are needed to allow to undock the widget with
@@ -453,7 +454,7 @@ if __name__ == "__main__":
     view.window.add_dock_widget(dock_widget, name="Sample")
     view.window.add_dock_widget(cross, name="Cross", area="left")
 
-    view.open_sample('napari', 'cells3d')
+    view.open(im_path)
 
     points_layer = Points(
         ndim=3,
@@ -498,5 +499,26 @@ if __name__ == "__main__":
     points_layer.events.current_size.connect(on_size_change)
 
     view.add_layer(points_layer)
+    
+    # Save annotations
+    f = open(output_path, "w")
+    def save_annotations():
+        # delete previous annotations
+        f.seek(0)
+        f.truncate()
+        
+        # write new annotations
+        s = points_layer.current_size
+        f.write(','.join(['index', 'axis-1', 'axis-2', 'axis-3','size'])); f.write('\n')
+        for pos in points_layer.data:
+            f.write(','.join(map(str, pos)))
+            f.write(','+str(s))
+            f.write('\n')
+        f.tell()
+    
+    points_layer.events.set_data.connect(save_annotations)
 
+    points_layer.mode = "add"
     napari.run()
+
+    f.close()
