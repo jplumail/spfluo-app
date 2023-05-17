@@ -31,10 +31,10 @@ from superqt.utils import qthrottled
 import napari
 from napari.components.layerlist import Extent
 from napari.components.viewer_model import ViewerModel
-from napari.layers import Image, Labels, Layer, Vectors
+from napari.layers import Image, Labels, Layer, Vectors, Points
 from napari.qt import QtViewer
 from napari.utils.action_manager import action_manager
-from napari.utils.events.event import WarningEmitter
+from napari.utils.events.event import WarningEmitter, Event
 from napari.utils.notifications import show_info
 
 NAPARI_GE_4_16 = parse_version(napari.__version__) > parse_version("0.4.16")
@@ -268,11 +268,6 @@ class MultipleViewerWidget(QSplitter):
         self._block = False
         self.qt_viewer1 = QtViewerWrap(viewer, self.viewer_model1)
         self.qt_viewer2 = QtViewerWrap(viewer, self.viewer_model2)
-        self.tab_widget = QTabWidget()
-        w1 = ExampleWidget()
-        w2 = ExampleWidget()
-        self.tab_widget.addTab(w1, "Sample 1")
-        self.tab_widget.addTab(w2, "Sample 2")
         viewer_splitter = QSplitter()
         viewer_splitter.setOrientation(Qt.Vertical)
         viewer_splitter.addWidget(self.qt_viewer1)
@@ -280,7 +275,6 @@ class MultipleViewerWidget(QSplitter):
         viewer_splitter.setContentsMargins(0, 0, 0, 0)
 
         self.addWidget(viewer_splitter)
-        self.addWidget(self.tab_widget)
 
         self.viewer.layers.events.inserted.connect(self._layer_added)
         self.viewer.layers.events.removed.connect(self._layer_removed)
@@ -356,7 +350,7 @@ class MultipleViewerWidget(QSplitter):
                 own_partial(self._property_sync, name)
             )
 
-        if isinstance(event.value, Labels):
+        if isinstance(event.value, Labels) or isinstance(event.value, Points):
             event.value.events.set_data.connect(self._set_data_refresh)
             self.viewer_model1.layers[
                 event.value.name
@@ -460,5 +454,41 @@ if __name__ == "__main__":
     view.window.add_dock_widget(cross, name="Cross", area="left")
 
     view.open_sample('napari', 'cells3d')
+
+    points_layer = Points(
+        ndim=3,
+        edge_color=[0,0,255,255],
+        face_color=[0,0,0,0],
+        out_of_slice_display=True,
+        size=10
+    )
+
+    def on_move_point(event: Event):
+        layer: Points = event.source
+        viewers = [dock_widget.viewer, dock_widget.viewer_model1, dock_widget.viewer_model2]
+        if len(layer.selected_data) > 0:
+            idx_point = list(layer.selected_data)[0]
+            pos_point = tuple(layer.data[idx_point])
+
+            # update viewers
+            viewers_not_under_mouse = [viewer for viewer in viewers if not viewer.mouse_over_canvas]
+            for viewer in viewers_not_under_mouse:
+                pos_reordered = tuple(np.array(pos_point)[list(viewer.dims.order)])
+                viewer.camera.center = pos_reordered
+            
+            dock_widget.viewer.dims.current_step = tuple(
+                np.round(
+                    [
+                        max(min_, min(p, max_)) / step
+                        for p, (min_, max_, step) in zip(
+                            pos_point, dock_widget.viewer.dims.range
+                        )
+                    ]
+                ).astype(int)
+            )
+        
+    points_layer.events.set_data.connect(on_move_point)
+
+    view.add_layer(points_layer)
 
     napari.run()
