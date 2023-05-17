@@ -309,13 +309,21 @@ class Image(FluoObject):
         if filename:
             self.setFileName(filename)
     
+    @property
+    def img(self) -> Optional[AICSImage]:
+        if self._img is None and (fname := self.getFileName()) is not None:
+            self._img = AICSImage(fname)
+        return self._img
+
+    @img.setter
+    def img(self, img: Optional[AICSImage]) -> None:
+        self._img = img
+
     def getData(self) -> Union[NDArray, None]:
-        if self.isEmpty():
-            return None
-        return self._img.data
+        return self.img.data
     
     def isEmpty(self):
-        return self._img is None
+        return self.img is None
 
     def getSamplingRate(self) -> Optional[Tuple[float, float]]:
         """ Return image sampling rate. (A/pix) """
@@ -354,18 +362,18 @@ class Image(FluoObject):
             return None
         return self._imageDim.getY()
 
-    def getFileName(self) -> str:
+    def getFileName(self) -> Optional[str]:
         """ Use the _objValue attribute to store filename. """
         fname = self._filename.get()
         if fname is None:
-            raise ValueError("Image has no filename!")
+            return None
         return fname
 
     def setFileName(self, filename: str) -> None:
         """ Use the _objValue attribute to store filename. """
         self._filename.set(filename)
-        self._img = AICSImage(filename)
-        d = self._img.dims
+        self.img = AICSImage(filename)
+        d = self.img.dims
         x, y, z = d.X, d.Y, d.Z
         self._imageDim.set_((x, y, z))
     
@@ -455,7 +463,7 @@ class Image(FluoObject):
         return set([self.getFileName()])
     
     def build_ome(self, image_name: Optional[str]=None) -> OME:
-        im = self._img
+        im = self.getData()
         if im is None:
             raise ValueError("Image is None.")
         return OmeTiffWriter.build_ome(
@@ -474,7 +482,7 @@ class Image(FluoObject):
         if apply_transform:
             im_data = affine_transform(self._img, self.getTransform().getMatrix())
         else:
-            im_data = self._img.data
+            im_data = self.getData()
         
         OmeTiffWriter.save(
             data=im_data,
