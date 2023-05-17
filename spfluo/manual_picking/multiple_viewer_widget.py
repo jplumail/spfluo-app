@@ -472,6 +472,8 @@ if __name__ == "__main__":
 
             # update viewers
             viewers_not_under_mouse = [viewer for viewer in viewers if not viewer.mouse_over_canvas]
+            if len(viewers_not_under_mouse) == 3: # if mouse is not over any viewer, the point size is being adjusted
+                return
             for viewer in viewers_not_under_mouse:
                 pos_reordered = tuple(np.array(pos_point)[list(viewer.dims.order)])
                 viewer.camera.center = pos_reordered
@@ -488,6 +490,12 @@ if __name__ == "__main__":
             )
         
     points_layer.events.set_data.connect(on_move_point)
+
+    def on_size_change(event):
+        layer = event.source
+        layer.size = layer.current_size
+    
+    points_layer.events.current_size.connect(on_size_change)
 
     view.add_layer(points_layer)
 
