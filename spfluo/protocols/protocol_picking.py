@@ -1,12 +1,14 @@
-from spfluo.objects.data import FluoImage, SetOfFluoImages
+from typing import Tuple
+from spfluo.convert import read_coordinate3D
+from spfluo.objects.data import FluoImage, SetOfCoordinates3D, SetOfFluoImages
 from .protocol_base import ProtFluoPicking
-from spfluo import Plugin
-from spfluo.viewers.views_tkinter_tree import FluoImagesTreeProvider, NapariDialog, NapariView
+from spfluo.viewers.views_tkinter_tree import NapariView
 
 from pyworkflow import BETA
-from pyworkflow.protocol import Protocol, params, Form
+from pyworkflow.protocol import Form
 from pyworkflow.gui.dialog import askYesNo
 from pyworkflow.utils.properties import Message
+import pyworkflow.object as pwobj
 
 import os
 
@@ -25,39 +27,59 @@ class ProtSPFluoPickingNapari(ProtFluoPicking):
         ProtFluoPicking._defineParams(self, form)
     
     def _insertAllSteps(self):
-        self._insertFunctionStep(self.launchBoxingGUIStep)
+        # TODO: add interactive feature
+        # see https://github.com/scipion-em/scipion-em-emantomo/blob/devel/emantomo/protocols/protocol_tomo_boxing.py
+        self._insertFunctionStep(self.launchBoxingGUIStep, interactive=False)
+    
+    def getCsvPath(self, im: FluoImage) -> Tuple[str, str]:
+        """ Get the FluoImage path and its csv file path"""
+        path = im.getFileName()
+        if path is None:
+            raise Exception(f"{im} file path is None! Cannot launch napari.")
+        path = os.path.abspath(path)
+        fname, _ = os.path.splitext(os.path.basename(path))
+        csv_file = fname + '.csv'
+        csv_path = os.path.abspath(self._getExtraPath(csv_file))
+        return path, csv_path
     
     def launchBoxingGUIStep(self):
         self.info_path = self._getExtraPath('info')
-        lastOutput = None
-        # Should get last outputs and put it in lastOuput variable ?
-        #if self.getOutputsSize() > 0:
-        #    pwutils.makePath(self.info_path)
-        #    self.json_files, self.tomo_files = jsonFilesFromSet(self.inputTomograms.get(), self.info_path)
-        #    lastOutput = [output for _, output in self.iterOutputAttributes()][-1]
-        #    _ = setCoords3D2Jsons(self.json_files, lastOutput)
-        #    pass
-        
-        # get the number of annotated things in lastOutput
-        #if lastOutput is not None:
-        #    volIds = lastOutput.aggregate(["MAX", "COUNT"], "_volId", ["_volId"])
-        #    volIds = dict([(d['_volId'], d["COUNT"]) for d in volIds])
-        #else:
-        #    volIds = dict()
 
         fluoList = []
-        set_of_fluoimages: SetOfFluoImages = self.inputFluoImages.get()
-        for i, fluo in enumerate(set_of_fluoimages.iterItems()):
+        fluoimages: SetOfFluoImages = self.inputFluoImages.get()
+        for i, fluo in enumerate(fluoimages.iterItems()):
             fluo: FluoImage = fluo
             fluoImage = fluo.clone()
-            # get last outputs count
-            #if tomo.getObjId() in volIds:
-            #    tomogram.count = volIds[tomo.getObjId()]
-            #else:
-            #    tomogram.count = 0
             fluoImage.count = 0
             fluoImage.in_viewer = False
             fluoList.append(fluoImage)
 
         view = NapariView(None, self, fluoList)
         view.show()
+
+        # Open dialog to request confirmation to create output
+        import tkinter as tk
+        frame = tk.Frame()
+        if askYesNo(Message.TITLE_SAVE_OUTPUT, Message.LABEL_SAVE_OUTPUT, frame):
+            self.createOuput()
+    
+    def createOuput(self):
+        fluoimages: SetOfFluoImages = self.inputFluoImages.get()
+        suffix = self._getOutputSuffix(SetOfCoordinates3D)
+
+        coords3D = self._createSetOfCoordinates3D(fluoimages, suffix)
+        coords3D.setName("fluoCoord")
+        sr_xy, sr_z = fluoimages.getSamplingRate()
+        coords3D.setSamplingRate((sr_xy, sr_z))
+        for imfluo in fluoimages.iterItems():
+            # get csv filename
+            _, csv_path = self.getCsvPath(imfluo)
+            if os.path.exists(csv_path):
+                for coord, box_size in read_coordinate3D(csv_path):
+                    coord.setFluoImage(imfluo)
+                    coords3D.append(coord)
+        coords3D.setBoxSize(box_size)
+        
+        name = self.OUTPUT_PREFIX + suffix
+        self._defineOutputs(**{name: coords3D})
+        self._defineRelation(pwobj.RELATION_SOURCE, fluoimages, coords3D)
