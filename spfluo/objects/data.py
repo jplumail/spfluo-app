@@ -17,6 +17,18 @@ from scipy.ndimage import affine_transform # type: ignore
 
 NO_INDEX = 0
 
+
+class FluoObject(Object):
+    """Base object for all Fluo classes"""
+
+    def __str__(self):
+        return self.getClassName()
+
+    def getFiles(self):
+        """ Get all filePaths """
+        return None
+
+
 class Matrix(Scalar):
     def __init__(self, **kwargs) -> None:
         Scalar.__init__(self, **kwargs)
@@ -46,7 +58,7 @@ class Matrix(Scalar):
     def __str__(self) -> str:
         return np.array_str(self._matrix)
 
-    def _copy(self, other: 'Matrix') -> None:
+    def _copy(self, other: 'Matrix', *args, **kwargs) -> None:
         """ Override the default behaviour of copy
         to also copy array data.
         Copy other into self.
@@ -55,7 +67,7 @@ class Matrix(Scalar):
         self._objValue = other._objValue
 
 
-class Transform(Object):
+class Transform(FluoObject):
     """ This class will contain a transformation matrix
     that can be applied to 2D/3D objects like images and volumes.
     It should contain information about euler angles, translation(or shift)
@@ -72,7 +84,7 @@ class Transform(Object):
     ROT_Z_90_COUNTERCLOCKWISE = 'rotZ90cc'
 
     def __init__(self, matrix: Optional[NDArray[np.float64]]=None, **kwargs):
-        Object.__init__(self, **kwargs)
+        FluoObject.__init__(self, **kwargs)
         self._matrix = Matrix()
         if matrix is not None:
             self.setMatrix(matrix)
@@ -211,13 +223,16 @@ class ImageDim(CsvList):
             return None
         return self[2]
 
-    def set(self, dims: Optional[Tuple[int, int, int]]) -> None:
+    def set_(self, dims: Optional[Tuple[int, int, int]]) -> None:
         if dims is not None:
-            if self.isEmpty():
-                for i in range(3):
-                    self.append(dims[i])
+            if all(type(dims[i]) is int for i in range(3)):
+                if self.isEmpty():
+                    for i in range(3):
+                        self.append(dims[i])
+                else:
+                    self[:] = dims
             else:
-                self[:] = dims
+                raise Exception(f'Dimensions must be a tuple of int, got {dims} of type {type(dims)}')
 
     def __str__(self) -> str:
         x, y, z = self.getX(), self.getY(), self.getZ()
@@ -264,7 +279,7 @@ class SamplingRate(CsvList):
         return s
 
 
-class Image(Object):
+class Image(FluoObject):
     """Represents an image object"""
 
     def __init__(self, filename: Optional[str]=None, **kwargs) -> None:
@@ -273,7 +288,7 @@ class Image(Object):
         :param location: Could be a valid location: (index, filename)
         or  filename
         """
-        Object.__init__(self, **kwargs)
+        FluoObject.__init__(self, **kwargs)
         # Image location is composed by an index and a filename
         self._filename: String = String()
         self._img: Optional[AICSImage] = None
@@ -294,8 +309,21 @@ class Image(Object):
         if filename:
             self.setFileName(filename)
     
+    @property
+    def img(self) -> Optional[AICSImage]:
+        if self._img is None and (fname := self.getFileName()) is not None:
+            self._img = AICSImage(fname)
+        return self._img
+
+    @img.setter
+    def img(self, img: Optional[AICSImage]) -> None:
+        self._img = img
+
+    def getData(self) -> Union[NDArray, None]:
+        return self.img.data
+    
     def isEmpty(self):
-        return self._img is None
+        return self.img is None
 
     def getSamplingRate(self) -> Optional[Tuple[float, float]]:
         """ Return image sampling rate. (A/pix) """
@@ -334,20 +362,20 @@ class Image(Object):
             return None
         return self._imageDim.getY()
 
-    def getFileName(self) -> str:
+    def getFileName(self) -> Optional[str]:
         """ Use the _objValue attribute to store filename. """
         fname = self._filename.get()
         if fname is None:
-            raise ValueError("Image has no filename!")
+            return None
         return fname
 
     def setFileName(self, filename: str) -> None:
         """ Use the _objValue attribute to store filename. """
         self._filename.set(filename)
-        self._img = AICSImage(filename)
-        d = self._img.dims
+        self.img = AICSImage(filename)
+        d = self.img.dims
         x, y, z = d.X, d.Y, d.Z
-        self._imageDim.set((x, y, z))
+        self._imageDim.set_((x, y, z))
     
     def getBaseName(self) -> str:
         return os.path.basename(self.getFileName())
@@ -435,7 +463,7 @@ class Image(Object):
         return set([self.getFileName()])
     
     def build_ome(self, image_name: Optional[str]=None) -> OME:
-        im = self._img
+        im = self.getData()
         if im is None:
             raise ValueError("Image is None.")
         return OmeTiffWriter.build_ome(
@@ -454,7 +482,7 @@ class Image(Object):
         if apply_transform:
             im_data = affine_transform(self._img, self.getTransform().getMatrix())
         else:
-            im_data = self._img.data
+            im_data = self.getData()
         
         OmeTiffWriter.save(
             data=im_data,
@@ -501,14 +529,14 @@ class FluoImage(Image):
     def setPSF(self, newPSF: PSFModel) -> None:
         self._psfModel = newPSF
 
-class Coordinate3D(Object):
+class Coordinate3D(FluoObject):
     """This class holds the (x,y,z) position and other information
     associated with a coordinate"""
 
     IMAGE_ID_ATTR: str = "_imageId"
 
     def __init__(self, **kwargs) -> None:
-        Object.__init__(self, **kwargs)
+        FluoObject.__init__(self, **kwargs)
         self._boxSize: int = 0
         self._imagePointer: Pointer = Pointer(objDoStore=False) # points to a FluoImage
         self._transform: Transform = Transform()
@@ -616,7 +644,7 @@ class Particle(FluoImage):
     def setImageName(self, imageName: str) -> None:
         self._imageName.set(imageName)
 
-class FluoSet(Set):
+class FluoSet(Set, FluoObject):
     _classesDict = None
 
     def _loadClassesDict(self) -> Dict:
@@ -785,23 +813,13 @@ class SetOfImages(Set):
         else:
             pass
 
-        dim = self.getDim()
-        im_dim = image.getDim()
-        if im_dim is None:
-            raise ValueError(f"Image {image} dimension is None.")
-        if dim is not None:
-            if dim != im_dim:
-                raise ValueError(f"{image} has different dimension than {self}, found {dim} and {im_dim}")
-        else:
-            self.setDim(im_dim)
-
         Set.append(self, image)
 
     def setDim(self, dim: Tuple[int, int, int]) -> None:
         """ Store dimensions.
         This function should be called only once, to avoid reading
         dimension from image file. """
-        self._dim.set(dim)
+        self._dim.set_(dim)
 
     def copyInfo(self, other: 'SetOfImages') -> None:
         """ Copy basic information (sampling rate and psf)
@@ -1246,6 +1264,19 @@ class SetOfParticles(SetOfImages, FluoSet):
                 self._images[imgId] = self.getCoordinates3D().getPrecedents()[{FluoImage.IMG_ID_FIELD: imgId}] # type: ignore
 
         return self._images
+    
+    def append(self, particle: Particle):
+        dim = self.getDim()
+        im_dim = particle.getDim()
+        if im_dim is None:
+            raise ValueError(f"Particle {particle} dimension is None.")
+        if dim is not None:
+            if dim != im_dim:
+                raise ValueError(f"{particle} has different dimension than {self}, found {dim} and {im_dim}")
+        else:
+            self.setDim(im_dim)
+        
+        SetOfImages.append(self, particle)
 
 class AverageParticle(Particle):
     """Represents a Average Particle.

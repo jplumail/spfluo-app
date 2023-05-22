@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, Iterator, List, Tuple
 from spfluo.objects import SetOfParticles, Particle, Coordinate3D, Transform
 
 import numpy as np
@@ -77,3 +77,14 @@ def write_csv(filename, data):
     with open(filename, 'w') as f:
         csvwriter = csv.writer(f)
         csvwriter.writerows(data)
+
+def read_coordinate3D(csv_file: str) -> Iterator[Tuple[Coordinate3D, int]]:
+    print(csv_file)
+    with open(csv_file, 'r') as f:
+        data = csv.reader(f)
+        next(data)
+        for row in data:
+            coord = Coordinate3D()
+            coord.setPosition(float(row[1]), float(row[2]), float(row[3]))
+            yield coord, int(float(row[4]))
+    
