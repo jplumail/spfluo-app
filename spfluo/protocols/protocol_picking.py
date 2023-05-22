@@ -79,6 +79,7 @@ class ProtSPFluoPickingNapari(ProtFluoPicking):
             if os.path.exists(csv_path):
                 for coord, box_size in read_coordinate3D(csv_path):
                     coord.setFluoImage(imfluo)
+                    coord.setImageId(imfluo.getImgId())
                     coords3D.append(coord)
         if box_size:
             coords3D.setBoxSize(box_size)
