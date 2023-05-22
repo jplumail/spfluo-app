@@ -510,7 +510,8 @@ def annotate(im_path, output_path):
         # write new annotations
         s = points_layer.current_size
         f.write(','.join(['index', 'axis-1', 'axis-2', 'axis-3','size'])); f.write('\n')
-        for pos in points_layer.data:
+        for i, pos in enumerate(points_layer.data):
+            f.write(str(i)+',')
             f.write(','.join(map(str, pos)))
             f.write(','+str(s))
             f.write('\n')
