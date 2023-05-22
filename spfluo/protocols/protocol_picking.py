@@ -71,6 +71,8 @@ class ProtSPFluoPickingNapari(ProtFluoPicking):
         coords3D.setName("fluoCoord")
         sr_xy, sr_z = fluoimages.getSamplingRate()
         coords3D.setSamplingRate((sr_xy, sr_z))
+        coords3D.enableAppend()
+        box_size = None
         for imfluo in fluoimages.iterItems():
             # get csv filename
             _, csv_path = self.getCsvPath(imfluo)
@@ -78,7 +80,9 @@ class ProtSPFluoPickingNapari(ProtFluoPicking):
                 for coord, box_size in read_coordinate3D(csv_path):
                     coord.setFluoImage(imfluo)
                     coords3D.append(coord)
-        coords3D.setBoxSize(box_size)
+        if box_size:
+            coords3D.setBoxSize(box_size)
+        coords3D.write()
         
         name = self.OUTPUT_PREFIX + suffix
         self._defineOutputs(**{name: coords3D})
