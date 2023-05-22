@@ -149,7 +149,7 @@ def prepare_pu_data(
         print('| STEP [2/3]: Making U masks ...')
         U_masks = [make_U_mask(image) for image in images]
     print('| STEP [3/3]: Making P masks ...')
-    P_masks = [make_P_mask(images[i].shape, annotations[annotations[:, 0] == name.replace('tif','npz'), 1:], radius)
+    P_masks = [make_P_mask(images[i].shape, annotations[annotations[:, 0] == name, 1:], radius)
                for i, name in tqdm(enumerate(images_names), total=len(images_names))]
     return images, U_masks, P_masks
 
@@ -360,6 +360,8 @@ def make_dataloaders(
     datadir, csv_name = os.path.join(rootdir, 'val'), 'val_coordinates.csv'
     args = [datadir, output_dir, csv_name, extension, radius, False, None, load_u_masks, False]
     val_images, val_U_masks, val_P_masks = prepare_pu_data(*args)
+    print(len(val_images), len(val_P_masks), len(val_U_masks))
+    print(len(train_images), len(train_P_masks), len(train_U_masks))
     # 3. Make train and val sets
     train_set = Trainset(train_images, train_P_masks, patch_size, dim, augment, training=True)
     val_set   = Trainset(val_images,     val_P_masks, patch_size, dim, augment, training=False)
