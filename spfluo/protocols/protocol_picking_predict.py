@@ -66,7 +66,7 @@ class ProtSPFluoPickingPredict(ProtFluoPicking):
             im: FluoImage
             im_path = os.path.abspath(im.getFileName())
             ext = os.path.splitext(im_path)[1]
-            im_name = im.getTsId()
+            im_name = im.getImgId()
             im_newPath = os.path.join(self.test_dir, im_name+'.tif')
             if ext != '.tif' and ext != '.tiff':
                 raise NotImplementedError(f"Found ext {ext} in particles: {im_path}. Only tiff file are supported.") # FIXME: allow formats accepted by AICSImageio

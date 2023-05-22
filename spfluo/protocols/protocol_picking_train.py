@@ -159,16 +159,18 @@ class ProtSPFluoPickingTrain(Protocol):
 
         # Image links
         inputCoordinates: SetOfCoordinates3D = self.inputCoordinates.get()
-        images = set([coord.getVolume() for coord in inputCoordinates.iterCoordinates()])
+        images = set([coord.getFluoImage() for coord in inputCoordinates.iterCoordinates()])
         for im in images:
             im_path = os.path.abspath(im.getFileName())
             ext = os.path.splitext(im_path)[1]
-            im_name = im.getTsId()
+            im_name = im.getImgId()
             im_newPath = os.path.join(self.rootDir, im_name+'.tif')
             if ext != '.tif' and ext != '.tiff':
                 raise NotImplementedError(f"Found ext {ext} in particles: {im_path}. Only tiff file are supported.") # FIXME: allow formats accepted by AICSImageio
             else:
-                os.link(im_path, im_newPath)
+                if not os.path.exists(im_newPath):
+                    print(f"Link {im_path} -> {im_newPath}")
+                    os.link(im_path, im_newPath)
             for s in ["train", "val"]:
                 im_newPathSet = os.path.join(self.rootDir, s, im_name+'.tif')
                 if not os.path.exists(im_newPathSet):
