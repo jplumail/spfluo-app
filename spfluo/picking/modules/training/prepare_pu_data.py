@@ -27,7 +27,7 @@ from ..utils import load_array, load_annotations
 # +------------------------------------------------------------------------------------------+ #
 
 def find_max_positive_ratio_slice(image: np.ndarray) -> np.ndarray:
-    positive_ratios = [image_slice.sum() / image_slice.size for image_slice in image]
+    positive_ratios = image.sum(axis=(1,2)) / np.prod(image.shape[1:])
     return image[np.argmax(positive_ratios)]
 
 
@@ -74,7 +74,7 @@ def make_U_mask(
     cube = ndimage.generate_binary_structure(rank=3, connectivity=3)
     step4 = ndimage.binary_erosion(step3, cube, iterations=1)
     # STEP 5: Dilation: then dilate n times with it
-    step5 = ndimage.binary_dilation(step4, cube, iterations=dilation_iter)
+    step5 = ndimage.binary_dilation(step4, cube, iterations=dilation_iter, brute_force=True)
     return (step1.get(), step2.get(), step3.get(), step4.get(), step5.get()) if return_all_steps else step5.get()
 
 
