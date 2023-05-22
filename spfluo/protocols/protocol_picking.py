@@ -1,7 +1,7 @@
 from spfluo.objects.data import FluoImage, SetOfFluoImages
 from .protocol_base import ProtFluoPicking
 from spfluo import Plugin
-from spfluo.viewers.views_tkinter_tree import FluoImagesTreeProvider, NapariDialog
+from spfluo.viewers.views_tkinter_tree import FluoImagesTreeProvider, NapariDialog, NapariView
 
 from pyworkflow import BETA
 from pyworkflow.protocol import Protocol, params, Form
@@ -56,14 +56,8 @@ class ProtSPFluoPickingNapari(ProtFluoPicking):
             #else:
             #    tomogram.count = 0
             fluoImage.count = 0
+            fluoImage.in_viewer = False
             fluoList.append(fluoImage)
 
-        fluoProvider = FluoImagesTreeProvider(fluoList, self.info_path, "json")
-
-        self.dlg = NapariDialog(None, self._getExtraPath(), provider=fluoProvider,)
-
-        # Open dialog to request confirmation to create output
-        import tkinter as tk
-        frame = tk.Frame()
-        if askYesNo(Message.TITLE_SAVE_OUTPUT, Message.LABEL_SAVE_OUTPUT, frame):
-            self._createOutput()
+        view = NapariView(None, self, fluoList)
+        view.show()
