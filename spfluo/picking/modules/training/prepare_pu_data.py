@@ -33,9 +33,9 @@ def find_max_positive_ratio_slice(image: np.ndarray) -> np.ndarray:
 
 def remove_small_objects_by_area(mask: np.ndarray, area_min: int=50) -> np.ndarray:
     new_mask = np.copy(mask)
-    for region in regionprops(label(new_mask)):
-        if region.area <= area_min:
-            new_mask[region.slice] = 0
+    for region in regionprops(label(new_mask), cache=True):
+        new_mask[region.slice] = region.area
+    new_mask = new_mask <= area_min
     return new_mask
 
 
