@@ -1,5 +1,4 @@
 scipion-pyworkflow
 numpy
 scipy
-napari[all]
 aicsimageio
