@@ -59,7 +59,7 @@ class FluoImagesTreeProvider(TreeProvider):
         tree.tag_configure("in progress", foreground="black")
 
 
-class NapariDialog(ToolbarListDialog):
+class PickingDialog(ToolbarListDialog):
     """
     taken from scipion-em-emantomo/emantomo/viewers/views_tkinter_tree.py:EmanDialog
     This class extend from ListDialog to allow calling
@@ -105,7 +105,7 @@ class NapariDialog(ToolbarListDialog):
         Plugin.runSPFluo(self.provider.protocol, Plugin.getProgram(MANUAL_PICKING_MODULE), args)
 
 
-class NapariView(View):
+class PickingView(View):
     """ This class implements a view using Tkinter ListDialog
     and the FluoImagesTreeProvider.
     """
@@ -116,4 +116,4 @@ class NapariView(View):
         self._provider = FluoImagesTreeProvider(protocol, fluoList)
 
     def show(self):
-        NapariDialog(self._tkParent, self._provider)
+        PickingDialog(self._tkParent, self._provider)
