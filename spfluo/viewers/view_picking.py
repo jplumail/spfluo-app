@@ -26,7 +26,7 @@ class FluoImagesTreeProvider(TreeProvider):
         path = im.getFileName()
         im_name, _ = os.path.splitext(os.path.basename(path))
         d = {'key': im_name, 'parent': None, 'text': im_name}
-        if im.in_viewer:
+        """if im.in_viewer:
             status_text = "IN PROGRESS"
             d['tags'] = ("in progress")
         elif im.count > 0:
@@ -35,7 +35,7 @@ class FluoImagesTreeProvider(TreeProvider):
         else:
             status_text = "TODO"
             d['tags'] = ("pending")
-        d['values'] = (im.count, status_text)
+        d['values'] = (im.count, status_text)"""
         return d
 
     def getObjectPreview(self, obj):

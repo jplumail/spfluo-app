@@ -13,6 +13,7 @@ AB_INITIO_MODULE = "ab_initio_reconstruction"
 REFINEMENT_MODULE = "refinement"
 UTILS_MODULE = "utils"
 MANUAL_PICKING_MODULE = "manual_picking"
+VISUALISATION_MODULE = "visualisation"
 
 PICKING_WORKING_DIR = "picking"
 CROPPING_SUBDIR = "cropped"

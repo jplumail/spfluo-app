@@ -70,7 +70,7 @@ class ProtFluoBase:
             spobj.SetOfCoordinates3D,
             "coordinates%s.sqlite",
             suffix,
-            indexes=["_imageId"],
+            indexes=[spobj.Coordinate3D.IMAGE_ID_ATTR],
         )
         coord3DSet.setPrecedents(volSet)
         return coord3DSet
