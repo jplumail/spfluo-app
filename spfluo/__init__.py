@@ -77,15 +77,15 @@ class Plugin(plugin.Plugin):
         environ.addLibrary(Config.CUDA_LIB)
 
         return environ
+
+    @classmethod
+    def getFullProgram(cls, program):
+        return f"{cls.getCondaActivationCmd().replace('&&','')} && {SPFLUO_ACTIVATION_CMD} && {program}"
     
     @classmethod
     def runSPFluo(cls, protocol: Protocol, program, args, cwd=None, useCpu=False):
-        """ Run IsonNet command from a given protocol. """
-        fullProgram = '%s && %s && %s' % (cls.getCondaActivationCmd().replace("&&",""),
-                                          SPFLUO_ACTIVATION_CMD,
-                                          program)
-        protocol.runJob(fullProgram, args, env=cls.getEnviron(), cwd=cwd,
-                        numberOfMpi=1)
+        """ Run SPFluo command from a given protocol. """
+        protocol.runJob(cls.getFullProgram(program), args, env=cls.getEnviron(), cwd=cwd, numberOfMpi=1)
 
     @classmethod
     def getProgram(cls, program):
