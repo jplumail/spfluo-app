@@ -7,7 +7,13 @@ from typing import Tuple, Dict
 import tifffile
 import torch
 from tqdm.auto import tqdm
-from scipy import ndimage
+try:
+    from cupyx.scipy import ndimage
+    import cupy as cp
+    use_cupy = True
+except ImportError:
+    from scipy import ndimage
+    use_cupy = False
 from spfluo.ab_initio_reconstruction.common_image_processing_methods.others import crop_center
 
 
@@ -276,7 +282,20 @@ def isotropic_resample(im_paths: str, folder_path: str, spacing=None) -> None:
 
 
 def resize(im_paths: str, size: int, folder_path: str):
+    os.makedirs(folder_path, exist_ok=True)
     for im_path in im_paths:
         im = tifffile.imread(im_path)
         im_resized = crop_center(im, (size,)*3)
         tifffile.imwrite(os.path.join(folder_path, os.path.basename(im_path)), im_resized)
+
+
+def resample(im_paths: str, folder_path: str, factor: float=1.0) -> None:
+    os.makedirs(folder_path, exist_ok=True)
+    for im_path in im_paths:
+        im = tifffile.imread(im_path)
+        if use_cupy:
+            im = cp.array(im)
+        im_resampled = ndimage.zoom(im, factor)
+        if use_cupy:
+            im_resampled = im_resampled.get()
+        tifffile.imwrite(os.path.join(folder_path, os.path.basename(im_path)), im_resampled)
