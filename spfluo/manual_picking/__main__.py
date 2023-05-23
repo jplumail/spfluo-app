@@ -1,4 +1,4 @@
-from .multiple_viewer_widget import annotate
+from .annotate import annotate
 
 import argparse
 import os
