@@ -3,15 +3,49 @@ from spfluo import Plugin
 from spfluo.constants import VISUALISATION_MODULE
 from spfluo.convert import save_coordinates3D
 from spfluo.objects.data import FluoImage, SetOfCoordinates3D
-from spfluo.viewers.view_picking import FluoImagesTreeProvider
+from spfluo.protocols.protocol_base import ProtFluoBase
 
 from pyworkflow.viewer import Viewer, View, DESKTOP_TKINTER
 from pyworkflow.gui.dialog import ToolbarListDialog
+from pyworkflow.gui.tree import TreeProvider
 from pyworkflow.utils.process import runJob
-from pyworkflow.protocol import Protocol
 
+import os
 import threading
 from typing import List
+
+
+class CoordinatesTreeProvider(TreeProvider):
+    """ Populate Tree from SetOfCoordinates3D. """
+
+    def __init__(self, coords: SetOfCoordinates3D):
+        TreeProvider.__init__(self)
+        self.coords: SetOfCoordinates3D = coords
+
+    def getColumns(self):
+        return [('FluoImage', 300), ("# coords", 100), ('status', 150)]
+
+    def getObjectInfo(self, im: FluoImage) -> dict:
+        path = im.getFileName()
+        im_name, _ = os.path.splitext(os.path.basename(path))
+        return {'key': im_name, 'parent': None, 'text': im_name, 'values': im.count}
+
+    def getObjectPreview(self, obj):
+        return (None, None)
+
+    def getObjectActions(self, obj):
+        return []
+
+    def _getObjectList(self) -> List[FluoImage]:
+        """Retrieve the object list"""
+        fluoimages = list(self.coords.getPrecedents())
+        for im in fluoimages:
+            im.count = len(list(self.coords.iterCoordinates(im)))
+        return fluoimages
+
+    def getObjects(self):
+        objList = self._getObjectList()
+        return objList
 
 
 class NapariDataViewer(Viewer):
@@ -37,10 +71,10 @@ class NapariDataViewer(Viewer):
 
 
 class SetOfCoordinates3DView(View):
-    def __init__(self, parent, coords: SetOfCoordinates3D, protocol: Protocol):
+    def __init__(self, parent, coords: SetOfCoordinates3D, protocol: ProtFluoBase):
         self.coords = coords
         self._tkParent = parent
-        self._provider = FluoImagesTreeProvider(list(self.coords.getPrecedents()))
+        self._provider = CoordinatesTreeProvider(self.coords)
         self.protocol = protocol
     
     def show(self):
@@ -54,7 +88,7 @@ class SetOfCoordinates3DDialog(ToolbarListDialog):
     a Napari subprocess from a list of FluoImages.
     """
 
-    def __init__(self, parent, provider: FluoImagesTreeProvider, coords: SetOfCoordinates3D, protocol: Protocol, **kwargs):
+    def __init__(self, parent, provider: CoordinatesTreeProvider, coords: SetOfCoordinates3D, protocol: ProtFluoBase, **kwargs):
         self.provider = provider
         self.coords = coords
         self._protocol = protocol
@@ -68,13 +102,16 @@ class SetOfCoordinates3DDialog(ToolbarListDialog):
 
     def doubleClickOnFluoimage(self, e=None):
         fluoimage: FluoImage = e
-        coords_im = SetOfCoordinates3D()
-        print(self.coords)
-        print(self.coords.getImgIds(), fluoimage.getImgId())
+        # Yes, creating a set of coordinates is not easy
+        coords_im: SetOfCoordinates3D = self._protocol._createSetOfCoordinates3D(
+            self.coords.getPrecedents(),
+            self._protocol._getOutputSuffix(SetOfCoordinates3D)
+        )
+        coords_im.setBoxSize(self.coords.getBoxSize())
         for coord in self.coords.iterCoordinates(fluoimage):
-            print(coord)
             coords_im.append(coord)
         self.proc = threading.Thread(target=self.lanchNapariForFluoImage, args=(fluoimage, coords_im))
+        self.proc.start()
 
     def lanchNapariForFluoImage(self, im: FluoImage, coords_im: SetOfCoordinates3D):
         path = im.getFileName()

@@ -12,7 +12,7 @@ import threading
 from spfluo.objects.data import FluoImage
 
 
-class FluoImagesTreeProvider(TreeProvider):
+class PickingTreeProvider(TreeProvider):
     """ Populate Tree from SetOfFluoImages. """
 
     def __init__(self, fluoimagesList: List[FluoImage]):
@@ -26,7 +26,7 @@ class FluoImagesTreeProvider(TreeProvider):
         path = im.getFileName()
         im_name, _ = os.path.splitext(os.path.basename(path))
         d = {'key': im_name, 'parent': None, 'text': im_name}
-        """if im.in_viewer:
+        if im.in_viewer:
             status_text = "IN PROGRESS"
             d['tags'] = ("in progress")
         elif im.count > 0:
@@ -35,7 +35,7 @@ class FluoImagesTreeProvider(TreeProvider):
         else:
             status_text = "TODO"
             d['tags'] = ("pending")
-        d['values'] = (im.count, status_text)"""
+        d['values'] = (im.count, status_text)
         return d
 
     def getObjectPreview(self, obj):
@@ -65,7 +65,7 @@ class PickingDialog(ToolbarListDialog):
     a Napari subprocess from a list of FluoImages.
     """
 
-    def __init__(self, parent, provider: FluoImagesTreeProvider, protocol: Protocol, **kwargs):
+    def __init__(self, parent, provider: PickingTreeProvider, protocol: Protocol, **kwargs):
         self.provider = provider
         self._protocol = protocol
         ToolbarListDialog.__init__(self, parent,
@@ -107,13 +107,13 @@ class PickingDialog(ToolbarListDialog):
 
 class PickingView(View):
     """ This class implements a view using Tkinter ListDialog
-    and the FluoImagesTreeProvider.
+    and the PickingTreeProvider.
     """
 
     def __init__(self, parent, protocol: Protocol, fluoList: List[FluoImage], **kwargs):
         self._tkParent = parent
         self._protocol = protocol
-        self._provider = FluoImagesTreeProvider(fluoList)
+        self._provider = PickingTreeProvider(fluoList)
 
     def show(self):
         PickingDialog(self._tkParent, self._provider, self._protocol)
