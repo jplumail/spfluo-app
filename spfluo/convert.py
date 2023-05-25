@@ -8,6 +8,8 @@ import csv
 import glob
 import os
 
+from spfluo.objects.data import SetOfCoordinates3D
+
 
 def getLastParticlesParams(folder):
     # Read rot_vecs
@@ -88,3 +90,11 @@ def read_coordinate3D(csv_file: str) -> Iterator[Tuple[Coordinate3D, int]]:
             coord.setPosition(float(row[1]), float(row[2]), float(row[3]))
             yield coord, int(float(row[4]))
     
+def save_coordinates3D(coords: SetOfCoordinates3D, csv_file: str):
+    box_size = coords.getBoxSize()
+    with open(csv_file, 'w') as f:
+            csvwriter = csv.writer(f)
+            csvwriter.writerow(["index","axis-1","axis-2","axis-3","size"])
+            for i, coord in enumerate(coords.iterCoordinates()):
+                x, y, z = coord.getPosition()
+                csvwriter.writerow([i, x, y, z, box_size])

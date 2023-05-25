@@ -2,7 +2,7 @@ from typing import Tuple
 from spfluo.convert import read_coordinate3D
 from spfluo.objects.data import FluoImage, SetOfCoordinates3D, SetOfFluoImages
 from .protocol_base import ProtFluoPicking
-from spfluo.viewers.views_tkinter_tree import NapariView
+from spfluo.viewers.view_picking import PickingView
 
 from pyworkflow import BETA
 from pyworkflow.protocol import Form
@@ -54,7 +54,7 @@ class ProtSPFluoPickingNapari(ProtFluoPicking):
             fluoImage.in_viewer = False
             fluoList.append(fluoImage)
 
-        view = NapariView(None, self, fluoList)
+        view = PickingView(None, self, fluoList)
         view.show()
 
         # Open dialog to request confirmation to create output

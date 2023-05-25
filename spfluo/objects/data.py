@@ -533,7 +533,7 @@ class Coordinate3D(FluoObject):
     """This class holds the (x,y,z) position and other information
     associated with a coordinate"""
 
-    IMAGE_ID_ATTR: str = "_imageId"
+    IMAGE_ID_ATTR: str = FluoImage.IMG_ID_FIELD
 
     def __init__(self, **kwargs) -> None:
         FluoObject.__init__(self, **kwargs)
@@ -541,7 +541,7 @@ class Coordinate3D(FluoObject):
         self._imagePointer: Pointer = Pointer(objDoStore=False) # points to a FluoImage
         self._transform: Transform = Transform()
         self._groupId: Integer = Integer(0)  # This may refer to a mesh, ROI, vesicle or any group of coordinates
-        self._imageId = String(kwargs.get('imageId', None))  # Used to access to the corresponding image from each coord (it's the tsId)
+        self._imgId = String(kwargs.get('imageId', None))  # Used to access to the corresponding image from each coord (it's the tsId)
 
     def setPosition(self, x: float, y: float, z: float) -> None:
         self._transform.setShifts(x, y, z)
@@ -583,10 +583,10 @@ class Coordinate3D(FluoObject):
         self._imagePointer.set(image)
 
     def getImageId(self) -> str:
-        return self._imageId.get()
+        return self._imgId.get()
 
     def setImageId(self, imageId) -> None:
-        self._imageId.set(imageId)
+        self._imgId.set(imageId)
 
     def getImageName(self) -> Union[str, None]:
         im = self.getFluoImage()
@@ -604,7 +604,7 @@ class Coordinate3D(FluoObject):
         return self._groupId is not None
 
     def __str__(self) -> str:
-        return f"Coordinate3D: <{str(self._imagePointer)}, {self._imageId}, {self._groupId}, {self._transform}>"
+        return f"Coordinate3D: <{str(self._imagePointer)}, {self._imgId}, {self._groupId}, {self._transform}>"
 
 
 class Particle(FluoImage):
@@ -784,6 +784,9 @@ class FluoSet(Set, FluoObject):
 
     def getFiles(self) -> set:
         return Set.getFiles(self)
+
+    def iterItems(self, orderBy='id', direction='ASC', where=None, limit=None, iterate=False) -> Iterable[Object]:
+        return iter(Set.iterItems(self, orderBy, direction, where, limit, iterate))
 
 
 class SetOfImages(Set):
@@ -1015,6 +1018,7 @@ class SetOfCoordinates3D(FluoSet):
             coordWhere = '1'
         elif isinstance(image, FluoImage):
             coordWhere = '%s="%s"' % ('_imgId', image.getImgId())
+            print("Coordwhere is %s" % (coordWhere,))
         else:
             raise Exception('Invalid input image of type %s'
                             % type(image))
