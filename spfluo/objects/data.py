@@ -785,6 +785,9 @@ class FluoSet(Set, FluoObject):
     def getFiles(self) -> set:
         return Set.getFiles(self)
 
+    def iterItems(self, orderBy='id', direction='ASC', where=None, limit=None, iterate=False) -> Iterable[Object]:
+        return iter(Set.iterItems(self, orderBy, direction, where, limit, iterate))
+
 
 class SetOfImages(Set):
     """ Represents a set of Images """
