@@ -1,6 +1,6 @@
 import os
 import pickle
-from typing import Dict, Optional
+from typing import Callable, Dict, Optional
 import numpy as np
 from pyworkflow import BETA
 import pyworkflow.object as pwobj
@@ -113,39 +113,33 @@ class ProtSPFluoPickingPredict(ProtFluoPicking):
             if not hasattr(self, outputname):
                 suffix = "user%s" % count
                 break
+        suffix = self._getOutputSuffix(SetOfCoordinates3D)
 
         pickleFile = self._getExtraPath("picking", "predictions.pickle")
         with open(os.path.abspath(pickleFile), 'rb') as f:
-            preds = pickle.load(f)
+            preds: Dict[str, Dict[str, np.ndarray]] = pickle.load(f)
         
         setOfImages = self.inputImages
+        step_keys = preds[self.image_paths[setOfImages.getFirstItem().getBaseName()]].keys()
         coordSets: Dict[str, SetOfCoordinates3D] = {}
-        for k in preds[self.image_paths[next(setOfImages.iterItems()).getBaseName()]]:
-            setFnCoords = self._getPath(k+'_coordinates%s.sqlite' % suffix)
-            # Close the connection to the database if
-            # it is open before deleting the file
-            pwutils.cleanPath(setFnCoords)
-            coordSet = SetOfCoordinates3D(filename=setFnCoords)
-            coordSet.setPrecedents(setOfImages)
-
-            boxsize = self.trainRun.inputCoordinates.get().getBoxSize()
-            coordSet.setBoxSize(boxsize)
-            coordSet.setName("predCoord")
-            coordSet.setSamplingRate(setOfImages.getSamplingRate())
-            coordSets[k] = coordSet
-        for image in setOfImages.iterItems():
-            if self.image_paths[image.getBaseName()] in preds:
-                for k in preds[self.image_paths[image.getBaseName()]]:
-                    boxes = preds[self.image_paths[image.getBaseName()]][k]
-                    readSetOfCoordinates3D(boxes, coordSets[k], image)
-        
-        # Subsets do not have this
-        for k, coordSet in coordSets.items():
+        for k in step_keys:
             if k != 'raw':
+                coordSet = self._createSetOfCoordinates3D(setOfImages, suffix)
+                boxsize = self.trainRun.inputCoordinates.get().getBoxSize()
+                coordSet.setBoxSize(boxsize)
+                coordSet.setName("predCoord_"+k)
+                coordSet.setSamplingRate(setOfImages.getSamplingRate())
+
+                for image in setOfImages.iterItems():
+                    if self.image_paths[image.getBaseName()] in preds:
+                        pred_dict = preds[self.image_paths[image.getBaseName()]]
+                        boxes = pred_dict[k]
+                        readSetOfCoordinates3D(boxes, coordSet, image)
+                coordSet.write()
+                
                 outputname = self.OUTPUT_PREFIX + "_" + k + "_" + suffix
                 self._defineOutputs(**{outputname: coordSet})
                 self._defineRelation(pwobj.RELATION_SOURCE, setOfImages, coordSet)
-
         
 def readSetOfCoordinates3D(
         boxes: np.ndarray,
@@ -155,22 +149,20 @@ def readSetOfCoordinates3D(
         scale=1,
     ):
     for box in boxes:
-        coord3DSet.enableAppend()
-
         x_min, y_min, z_min, x_max, y_max, z_max = box
         center = np.array([(x_min+x_max)/2, (y_min+y_max)/2, (z_min+z_max)/2])
         x, y, z = scale * center
         newCoord = Coordinate3D()
         newCoord.setFluoImage(inputImage)
+        newCoord.setImageId(inputImage.getImgId())
         Lx, Ly, Lz = inputImage.getDim()
         newCoord.setPosition(
-            x,
-            y,
-            z
+            z, y, x
         ) # FIXME which coordinate system to use ?
 
         # Execute Callback
         if updateItem:
             updateItem(newCoord)
-
+        
+        coord3DSet.enableAppend()
         coord3DSet.append(newCoord)
