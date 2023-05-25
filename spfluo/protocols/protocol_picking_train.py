@@ -184,9 +184,9 @@ class ProtSPFluoPickingTrain(Protocol):
             annotations.append((
                 coord.getFluoImage().getImgId()+'.tif',
                 i,
-                z,
+                x,
                 y,
-                x
+                z
             ))
 
         print(f"Found {len(annotations)} annotations in SetOfCoordinates created at {inputCoordinates.getObjCreationAsDate()}")
