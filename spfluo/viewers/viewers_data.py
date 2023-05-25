@@ -23,7 +23,7 @@ class CoordinatesTreeProvider(TreeProvider):
         self.coords: SetOfCoordinates3D = coords
 
     def getColumns(self):
-        return [('FluoImage', 300), ("# coords", 100), ('status', 150)]
+        return [('FluoImage', 300), ("# coords", 100)]
 
     def getObjectInfo(self, im: FluoImage) -> dict:
         path = im.getFileName()
