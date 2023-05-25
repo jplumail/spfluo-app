@@ -151,7 +151,7 @@ def readSetOfCoordinates3D(
         boxes: np.ndarray,
         coord3DSet: SetOfCoordinates3D,
         inputImage: FluoImage,
-        updateItem: Optional[bool]=None,
+        updateItem: Optional[Callable]=None,
         scale=1,
     ):
     for box in boxes:
