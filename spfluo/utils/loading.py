@@ -269,10 +269,10 @@ def get_spacing(im_path: str) -> Tuple[Tuple[float], str]:
 def isotropic_resample(im_paths: str, folder_path: str, spacing=None) -> None:
     if spacing is None:
         spacings = np.array([get_spacing(p)[0] for p in im_paths], dtype=float)
-        best_spacing = spacings.min()
     else:
         spacings = np.ones((len(im_paths), 3))
         spacings[:] = np.array(spacing)
+    best_spacing = spacings.min()
     zooms = spacings / best_spacing
     os.makedirs(folder_path, exist_ok=True)
     for im_path, zoom in zip(im_paths, zooms):
