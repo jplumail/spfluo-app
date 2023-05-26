@@ -91,6 +91,10 @@ class Plugin(plugin.Plugin):
     def getProgram(cls, program):
         program = f"python -m spfluo.{program}"
         return program
+    
+    @classmethod
+    def getNapariProgram(cls):
+        return f"python -m napari"
 
     @classmethod
     def addSPFluoPackage(cls, env):

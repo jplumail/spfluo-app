@@ -2,7 +2,7 @@ from spfluo import objects as fluoobj
 from spfluo import Plugin
 from spfluo.constants import VISUALISATION_MODULE
 from spfluo.convert import save_coordinates3D
-from spfluo.objects.data import FluoImage, SetOfCoordinates3D
+from spfluo.objects.data import FluoImage, Image, SetOfCoordinates3D
 from spfluo.protocols.protocol_base import ProtFluoBase
 
 from pyworkflow.viewer import Viewer, View, DESKTOP_TKINTER
@@ -13,6 +13,64 @@ from pyworkflow.utils.process import runJob
 import os
 import threading
 from typing import List
+
+
+class NapariDataViewer(Viewer):
+    """ Wrapper to visualize different type of objects
+    with Napari.
+    """
+    _environments = [DESKTOP_TKINTER]
+    _targets = [
+        fluoobj.SetOfCoordinates3D,
+        fluoobj.Image,
+    ]
+
+    def __init__(self, **kwargs):
+        Viewer.__init__(self, **kwargs)
+        self._views = []
+    
+    def _visualize(self, obj: fluoobj.FluoObject, **kwargs) -> List[View]:
+        cls = type(obj)
+
+        if issubclass(cls, fluoobj.SetOfCoordinates3D):
+            self._views.append(SetOfCoordinates3DView(self._tkRoot, obj, self.protocol))
+        elif issubclass(cls, fluoobj.Image):
+            self._views.append(ImageView(obj))
+        
+        return self._views
+
+
+###########
+## Image ##
+###########
+
+class ImageView(View):
+    def __init__(self, image: fluoobj.Image):
+        self.image = image
+    
+    def show(self):
+        self.proc = threading.Thread(target=self.lanchNapariForImage, args=(self.image,))
+        self.proc.start()
+    
+    def lanchNapariForImage(self, im: fluoobj.Image):
+        path = im.getFileName()
+        fullProgram = Plugin.getFullProgram(Plugin.getNapariProgram())
+        runJob(None, fullProgram, path, env=Plugin.getEnviron())
+
+
+########################
+## SetOfCoordinates3D ##
+########################
+
+class SetOfCoordinates3DView(View):
+    def __init__(self, parent, coords: SetOfCoordinates3D, protocol: ProtFluoBase):
+        self.coords = coords
+        self._tkParent = parent
+        self._provider = CoordinatesTreeProvider(self.coords)
+        self.protocol = protocol
+    
+    def show(self):
+        SetOfCoordinates3DDialog(self._tkParent, self._provider, self.coords, self.protocol)
 
 
 class CoordinatesTreeProvider(TreeProvider):
@@ -46,39 +104,6 @@ class CoordinatesTreeProvider(TreeProvider):
     def getObjects(self):
         objList = self._getObjectList()
         return objList
-
-
-class NapariDataViewer(Viewer):
-    """ Wrapper to visualize different type of objects
-    with Napari.
-    """
-    _environments = [DESKTOP_TKINTER]
-    _targets = [
-        fluoobj.SetOfCoordinates3D
-    ]
-
-    def __init__(self, **kwargs):
-        Viewer.__init__(self, **kwargs)
-        self._views = []
-    
-    def _visualize(self, obj: fluoobj.FluoObject, **kwargs) -> List[View]:
-        cls = type(obj)
-
-        if issubclass(cls, fluoobj.SetOfCoordinates3D):
-            self._views.append(SetOfCoordinates3DView(self._tkRoot, obj, self.protocol))
-        
-        return self._views
-
-
-class SetOfCoordinates3DView(View):
-    def __init__(self, parent, coords: SetOfCoordinates3D, protocol: ProtFluoBase):
-        self.coords = coords
-        self._tkParent = parent
-        self._provider = CoordinatesTreeProvider(self.coords)
-        self.protocol = protocol
-    
-    def show(self):
-        SetOfCoordinates3DDialog(self._tkParent, self._provider, self.coords, self.protocol)
 
 
 class SetOfCoordinates3DDialog(ToolbarListDialog):
