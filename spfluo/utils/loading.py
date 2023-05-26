@@ -10,11 +10,25 @@ from tqdm.auto import tqdm
 try:
     from cupyx.scipy import ndimage
     import cupy as cp
+    from cupy._core import ndarray
     use_cupy = True
 except ImportError:
     from scipy import ndimage
     use_cupy = False
 from spfluo.ab_initio_reconstruction.common_image_processing_methods.others import crop_center
+
+
+def get_cupy_array(image):
+    if use_cupy:
+        return cp.array(image)
+    else:
+        return image
+
+def get_numpy_array(image):
+    if isinstance(image, ndarray):
+        return image.get()
+    else:
+        return image
 
 
 """def load_data(rootdir, crop_size=None, extension='.tiff'):
@@ -266,7 +280,7 @@ def get_spacing(im_path: str) -> Tuple[Tuple[float], str]:
     return spacing, unit
 
 
-def isotropic_resample(im_paths: str, folder_path: str, spacing=None) -> None:
+def isotropic_resample(im_paths: str, folder_path: str, spacing: Tuple[float, float, float]=None) -> None:
     if spacing is None:
         spacings = np.array([get_spacing(p)[0] for p in im_paths], dtype=float)
     else:
@@ -277,8 +291,10 @@ def isotropic_resample(im_paths: str, folder_path: str, spacing=None) -> None:
     os.makedirs(folder_path, exist_ok=True)
     for im_path, zoom in zip(im_paths, zooms):
         im = tifffile.imread(im_path)
-        im_resampled = ndimage.zoom(im, zoom[::-1])
-        tifffile.imwrite(os.path.join(folder_path, os.path.basename(im_path)), im_resampled)
+        im = get_cupy_array(im)
+        ndimage.zoom(im, zoom[::-1], output=im)
+        im = get_numpy_array(im)
+        tifffile.imwrite(os.path.join(folder_path, os.path.basename(im_path)), im)
 
 
 def resize(im_paths: str, size: int, folder_path: str):
@@ -293,9 +309,7 @@ def resample(im_paths: str, folder_path: str, factor: float=1.0) -> None:
     os.makedirs(folder_path, exist_ok=True)
     for im_path in im_paths:
         im = tifffile.imread(im_path)
-        if use_cupy:
-            im = cp.array(im)
+        im = get_cupy_array(im)
         im_resampled = ndimage.zoom(im, factor)
-        if use_cupy:
-            im_resampled = im_resampled.get()
+        im_resampled = get_numpy_array(im_resampled)
         tifffile.imwrite(os.path.join(folder_path, os.path.basename(im_path)), im_resampled)
