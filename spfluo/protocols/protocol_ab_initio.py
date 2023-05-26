@@ -42,6 +42,7 @@ from pyworkflow.utils import Message
 from pyworkflow import BETA
 import pyworkflow.object as pwobj
 from spfluo.objects import AverageParticle, SetOfParticles
+from spfluo.objects.data import PSFModel, Particle
 from .protocol_base import ProtFluoBase
 
 
@@ -70,7 +71,7 @@ class ProtSPFluoAbInitio(Protocol, ProtFluoBase):
         form.addParam('inputParticles', params.PointerParam, pointerClass='SetOfParticles',
                       label="Particles", important=True,
                       help='Select the input particles.')
-        form.addParam('inputPSF', params.PointerParam, pointerClass='SetOfFluoImages',
+        form.addParam('inputPSF', params.PointerParam, pointerClass='PSFModel',
                       label="PSF", important=True,
                       help='Select the PSF.')
         form.addParam('gpu', params.EnumParam, choices=self._GPU_libraries,
@@ -102,10 +103,11 @@ class ProtSPFluoAbInitio(Protocol, ProtFluoBase):
         inputParticles : SetOfParticles = self.inputParticles.get()
         max_dim = 0
         for im in inputParticles:
+            im: Particle
             max_dim = max(max_dim, max(im.getDim()))
             im_path = os.path.abspath(im.getFileName())
             ext = os.path.splitext(im_path)[1]
-            im_name = im.getNameId()
+            im_name = im.strId()
             im_newPath = os.path.join(self.particlesDir, im_name+'.tif')
             particles_paths.append(im_newPath)
             if ext != '.tif' and ext != '.tiff':
@@ -114,7 +116,7 @@ class ProtSPFluoAbInitio(Protocol, ProtFluoBase):
                 os.link(im_path, im_newPath)
 
         # PSF Path
-        psf = next(iter(self.inputPSF.get()))
+        psf: PSFModel = self.inputPSF.get()
         psf_path = os.path.abspath(psf.getFileName())
         ext = os.path.splitext(psf_path)[1]
         if ext != '.tif' and ext != '.tiff':
@@ -245,7 +247,7 @@ class ProtSPFluoParticleAverage(Protocol):
         for im in inputParticles:
             im_path = os.path.abspath(im.getFileName())
             ext = os.path.splitext(im_path)[1]
-            im_name = im.getNameId()
+            im_name = im.strId()
             im_newPath = os.path.join(self.particlesDir, im_name+'.tif')
             if ext != '.tif' and ext != '.tiff':
                 raise NotImplementedError(f"Found ext {ext} in particles: {im_path}. Only tiff file are supported.")
