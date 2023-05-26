@@ -15,6 +15,28 @@ import threading
 from typing import List
 
 
+class NapariDataViewer(Viewer):
+    """ Wrapper to visualize different type of objects
+    with Napari.
+    """
+    _environments = [DESKTOP_TKINTER]
+    _targets = [
+        fluoobj.SetOfCoordinates3D
+    ]
+
+    def __init__(self, **kwargs):
+        Viewer.__init__(self, **kwargs)
+        self._views = []
+    
+    def _visualize(self, obj: fluoobj.FluoObject, **kwargs) -> List[View]:
+        cls = type(obj)
+
+        if issubclass(cls, fluoobj.SetOfCoordinates3D):
+            self._views.append(SetOfCoordinates3DView(self._tkRoot, obj, self.protocol))
+        
+        return self._views
+
+
 class CoordinatesTreeProvider(TreeProvider):
     """ Populate Tree from SetOfCoordinates3D. """
 
@@ -46,29 +68,6 @@ class CoordinatesTreeProvider(TreeProvider):
     def getObjects(self):
         objList = self._getObjectList()
         return objList
-
-
-class NapariDataViewer(Viewer):
-    """ Wrapper to visualize different type of objects
-    with Napari.
-    """
-    _environments = [DESKTOP_TKINTER]
-    _targets = [
-        fluoobj.SetOfCoordinates3D
-    ]
-
-    def __init__(self, **kwargs):
-        Viewer.__init__(self, **kwargs)
-        self._views = []
-    
-    def _visualize(self, obj: fluoobj.FluoObject, **kwargs) -> List[View]:
-        cls = type(obj)
-
-        if issubclass(cls, fluoobj.SetOfCoordinates3D):
-            self._views.append(SetOfCoordinates3DView(self._tkRoot, obj, self.protocol))
-        
-        return self._views
-
 
 class SetOfCoordinates3DView(View):
     def __init__(self, parent, coords: SetOfCoordinates3D, protocol: ProtFluoBase):
