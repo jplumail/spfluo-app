@@ -160,11 +160,11 @@ class Fourier_pixel_representation:
         path = f'{output_dir}/{output_name}.tif'
         save(path, self.get_image_from_fourier_representation())
 
-    def register_and_save(self, output_dir, output_name, ground_truth=None, translate=False):
+    def register_and_save(self, output_dir, output_name, ground_truth=None, translate=False, gpu=None):
         path = os.path.join(output_dir, output_name)
         im = self.get_image_from_fourier_representation()
         if translate:
-            im = translate_to_have_one_connected_component(im)
+            im = translate_to_have_one_connected_component(im, gpu=gpu)
 
         if ground_truth is not None:
             _, im = shift_registration_exhaustive_search(ground_truth, im)

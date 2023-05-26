@@ -3,9 +3,12 @@ import time
 import SimpleITK as sitk
 from numpy import pi
 import os
+from tqdm import tqdm
 from skimage import io
 import numpy as np
-from scipy.ndimage.fourier import fourier_shift
+from scipy.ndimage import fourier_shift
+import cupy as cp
+from cupyx.scipy.ndimage import label as label_cupy, fourier_shift as fourier_shift_cupy
 import cc3d
 from ..manage_files.read_save_files import read_image, save
 
@@ -86,17 +89,26 @@ def shift_registration_exhaustive_search(im1, im2, t_min=-20, t_max=20, t_step=4
     return grid_trans_vec[best_i], res.real.astype(im2.dtype)
 
 
-def translate_to_have_one_connected_component(im, t_min=-20, t_max=20, t_step=4):
+def translate_to_have_one_connected_component(im, t_min=-20, t_max=20, t_step=4, gpu=None):
     ft = np.fft.fftn(im)
+    if gpu == 'cucim':
+        ft_cupy = cp.array(ft)
     trans_vecs = np.arange(t_min, t_max, t_step)
     grid_trans_vec = np.array(np.meshgrid(trans_vecs, trans_vecs, trans_vecs)).T.reshape((len(trans_vecs) ** 3, 3))
     number_connected_components = np.zeros(len(grid_trans_vec))
     t = 1.
-    for i, trans_vec in enumerate(grid_trans_vec):
-        ft_shifted = fourier_shift(ft, trans_vec)
-        im_shifted = np.fft.ifftn(ft_shifted)
-        im_shifted_thresholded = np.abs(im_shifted).real > t
-        _, N = cc3d.connected_components(im_shifted_thresholded, return_N=True)
+    for i, trans_vec in tqdm(enumerate(grid_trans_vec), leave=False, total=len(grid_trans_vec), desc="Translate to have one connected component"):
+        if gpu == 'cucim':
+            trans_vec = cp.array(trans_vec)
+            ft_shifted = fourier_shift_cupy(ft_cupy, trans_vec)
+            im_shifted = cp.fft.ifftn(ft_shifted)
+            im_shifted_thresholded = cp.abs(im_shifted).real > t
+            _, N = label_cupy(im_shifted_thresholded)
+        else:
+            ft_shifted = fourier_shift(ft, trans_vec)
+            im_shifted = np.fft.ifftn(ft_shifted)
+            im_shifted_thresholded = np.abs(im_shifted).real > t
+            _, N = cc3d.connected_components(im_shifted_thresholded, return_N=True)
         number_connected_components[i] = N
 
     indicices_one_component = np.where(number_connected_components==1)

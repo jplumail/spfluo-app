@@ -306,7 +306,7 @@ def gd_importance_sampling_3d(volume_representation, uniform_sphere_discretizati
                 save(f'{folder_views_selected_step}/{fn}', views[i])
 
         # Register reconstrution with groundtruth and save it
-        volume_representation.register_and_save(sub_dir, f'recons_epoch_{itr}.tif', ground_truth=ground_truth, translate=True)
+        volume_representation.register_and_save(sub_dir, f'recons_epoch_{itr}.tif', ground_truth=ground_truth, translate=True, gpu=gpu)
 
         # Update uniform distribution
         unif_prop_axes /= params_learning_alg.dec_prop
