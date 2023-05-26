@@ -37,6 +37,21 @@ class NapariDataViewer(Viewer):
         return self._views
 
 
+########################
+## SetOfCoordinates3D ##
+########################
+
+class SetOfCoordinates3DView(View):
+    def __init__(self, parent, coords: SetOfCoordinates3D, protocol: ProtFluoBase):
+        self.coords = coords
+        self._tkParent = parent
+        self._provider = CoordinatesTreeProvider(self.coords)
+        self.protocol = protocol
+    
+    def show(self):
+        SetOfCoordinates3DDialog(self._tkParent, self._provider, self.coords, self.protocol)
+
+
 class CoordinatesTreeProvider(TreeProvider):
     """ Populate Tree from SetOfCoordinates3D. """
 
@@ -68,16 +83,6 @@ class CoordinatesTreeProvider(TreeProvider):
     def getObjects(self):
         objList = self._getObjectList()
         return objList
-
-class SetOfCoordinates3DView(View):
-    def __init__(self, parent, coords: SetOfCoordinates3D, protocol: ProtFluoBase):
-        self.coords = coords
-        self._tkParent = parent
-        self._provider = CoordinatesTreeProvider(self.coords)
-        self.protocol = protocol
-    
-    def show(self):
-        SetOfCoordinates3DDialog(self._tkParent, self._provider, self.coords, self.protocol)
 
 
 class SetOfCoordinates3DDialog(ToolbarListDialog):
