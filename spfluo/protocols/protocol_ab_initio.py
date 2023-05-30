@@ -77,6 +77,7 @@ class ProtSPFluoAbInitio(Protocol, ProtFluoBase):
         form.addParam('gpu', params.EnumParam, choices=self._GPU_libraries,
                        display=params.EnumParam.DISPLAY_LIST,
                        label='GPU Library')
+        form.addParam('pad', params.BooleanParam, default=True, expertLevel=params.LEVEL_ADVANCED, label='Pad particles?')
         form.addSection(label="Reconstruction params")
         form.addParam('numIterMax', params.IntParam, default=20, label="Max number of epochs")
         form.addParam('N_axes', params.IntParam, default=25, label="N axes", expertLevel=params.LEVEL_ADVANCED)
@@ -140,26 +141,27 @@ class ProtSPFluoAbInitio(Protocol, ProtFluoBase):
         args = ' '.join(args)
         Plugin.runSPFluo(self, Plugin.getProgram(UTILS_MODULE), args=args)
 
-        # Resize
-        folder_resized = os.path.abspath(self._getExtraPath('isotropic_cropped'))
-        if not os.path.exists(folder_resized):
-            os.makedirs(folder_resized, exist_ok=True)
+        # Pad
         input_paths = [os.path.join(folder_isotropic, f) for f in os.listdir(folder_isotropic)]
-        args = ["-f resize"]
-        args += ["-i"] + input_paths
-        args += [f"--size {int(max_dim*2*(2**0.5))+1}"]
-        args += [f"-o {folder_resized}"]
-        args = ' '.join(args)
-        Plugin.runSPFluo(self, Plugin.getProgram(UTILS_MODULE), args=args)
+        if self.pad:
+            folder_resized = os.path.abspath(self._getExtraPath('isotropic_cropped'))
+            if not os.path.exists(folder_resized):
+                os.makedirs(folder_resized, exist_ok=True)
+            args = ["-f resize"]
+            args += ["-i"] + input_paths
+            args += [f"--size {int(max_dim*2*(2**0.5))+1}"]
+            args += [f"-o {folder_resized}"]
+            args = ' '.join(args)
+            Plugin.runSPFluo(self, Plugin.getProgram(UTILS_MODULE), args=args)
 
-        # Links
-        os.remove(self.psfPath)
-        for p in particles_paths: os.remove(p)
-        # Link to psf
-        os.link(os.path.join(folder_resized, os.path.basename(self.psfPath)), self.psfPath)
-        # Links to particles
-        for p in particles_paths:
-            os.link(os.path.join(folder_resized, os.path.basename(p)), p)
+            # Links
+            os.remove(self.psfPath)
+            for p in particles_paths: os.remove(p)
+            # Link to psf
+            os.link(os.path.join(folder_resized, os.path.basename(self.psfPath)), self.psfPath)
+            # Links to particles
+            for p in particles_paths:
+                os.link(os.path.join(folder_resized, os.path.basename(p)), p)
 
     def reconstructionStep(self):
         args = [
