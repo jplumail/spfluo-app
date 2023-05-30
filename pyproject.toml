@@ -23,6 +23,7 @@ dependencies = [
   "napari[all] @ git+https://github.com/napari/napari.git@aa0330fcace8d5855fcd1e75c1fd4384b542bd4c",
   "napari-aicsimageio",
   "tifffile >= 2023.3.15",
+  "aicsimageio == 4.10",
 ]
 version = "0.0.1"
 authors = [
