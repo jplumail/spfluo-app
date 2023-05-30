@@ -273,7 +273,7 @@ class SamplingRate(CsvList):
     def __str__(self) -> str:
         sr = self.getSR()
         if sr is None:
-            s = 'No-Dim'
+            s = 'No-SR'
         else:
             xy, z = sr
             s = '%d x %d' % (xy, xy)
