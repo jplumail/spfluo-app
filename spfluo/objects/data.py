@@ -308,6 +308,7 @@ class Image(FluoObject):
         # units are A.
         self._origin: Transform = Transform()
         self._imageDim: ImageDim = ImageDim()
+        self._num_channels: Integer = Integer()
         if filename:
             self.setFileName(filename)
     
@@ -364,6 +365,9 @@ class Image(FluoObject):
             return None
         return self._imageDim.getY()
 
+    def getNumChannels(self) -> Union[int, None]:
+        return self._num_channels.get()
+
     def getFileName(self) -> Optional[str]:
         """ Use the _objValue attribute to store filename. """
         fname = self._filename.get()
@@ -378,6 +382,7 @@ class Image(FluoObject):
         d = self.img.dims
         x, y, z = d.X, d.Y, d.Z
         self._imageDim.set_((x, y, z))
+        self._num_channels.set(d.C)
     
     def getBaseName(self) -> str:
         return os.path.basename(self.getFileName())
@@ -452,14 +457,7 @@ class Image(FluoObject):
 
     def __str__(self) -> str:
         """ String representation of an Image. """
-        dim = self.getDim()
-        dimStr = str(ImageDim(*dim)) if dim else 'No-Dim'
-        sr = self.getSamplingRate()
-        if sr:
-            xy_res, z_res = sr
-            return ("%s (%s, %0.2fx%0.2fx%0.2f Å/px)" % (self.getClassName(), dimStr,
-                                            xy_res, xy_res, z_res)) # FIX units
-        return ("%s (%s, %0.2fx%0.2fx%0.2f Å/px)" % (self.getClassName(), dimStr, 1., 1., 1.))
+        return f"{self.getClassName()} ({str(self._imageDim)}, {str(self._samplingRate)} Å/px, {str(self._num_channels)} channel(s)))"
 
     def getFiles(self) -> set:
         return set([self.getFileName()])
@@ -799,6 +797,7 @@ class SetOfImages(Set):
         Set.__init__(self, **kwargs)
         self._samplingRate = SamplingRate()
         self._dim = ImageDim()  # Dimensions of the first image
+        self._num_channels = Integer()
 
     def append(self, image: Image) -> None:
         """ Add a image to the set. """
@@ -828,8 +827,23 @@ class SetOfImages(Set):
             self.setDim(im_dim)
         else: # im_dim is None
             raise ValueError(f"{image} has no dimension")
+        
+        c = self.getNumChannels()
+        im_c = image.getNumChannels()
+        if (c is not None) and (im_c is not None):
+            if c != im_c: # if num_channels are different accross images
+                print(f"{image} has different channels than {self}: {c} and {im_c}")
+                self.setNumChannels(None)
+        elif (c is None) and (im_c is not None):
+            self.setNumChannels(im_c)
 
         Set.append(self, image)
+    
+    def getNumChannels(self) -> int:
+        return self._num_channels.get()
+
+    def setNumChannels(self, c: int) -> None:
+        self._num_channels.set(c)
 
     def setDim(self, dim: Union[Tuple[int, int, int], None]) -> None:
         """ Store dimensions.
@@ -899,9 +913,9 @@ class SetOfImages(Set):
 
     def __str__(self) -> str:
         """ String representation of a set of images. """
-        s = "%s (%d items, %s, %s%s)" % \
+        s = "%s (%d items, %s, %s, %s%s)" % \
             (self.getClassName(), self.getSize(),
-             self._dimStr(), self._samplingRateStr(), self._appendStreamState())
+             self._dimStr(), self._channelsStr(), self._samplingRateStr(), self._appendStreamState())
         return s
     def _samplingRateStr(self) -> str:
         """ Returns how the sampling rate is presented in a 'str' context."""
@@ -911,6 +925,10 @@ class SetOfImages(Set):
             raise RuntimeError("Sampling rate is not set")
 
         return f"{sampling[0]:.2f}x{sampling[1]:.2f} Å/px" # FIXME unités
+    
+    def _channelsStr(self):
+        c = self.getNumChannels()
+        return f"{c} channel" if c == 1 else f"{c} channels"
 
     def _dimStr(self) -> str:
         """ Return the string representing the dimensions. """
