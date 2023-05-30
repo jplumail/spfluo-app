@@ -69,6 +69,7 @@ class PickingDialog(ToolbarListDialog):
         self.provider = provider
         self.size = 10
         self._protocol = protocol
+        self.refresh_gui(initialized=False)
         ToolbarListDialog.__init__(self, parent,
                                    "Fluoimage List",
                                    self.provider,
@@ -77,7 +78,7 @@ class PickingDialog(ToolbarListDialog):
                                    allowSelect=False,
                                    **kwargs)
 
-    def refresh_gui(self):
+    def refresh_gui(self, initialized=True):
         for im in self.provider.fluoimagesList:
             _, csv_path = self._protocol.getCsvPath(im)
             if os.path.isfile(csv_path):
@@ -92,10 +93,11 @@ class PickingDialog(ToolbarListDialog):
                         line = line.split(',')
                         if len(line) == 5: # verify if csv has data
                             self.size = int(float(line[4])) # last column is the boxsize
-        if not self.proc.is_alive():
-            self.fluoimage.in_viewer = False
-        self.tree.update()
-        self.after(1000, self.refresh_gui)
+        if initialized:
+            if not self.proc.is_alive():
+                self.fluoimage.in_viewer = False
+            self.tree.update()
+            self.after(1000, self.refresh_gui)
 
     def doubleClickOnFluoimage(self, e=None):
         self.fluoimage = e
