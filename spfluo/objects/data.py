@@ -233,6 +233,8 @@ class ImageDim(CsvList):
                     self[:] = dims
             else:
                 raise Exception(f'Dimensions must be a tuple of int, got {dims} of type {type(dims)}')
+        else:
+            self.clear()
 
     def __str__(self) -> str:
         x, y, z = self.getX(), self.getY(), self.getZ()
@@ -816,9 +818,20 @@ class SetOfImages(Set):
         else:
             pass
 
+        dim = self.getDim()
+        im_dim = image.getDim()
+        if (dim is not None) and (im_dim is not None):
+            if dim != im_dim: # if dims are different accross images
+                print(f"{image} has different dimensions than {self}: {dim} and {im_dim}")
+                self.setDim(None)
+        elif (dim is None) and (im_dim is not None):
+            self.setDim(im_dim)
+        else: # im_dim is None
+            raise ValueError(f"{image} has no dimension")
+
         Set.append(self, image)
 
-    def setDim(self, dim: Tuple[int, int, int]) -> None:
+    def setDim(self, dim: Union[Tuple[int, int, int], None]) -> None:
         """ Store dimensions.
         This function should be called only once, to avoid reading
         dimension from image file. """
