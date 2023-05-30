@@ -4,23 +4,39 @@ import napari
 from napari.layers import Points
 from napari.utils.events import Event
 import numpy as np
+import os
+import csv
 
 
-def annotate(im_path, output_path):
+def annotate(im_path, output_path, size=10):
     init_qt()
-
-    view = napari.Viewer()
-    view, dock_widget, cross = add_orthoviewer_widget(view)
-
-    view.open(im_path)
 
     points_layer = Points(
         ndim=3,
         edge_color=[0,0,255,255],
         face_color=[0,0,0,0],
         out_of_slice_display=True,
-        size=10
+        size=size
     )
+
+    if os.path.exists(output_path):
+        with open(output_path, 'r', newline='') as csvfile:
+            # read csv file into array
+            data = []
+            reader = csv.reader(csvfile)
+            try:
+                next(reader)
+            except StopIteration: # file is empty
+                reader = []
+            for p in reader:
+                data.append((float(p[1]), float(p[2]), float(p[3])))
+            data = np.array(data)
+        points_layer.data = data
+    
+    view = napari.Viewer()
+    view, dock_widget, cross = add_orthoviewer_widget(view)
+
+    view.open(im_path)
 
     def on_move_point(event: Event):
         layer: Points = event.source
@@ -75,6 +91,7 @@ def annotate(im_path, output_path):
             f.write('\n')
         f.tell()
     
+    save_annotations()
     points_layer.events.set_data.connect(save_annotations)
 
     points_layer.mode = "add"
