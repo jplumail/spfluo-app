@@ -6,7 +6,7 @@ from napari.utils.events import Event
 import numpy as np
 
 
-def annotate(im_path, output_path):
+def annotate(im_path, output_path, size=10):
     init_qt()
 
     view = napari.Viewer()
@@ -19,7 +19,7 @@ def annotate(im_path, output_path):
         edge_color=[0,0,255,255],
         face_color=[0,0,0,0],
         out_of_slice_display=True,
-        size=10
+        size=size
     )
 
     def on_move_point(event: Event):
