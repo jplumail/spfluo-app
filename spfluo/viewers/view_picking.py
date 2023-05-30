@@ -67,6 +67,7 @@ class PickingDialog(ToolbarListDialog):
 
     def __init__(self, parent, provider: PickingTreeProvider, protocol: Protocol, **kwargs):
         self.provider = provider
+        self.size = 10
         self._protocol = protocol
         ToolbarListDialog.__init__(self, parent,
                                    "Fluoimage List",
@@ -85,6 +86,12 @@ class PickingDialog(ToolbarListDialog):
                     count = sum(1 for line in f)
                 if count > 0:
                     im.count = count - 1
+                    with open(csv_path, 'r') as f:
+                        next(f) # skip header
+                        line = f.readline()
+                        line = line.split(',')
+                        if len(line) == 5: # verify if csv has data
+                            self.size = int(float(line[4])) # last column is the boxsize
         if not self.proc.is_alive():
             self.fluoimage.in_viewer = False
         self.tree.update()
@@ -101,7 +108,7 @@ class PickingDialog(ToolbarListDialog):
         from spfluo import Plugin
         from spfluo.constants import MANUAL_PICKING_MODULE
         path, csv_path = self._protocol.getCsvPath(im)
-        args = " ".join([path, csv_path])
+        args = " ".join([path, csv_path, f"--size {self.size}"])
         Plugin.runSPFluo(self._protocol, Plugin.getProgram(MANUAL_PICKING_MODULE), args)
 
 
