@@ -27,9 +27,7 @@ class ProtSPFluoPickingNapari(ProtFluoPicking):
         ProtFluoPicking._defineParams(self, form)
     
     def _insertAllSteps(self):
-        # TODO: add interactive feature
-        # see https://github.com/scipion-em/scipion-em-emantomo/blob/devel/emantomo/protocols/protocol_tomo_boxing.py
-        self._insertFunctionStep(self.launchBoxingGUIStep, interactive=False)
+        self._insertFunctionStep(self.launchBoxingGUIStep, interactive=True)
     
     def getCsvPath(self, im: FluoImage) -> Tuple[str, str]:
         """ Get the FluoImage path and its csv file path"""
