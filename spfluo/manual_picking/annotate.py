@@ -36,7 +36,7 @@ def annotate(im_path, output_path, size=10):
     view = napari.Viewer()
     view, dock_widget, cross = add_orthoviewer_widget(view)
 
-    view.open(im_path)
+    view.open(im_path, plugin='napari-aicsimageio')
 
     def on_move_point(event: Event):
         layer: Points = event.source
