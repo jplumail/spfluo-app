@@ -12,6 +12,7 @@ import json
 from ome_types import OME
 from aicsimageio import AICSImage
 from aicsimageio.writers.ome_tiff_writer import OmeTiffWriter
+from aicsimageio.types import ImageLike, PathLike
 from scipy.ndimage import affine_transform # type: ignore
 
 
@@ -284,7 +285,7 @@ class SamplingRate(CsvList):
 class Image(FluoObject):
     """Represents an image object"""
 
-    def __init__(self, filename: Optional[str]=None, **kwargs) -> None:
+    def __init__(self, data: Optional[ImageLike]=None, **kwargs) -> None:
         """
          Params:
         :param location: Could be a valid location: (index, filename)
@@ -309,21 +310,31 @@ class Image(FluoObject):
         self._origin: Transform = Transform()
         self._imageDim: ImageDim = ImageDim()
         self._num_channels: Integer = Integer()
-        if filename:
-            self.setFileName(filename)
+        if data is not None:
+            self.img = AICSImage(data)
+            if type(data) is str:
+                self.setFileName(data)
     
     @property
     def img(self) -> Optional[AICSImage]:
         if self._img is None and (fname := self.getFileName()) is not None:
-            self._img = AICSImage(fname)
+            self.img = AICSImage(fname)
         return self._img
 
     @img.setter
     def img(self, img: Optional[AICSImage]) -> None:
         self._img = img
+        if self.img is not None:
+            d = self.img.dims
+            x, y, z = d.X, d.Y, d.Z
+            self._imageDim.set_((x, y, z))
+            self._num_channels.set(d.C)
 
     def getData(self) -> Union[NDArray, None]:
-        return self.img.data
+        if self.img is not None:
+            return self.img.data
+        else:
+            return None
     
     def isEmpty(self):
         return self.img is None
@@ -379,10 +390,6 @@ class Image(FluoObject):
         """ Use the _objValue attribute to store filename. """
         self._filename.set(filename)
         self.img = AICSImage(filename)
-        d = self.img.dims
-        x, y, z = d.X, d.Y, d.Z
-        self._imageDim.set_((x, y, z))
-        self._num_channels.set(d.C)
     
     def getBaseName(self) -> str:
         return os.path.basename(self.getFileName())
@@ -467,16 +474,16 @@ class Image(FluoObject):
         if im is None:
             raise ValueError("Image is None.")
         return OmeTiffWriter.build_ome(
-            data_shapes=[im.shape],
-            data_types=[im.dtype],
-            dimension_order=[im.dims.order],
-            channel_names=[im.channel_names],
+            data_shapes=[self.img.shape],
+            data_types=[self.img.dtype],
+            dimension_order=[self.img.dims.order],
+            channel_names=[self.img.channel_names],
             image_name=[image_name] if image_name else [None],
-            physical_pixel_sizes=[im.physical_pixel_sizes],
+            physical_pixel_sizes=[self.img.physical_pixel_sizes],
             channel_colors=[None],
         )
     
-    def save(self, apply_transform=False) -> None:
+    def save(self, path: PathLike, apply_transform: bool=False) -> None:
         if self._img is None:
             raise ValueError("Image is None.")
         if apply_transform:
@@ -486,7 +493,7 @@ class Image(FluoObject):
         
         OmeTiffWriter.save(
             data=im_data,
-            uri=self.getFileName(),
+            uri=path,
             ome_xml=self.build_ome()
         )
 
