@@ -30,7 +30,7 @@ class FluoObject(Object):
         return None
 
 
-class Matrix(Scalar):
+class Matrix(Scalar, FluoObject):
     def __init__(self, **kwargs) -> None:
         Scalar.__init__(self, **kwargs)
         self._matrix: NDArray[np.float64] = np.eye(4)
@@ -196,7 +196,7 @@ class Transform(FluoObject):
                             '%s' % ' '.join(TRANSFORMATION_FACTORY_TYPES))
 
 
-class ImageDim(CsvList):
+class ImageDim(CsvList, FluoObject):
     """ Just a wrapper to a CsvList to store image dimensions
     as X, Y and Z.
     """
@@ -248,7 +248,7 @@ class ImageDim(CsvList):
         return s
 
 
-class SamplingRate(CsvList):
+class SamplingRate(CsvList, FluoObject):
     """ Just a wrapper to a CsvList to store a sampling rate
     as XY and Z.
     """
@@ -796,7 +796,7 @@ class FluoSet(Set, FluoObject):
         return iter(Set.iterItems(self, orderBy, direction, where, limit, iterate))
 
 
-class SetOfImages(Set):
+class SetOfImages(FluoSet):
     """ Represents a set of Images """
     ITEM_TYPE: Object = Image
 
@@ -960,7 +960,7 @@ class SetOfImages(Set):
                         self.append(img)
 
 
-class SetOfFluoImages(SetOfImages, FluoSet):
+class SetOfFluoImages(SetOfImages):
     """Represents a set of fluo images"""
     ITEM_TYPE = FluoImage
     REP_TYPE = FluoImage
@@ -1178,7 +1178,7 @@ class SetOfCoordinates3D(FluoSet):
         imgIds = [d['_imgId'] for d in imgIds]
         return imgIds
 
-class SetOfParticles(SetOfImages, FluoSet):
+class SetOfParticles(SetOfImages):
     ITEM_TYPE = Particle
     REP_TYPE = Particle
     EXPOSE_ITEMS = False
