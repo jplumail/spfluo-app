@@ -67,7 +67,7 @@ class ProtImportFluoImages(ProtFluoImportFiles):
 
         fileNameList = []
         for fileName, fileId in self.iterFiles():
-            img = FluoImage(filename=fileName)
+            img = FluoImage(data=fileName)
             img.setSamplingRate(samplingRate)
 
             # Set default origin
@@ -199,7 +199,7 @@ class ProtImportFluoImage(ProtFluoImportFile):
         """
         self.info("")
 
-        img = FluoImage(filename=file_path)
+        img = FluoImage(data=file_path)
         img.setSamplingRate(samplingRate)
 
         # Set default origin
@@ -320,7 +320,7 @@ class ProtImportSetOfParticles(ProtFluoImportFiles):
 
         fileNameList = []
         for fileName, fileId in self.iterFiles():
-            particle = Particle(filename=fileName)
+            particle = Particle(data=fileName)
             particle.setSamplingRate(samplingRate)
 
             # Set default origin
@@ -452,7 +452,7 @@ class ProtImportFluoImage(ProtFluoImportFile):
         """
         self.info("")
 
-        img = FluoImage(filename=file_path)
+        img = FluoImage(data=file_path)
         img.setSamplingRate(samplingRate)
 
         # Set default origin
@@ -571,7 +571,7 @@ class ProtImportPSFModel(ProtFluoImportFile):
         """
         self.info("")
 
-        img = PSFModel(filename=file_path)
+        img = PSFModel(data=file_path)
         img.setSamplingRate(samplingRate)
 
         # Set default origin

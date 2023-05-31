@@ -64,7 +64,7 @@ def readSetOfParticles(
     ) -> SetOfParticles:
     for counter, particleFile in enumerate(particleFileList):
         print("Registering particle %s - %s" % (counter, particleFile))
-        particle = Particle(filename=particleFile)
+        particle = Particle(data=particleFile)
         particle.setCoordinate3D(coordSet[counter])
         coord = coordSet[counter]
         transformation = coord._transform

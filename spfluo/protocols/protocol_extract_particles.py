@@ -40,26 +40,33 @@ class ProtSPFluoExtractParticles(Protocol, ProtFluoBase):
             for coord_im in coords.iterCoordinates(im):
                 extracted_particle = self.extract_particle(im, coord_im, box_size)
                 particles.append(extracted_particle)
+        particles.write()
         
         self._defineOutputs(**{self.OUTPUT_NAME: particles})
     
     def extract_particle(self, im: FluoImage, coord: Coordinate3D, box_size: int) -> Particle:
-        im_array = im.getData()[0,0] # T=0,C=0 in AICS model
         mat = coord.getMatrix()
         mat[:3, 3] -= float(box_size) / 2
-        particle_data = affine_transform(im_array, mat, output_shape=(box_size,)*3)
+        image_data = im.getData()
+        C = im.getNumChannels()
+        particle_data = np.empty((1,C)+(box_size,)*3, dtype=image_data.dtype)
+        for c in range(C):
+            im_array_c = image_data[0, c] # T=0,C=c in AICS model
+            particle_data[0, c] = affine_transform(im_array_c, mat, output_shape=(box_size,)*3)
 
         ext = os.path.splitext(im.getFileName())[1]
         coord_str = "-".join([f"{x:.2f}" for x in coord.getPosition()])
         name = im.getImgId() + '_' + coord_str + ext
         filepath = self._getExtraPath(name)
-        AICSImage(particle_data[None, None]).save(os.path.abspath(filepath))
-
-        new_particle = Particle(filename=filepath)
+        new_particle = Particle(data=particle_data)
         new_particle.setImgId(os.path.basename(filepath))
         new_particle.setCoordinate3D(coord)
         new_particle.setImageName(im.getFileName())
         new_particle.setSamplingRate(im.getSamplingRate())
         # did not set origin, is it a problem?
+        
+        # save to disk
+        new_particle.save(filepath)
+        new_particle.setFileName(filepath)
 
         return new_particle

@@ -151,6 +151,15 @@ class Plugin(plugin.Plugin):
         installCmd.append(f"git clone https://jplumail:{GITHUB_TOKEN}@github.com/jplumail/SPFluo_stage_reconstruction_symmetryC.git")
         installCmd.append("mv SPFluo_stage_reconstruction_symmetryC spfluo")
         installCmd.append("cd spfluo && pip install .")
+
+        # Temporary solution until this https://github.com/AllenCellModeling/aicsimageio/issues/495 is fixed
+        installCmd.append("pip install \"tifffile>=2023.3.15\"")
+
+        # from https://github.com/AllenCellModeling/napari-aicsimageio/tree/main#use-napari-aicsimageio-as-the-reader-for-all-file-formats
+        settings_napari = "from napari.settings import get_settings;" \
+            "get_settings().plugins.extension2reader = {'*': 'napari-aicsimageio', **get_settings().plugins.extension2reader}"
+        installCmd.append(f"python -c \"{settings_napari}\"")
+
         installCmd.append(f'touch ../{SPFLUO_INSTALLED}')
 
         pyem_commands = [(" && ".join(installCmd),[SPFLUO_INSTALLED])]

@@ -12,6 +12,7 @@ import json
 from ome_types import OME
 from aicsimageio import AICSImage
 from aicsimageio.writers.ome_tiff_writer import OmeTiffWriter
+from aicsimageio.types import ImageLike, PathLike
 from scipy.ndimage import affine_transform # type: ignore
 
 
@@ -29,7 +30,7 @@ class FluoObject(Object):
         return None
 
 
-class Matrix(Scalar):
+class Matrix(Scalar, FluoObject):
     def __init__(self, **kwargs) -> None:
         Scalar.__init__(self, **kwargs)
         self._matrix: NDArray[np.float64] = np.eye(4)
@@ -195,7 +196,7 @@ class Transform(FluoObject):
                             '%s' % ' '.join(TRANSFORMATION_FACTORY_TYPES))
 
 
-class ImageDim(CsvList):
+class ImageDim(CsvList, FluoObject):
     """ Just a wrapper to a CsvList to store image dimensions
     as X, Y and Z.
     """
@@ -233,6 +234,8 @@ class ImageDim(CsvList):
                     self[:] = dims
             else:
                 raise Exception(f'Dimensions must be a tuple of int, got {dims} of type {type(dims)}')
+        else:
+            self.clear()
 
     def __str__(self) -> str:
         x, y, z = self.getX(), self.getY(), self.getZ()
@@ -245,7 +248,7 @@ class ImageDim(CsvList):
         return s
 
 
-class SamplingRate(CsvList):
+class SamplingRate(CsvList, FluoObject):
     """ Just a wrapper to a CsvList to store a sampling rate
     as XY and Z.
     """
@@ -271,7 +274,7 @@ class SamplingRate(CsvList):
     def __str__(self) -> str:
         sr = self.getSR()
         if sr is None:
-            s = 'No-Dim'
+            s = 'No-SR'
         else:
             xy, z = sr
             s = '%d x %d' % (xy, xy)
@@ -282,7 +285,7 @@ class SamplingRate(CsvList):
 class Image(FluoObject):
     """Represents an image object"""
 
-    def __init__(self, filename: Optional[str]=None, **kwargs) -> None:
+    def __init__(self, data: Optional[ImageLike]=None, **kwargs) -> None:
         """
          Params:
         :param location: Could be a valid location: (index, filename)
@@ -306,21 +309,32 @@ class Image(FluoObject):
         # units are A.
         self._origin: Transform = Transform()
         self._imageDim: ImageDim = ImageDim()
-        if filename:
-            self.setFileName(filename)
+        self._num_channels: Integer = Integer()
+        if data is not None:
+            self.img = AICSImage(data)
+            if type(data) is str:
+                self.setFileName(data)
     
     @property
     def img(self) -> Optional[AICSImage]:
         if self._img is None and (fname := self.getFileName()) is not None:
-            self._img = AICSImage(fname)
+            self.img = AICSImage(fname)
         return self._img
 
     @img.setter
     def img(self, img: Optional[AICSImage]) -> None:
         self._img = img
+        if self.img is not None:
+            d = self.img.dims
+            x, y, z = d.X, d.Y, d.Z
+            self._imageDim.set_((x, y, z))
+            self._num_channels.set(d.C)
 
     def getData(self) -> Union[NDArray, None]:
-        return self.img.data
+        if self.img is not None:
+            return self.img.data
+        else:
+            return None
     
     def isEmpty(self):
         return self.img is None
@@ -362,6 +376,9 @@ class Image(FluoObject):
             return None
         return self._imageDim.getY()
 
+    def getNumChannels(self) -> Union[int, None]:
+        return self._num_channels.get()
+
     def getFileName(self) -> Optional[str]:
         """ Use the _objValue attribute to store filename. """
         fname = self._filename.get()
@@ -373,9 +390,6 @@ class Image(FluoObject):
         """ Use the _objValue attribute to store filename. """
         self._filename.set(filename)
         self.img = AICSImage(filename)
-        d = self.img.dims
-        x, y, z = d.X, d.Y, d.Z
-        self._imageDim.set_((x, y, z))
     
     def getBaseName(self) -> str:
         return os.path.basename(self.getFileName())
@@ -450,14 +464,7 @@ class Image(FluoObject):
 
     def __str__(self) -> str:
         """ String representation of an Image. """
-        dim = self.getDim()
-        dimStr = str(ImageDim(*dim)) if dim else 'No-Dim'
-        sr = self.getSamplingRate()
-        if sr:
-            xy_res, z_res = sr
-            return ("%s (%s, %0.2fx%0.2fx%0.2f Å/px)" % (self.getClassName(), dimStr,
-                                            xy_res, xy_res, z_res)) # FIX units
-        return ("%s (%s, %0.2fx%0.2fx%0.2f Å/px)" % (self.getClassName(), dimStr, 1., 1., 1.))
+        return f"{self.getClassName()} ({str(self._imageDim)}, {str(self._samplingRate)} Å/px, {str(self._num_channels)} channel(s)))"
 
     def getFiles(self) -> set:
         return set([self.getFileName()])
@@ -467,16 +474,16 @@ class Image(FluoObject):
         if im is None:
             raise ValueError("Image is None.")
         return OmeTiffWriter.build_ome(
-            data_shapes=[im.shape],
-            data_types=[im.dtype],
-            dimension_order=[im.dims.order],
-            channel_names=[im.channel_names],
+            data_shapes=[self.img.shape],
+            data_types=[self.img.dtype],
+            dimension_order=[self.img.dims.order],
+            channel_names=[self.img.channel_names],
             image_name=[image_name] if image_name else [None],
-            physical_pixel_sizes=[im.physical_pixel_sizes],
+            physical_pixel_sizes=[self.img.physical_pixel_sizes],
             channel_colors=[None],
         )
     
-    def save(self, apply_transform=False) -> None:
+    def save(self, path: PathLike, apply_transform: bool=False) -> None:
         if self._img is None:
             raise ValueError("Image is None.")
         if apply_transform:
@@ -486,7 +493,7 @@ class Image(FluoObject):
         
         OmeTiffWriter.save(
             data=im_data,
-            uri=self.getFileName(),
+            uri=path,
             ome_xml=self.build_ome()
         )
 
@@ -789,7 +796,7 @@ class FluoSet(Set, FluoObject):
         return iter(Set.iterItems(self, orderBy, direction, where, limit, iterate))
 
 
-class SetOfImages(Set):
+class SetOfImages(FluoSet):
     """ Represents a set of Images """
     ITEM_TYPE: Object = Image
 
@@ -797,6 +804,7 @@ class SetOfImages(Set):
         Set.__init__(self, **kwargs)
         self._samplingRate = SamplingRate()
         self._dim = ImageDim()  # Dimensions of the first image
+        self._num_channels = Integer()
 
     def append(self, image: Image) -> None:
         """ Add a image to the set. """
@@ -816,9 +824,35 @@ class SetOfImages(Set):
         else:
             pass
 
-        Set.append(self, image)
+        dim = self.getDim()
+        im_dim = image.getDim()
+        if (dim is not None) and (im_dim is not None):
+            if dim != im_dim: # if dims are different accross images
+                print(f"{image} has different dimensions than {self}: {dim} and {im_dim}")
+                self.setDim(None)
+        elif (dim is None) and (im_dim is not None):
+            self.setDim(im_dim)
+        else: # im_dim is None
+            raise ValueError(f"{image} has no dimension")
+        
+        c = self.getNumChannels()
+        im_c = image.getNumChannels()
+        if (c is not None) and (im_c is not None):
+            if c != im_c: # if num_channels are different accross images
+                print(f"{image} has different channels than {self}: {c} and {im_c}")
+                self.setNumChannels(None)
+        elif (c is None) and (im_c is not None):
+            self.setNumChannels(im_c)
 
-    def setDim(self, dim: Tuple[int, int, int]) -> None:
+        Set.append(self, image)
+    
+    def getNumChannels(self) -> int:
+        return self._num_channels.get()
+
+    def setNumChannels(self, c: int) -> None:
+        self._num_channels.set(c)
+
+    def setDim(self, dim: Union[Tuple[int, int, int], None]) -> None:
         """ Store dimensions.
         This function should be called only once, to avoid reading
         dimension from image file. """
@@ -862,7 +896,7 @@ class SetOfImages(Set):
 
     @classmethod
     def create_image(cls, filename):
-        return cls.ITEM_TYPE(filename=filename)
+        return cls.ITEM_TYPE(data=filename)
 
     def readSet(self, files: List[str]) -> None:
         """ Populate the set with the images in the stack """
@@ -886,9 +920,9 @@ class SetOfImages(Set):
 
     def __str__(self) -> str:
         """ String representation of a set of images. """
-        s = "%s (%d items, %s, %s%s)" % \
+        s = "%s (%d items, %s, %s, %s%s)" % \
             (self.getClassName(), self.getSize(),
-             self._dimStr(), self._samplingRateStr(), self._appendStreamState())
+             self._dimStr(), self._channelsStr(), self._samplingRateStr(), self._appendStreamState())
         return s
     def _samplingRateStr(self) -> str:
         """ Returns how the sampling rate is presented in a 'str' context."""
@@ -898,6 +932,10 @@ class SetOfImages(Set):
             raise RuntimeError("Sampling rate is not set")
 
         return f"{sampling[0]:.2f}x{sampling[1]:.2f} Å/px" # FIXME unités
+    
+    def _channelsStr(self):
+        c = self.getNumChannels()
+        return f"{c} channel" if c == 1 else f"{c} channels"
 
     def _dimStr(self) -> str:
         """ Return the string representing the dimensions. """
@@ -922,7 +960,7 @@ class SetOfImages(Set):
                         self.append(img)
 
 
-class SetOfFluoImages(SetOfImages, FluoSet):
+class SetOfFluoImages(SetOfImages):
     """Represents a set of fluo images"""
     ITEM_TYPE = FluoImage
     REP_TYPE = FluoImage
@@ -1140,7 +1178,7 @@ class SetOfCoordinates3D(FluoSet):
         imgIds = [d['_imgId'] for d in imgIds]
         return imgIds
 
-class SetOfParticles(SetOfImages, FluoSet):
+class SetOfParticles(SetOfImages):
     ITEM_TYPE = Particle
     REP_TYPE = Particle
     EXPOSE_ITEMS = False
