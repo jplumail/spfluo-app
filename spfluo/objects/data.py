@@ -896,7 +896,7 @@ class SetOfImages(Set):
 
     @classmethod
     def create_image(cls, filename):
-        return cls.ITEM_TYPE(filename=filename)
+        return cls.ITEM_TYPE(data=filename)
 
     def readSet(self, files: List[str]) -> None:
         """ Populate the set with the images in the stack """

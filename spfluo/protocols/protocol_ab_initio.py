@@ -273,5 +273,5 @@ class ProtSPFluoParticleAverage(Protocol):
     
     def createOuputStep(self):
         avrg_path = self._getExtraPath('average.tif')
-        average_output = AverageParticle(filename=avrg_path)
+        average_output = AverageParticle(data=avrg_path)
         self._defineOutputs(**{"output": average_output})

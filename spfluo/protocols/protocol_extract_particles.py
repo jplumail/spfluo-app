@@ -53,9 +53,7 @@ class ProtSPFluoExtractParticles(Protocol, ProtFluoBase):
         coord_str = "-".join([f"{x:.2f}" for x in coord.getPosition()])
         name = im.getImgId() + '_' + coord_str + ext
         filepath = self._getExtraPath(name)
-        AICSImage(particle_data[None, None]).save(os.path.abspath(filepath))
-
-        new_particle = Particle(filename=filepath)
+        new_particle = Particle(data=particle_data)
         new_particle.setImgId(os.path.basename(filepath))
         new_particle.setCoordinate3D(coord)
         new_particle.setImageName(im.getFileName())

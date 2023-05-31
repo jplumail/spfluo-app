@@ -86,7 +86,7 @@ class ProtSPFluoUtils(Protocol, ProtFluoBase):
             input_im: FluoImage
             output_path = join(self.output_dir, basename(input_im.getFileName()))
             assert os.path.exists(output_path)
-            im = FluoImage(filename=output_path)
+            im = FluoImage(data=output_path)
             im.setSamplingRate(sr)
             im.setImgId(input_im.getImgId())
             im.cleanObjId()
