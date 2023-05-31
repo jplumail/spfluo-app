@@ -40,6 +40,7 @@ class ProtSPFluoExtractParticles(Protocol, ProtFluoBase):
             for coord_im in coords.iterCoordinates(im):
                 extracted_particle = self.extract_particle(im, coord_im, box_size)
                 particles.append(extracted_particle)
+        particles.write()
         
         self._defineOutputs(**{self.OUTPUT_NAME: particles})
     
