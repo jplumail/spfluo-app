@@ -11,7 +11,7 @@ def show_points(im_path, csv_path):
     #view.window._qt_viewer.dockLayerList.toggleViewAction().trigger()
     view, dock_widget, cross = add_orthoviewer_widget(view)
 
-    view.open(im_path)
+    view.open(im_path, plugin='napari-aicsimageio')
 
     cross.setChecked(True)
     cross.hide()
