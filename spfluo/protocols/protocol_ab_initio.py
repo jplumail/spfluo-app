@@ -37,13 +37,15 @@ import csv
 import pickle
 import numpy as np
 from scipy.spatial.transform import Rotation
-from pyworkflow.protocol import Protocol, params, Integer
+from pyworkflow.protocol import Protocol, params, Integer, Form
 from pyworkflow.utils import Message
 from pyworkflow import BETA
 import pyworkflow.object as pwobj
 from spfluo.objects import AverageParticle, SetOfParticles
 from spfluo.objects.data import PSFModel, Particle
 from .protocol_base import ProtFluoBase
+from aicsimageio.transforms import reshape_data
+from aicsimageio.aics_image import AICSImage
 
 
 from spfluo import Plugin
@@ -66,7 +68,7 @@ class ProtSPFluoAbInitio(Protocol, ProtFluoBase):
     _possibleOutputs = outputs
 
     # -------------------------- DEFINE param functions ----------------------
-    def _defineParams(self, form):
+    def _defineParams(self, form: Form):
         form.addSection(label="Data params")
         form.addParam('inputParticles', params.PointerParam, pointerClass='SetOfParticles',
                       label="Particles", important=True,
@@ -74,6 +76,13 @@ class ProtSPFluoAbInitio(Protocol, ProtFluoBase):
         form.addParam('inputPSF', params.PointerParam, pointerClass='PSFModel',
                       label="PSF", important=True,
                       help='Select the PSF.')
+        form.addParam(
+            'channel',
+            params.IntParam,
+            default=0,
+            label="Reconstruct on channel?",
+            help="This protocol reconstruct an average particle in one channel only.",
+        )
         form.addParam('gpu', params.EnumParam, choices=self._GPU_libraries,
                        display=params.EnumParam.DISPLAY_LIST,
                        label='GPU Library')
@@ -111,10 +120,13 @@ class ProtSPFluoAbInitio(Protocol, ProtFluoBase):
             im_name = im.strId()
             im_newPath = os.path.join(self.particlesDir, im_name+'.tif')
             particles_paths.append(im_newPath)
-            if ext != '.tif' and ext != '.tiff':
-                raise NotImplementedError(f"Found ext {ext} in particles: {im_path}. Only tiff file are supported.") # FIXME: allow formats accepted by AICSImageio
+            if im.getNumChannels() > 1:
+                AICSImage(reshape_data(im.getData(), im.img.dims.order, "TCZYX", C=self.channel.get())).save(im_newPath)
             else:
-                os.link(im_path, im_newPath)
+                if ext != '.tif' and ext != '.tiff':
+                    raise NotImplementedError(f"Found ext {ext} in particles: {im_path}. Only tiff file are supported.") # FIXME: allow formats accepted by AICSImageio
+                else:
+                    os.link(im_path, im_newPath)
 
         # PSF Path
         psf: PSFModel = self.inputPSF.get()
@@ -144,24 +156,25 @@ class ProtSPFluoAbInitio(Protocol, ProtFluoBase):
         # Pad
         input_paths = [os.path.join(folder_isotropic, f) for f in os.listdir(folder_isotropic)]
         if self.pad:
-            folder_resized = os.path.abspath(self._getExtraPath('isotropic_cropped'))
-            if not os.path.exists(folder_resized):
-                os.makedirs(folder_resized, exist_ok=True)
-            args = ["-f resize"]
-            args += ["-i"] + input_paths
-            args += [f"--size {int(max_dim*2*(2**0.5))+1}"]
-            args += [f"-o {folder_resized}"]
-            args = ' '.join(args)
-            Plugin.runSPFluo(self, Plugin.getProgram(UTILS_MODULE), args=args)
+            max_dim = int(max_dim*2*(2**0.5)) + 1
+        folder_resized = os.path.abspath(self._getExtraPath('isotropic_cropped'))
+        if not os.path.exists(folder_resized):
+            os.makedirs(folder_resized, exist_ok=True)
+        args = ["-f resize"]
+        args += ["-i"] + input_paths
+        args += [f"--size {max_dim}"]
+        args += [f"-o {folder_resized}"]
+        args = ' '.join(args)
+        Plugin.runSPFluo(self, Plugin.getProgram(UTILS_MODULE), args=args)
 
-            # Links
-            os.remove(self.psfPath)
-            for p in particles_paths: os.remove(p)
-            # Link to psf
-            os.link(os.path.join(folder_resized, os.path.basename(self.psfPath)), self.psfPath)
-            # Links to particles
-            for p in particles_paths:
-                os.link(os.path.join(folder_resized, os.path.basename(p)), p)
+        # Links
+        os.remove(self.psfPath)
+        for p in particles_paths: os.remove(p)
+        # Link to psf
+        os.link(os.path.join(folder_resized, os.path.basename(self.psfPath)), self.psfPath)
+        # Links to particles
+        for p in particles_paths:
+            os.link(os.path.join(folder_resized, os.path.basename(p)), p)
 
     def reconstructionStep(self):
         args = [
