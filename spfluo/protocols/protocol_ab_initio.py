@@ -138,9 +138,9 @@ class ProtSPFluoAbInitio(Protocol, ProtFluoBase):
             os.link(psf_path, self.psfPath)
         
         # Make isotropic
-        sr = inputParticles.getSamplingRate()
-        if sr is None:
-            raise RuntimeError("Input Particles don't have a sampling rate.")
+        vs = inputParticles.getVoxelSize()
+        if vs is None:
+            raise RuntimeError("Input Particles don't have a voxel size.")
         
         input_paths = particles_paths + [self.psfPath]
         args = ["-f isotropic_resample"]
@@ -149,7 +149,7 @@ class ProtSPFluoAbInitio(Protocol, ProtFluoBase):
         if not os.path.exists(folder_isotropic):
             os.makedirs(folder_isotropic, exist_ok=True)
         args += [f"-o {folder_isotropic}"]
-        args += [f"--spacing {sr[1]} {sr[0]} {sr[0]}"]
+        args += [f"--spacing {vs[1]} {vs[0]} {vs[0]}"]
         args = ' '.join(args)
         Plugin.runSPFluo(self, Plugin.getProgram(UTILS_MODULE), args=args)
 

@@ -5,8 +5,8 @@ from spfluo.protocols.protocol_import import ProtImportFluoImages
 
 class TestProtocolBase(BaseTest):
     ds = None
-    sr_xy = 1.1
-    sr_z = 6.32
+    vs_xy = 1.1
+    vs_z = 6.32
 
     @classmethod
     def setUpClass(cls):
@@ -18,7 +18,7 @@ class TestProtocolBase(BaseTest):
         protImportFluoImages = cls.newProtocol(
             ProtImportFluoImages,
             filesPath=cls.ds.getFile("fluo1"),
-            samplingRate=(cls.sr_xy, cls.sr_z),
+            voxelSize=(cls.vs_xy, cls.vs_z),
         )
 
         cls.launchProtocol(protImportFluoImages)

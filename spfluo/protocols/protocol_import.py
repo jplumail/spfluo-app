@@ -49,13 +49,13 @@ class ProtImportFluoImages(ProtFluoImportFiles):
         self._insertFunctionStep(
             "importFluoImagesStep",
             self.getPattern(),
-            (self.sr_xy.get(), self.sr_z.get()),
+            (self.vs_xy.get(), self.vs_z.get()),
         )
 
     # --------------------------- STEPS functions -----------------------------
 
     def importFluoImagesStep(
-        self, pattern: str, samplingRate: Tuple[float, float]
+        self, pattern: str, voxelSize: Tuple[float, float]
     ) -> None:
         """Copy images matching the filename pattern
         Register other parameters.
@@ -63,12 +63,12 @@ class ProtImportFluoImages(ProtFluoImportFiles):
         self.info("Using pattern: '%s'" % pattern)
 
         imgSet = self._createSetOfFluoImages()
-        imgSet.setSamplingRate(samplingRate)
+        imgSet.setVoxelSize(voxelSize)
 
         fileNameList = []
         for fileName, fileId in self.iterFiles():
             img = FluoImage(data=fileName)
-            img.setSamplingRate(samplingRate)
+            img.getVoxelSize(voxelSize)
 
             # Set default origin
             origin = Transform()
@@ -77,9 +77,9 @@ class ProtImportFluoImages(ProtFluoImportFiles):
                 raise ValueError("Image '%s' has no dimension" % fileName)
             x, y, z = dim
             origin.setShifts(
-                x / -2.0 * samplingRate[0],
-                y / -2.0 * samplingRate[0],
-                z / -2.0 * samplingRate[1],
+                x / -2.0 * voxelSize[0],
+                y / -2.0 * voxelSize[0],
+                z / -2.0 * voxelSize[1],
             )
             img.setOrigin(origin)
 
@@ -118,9 +118,9 @@ class ProtImportFluoImages(ProtFluoImportFiles):
                     "%s imported from:\n%s" % (self._getTomMessage(), self.getPattern())
                 )
 
-                if (sr_xy := self.sr_xy.get()) and (sr_z := self.sr_z.get()):
+                if (vs_xy := self.vs_xy.get()) and (vs_z := self.vs_z.get()):
                     summary.append(
-                        f"Sampling rate: *{sr_xy:.2f}x{sr_z:.2f}* (nm/px)"
+                        f"Voxel size: *{vs_xy:.2f}x{vs_z:.2f}* (nm/px)"
                     )
 
         except Exception as e:
@@ -131,9 +131,9 @@ class ProtImportFluoImages(ProtFluoImportFiles):
     def _methods(self) -> List[str]:
         methods = []
         if self._hasOutput():
-            sr_xy, sr_z = self.sr_xy.get(), self.sr_z.get()
+            vs_xy, vs_z = self.vs_xy.get(), self.vs_z.get()
             methods.append(
-                f"{self._getTomMessage()} imported with a sampling rate *{sr_xy:.2f}x{sr_z:.2f}* (nm/px)"
+                f"{self._getTomMessage()} imported with a voxel size *{vs_xy:.2f}x{vs_z:.2f}* (nm/px)"
             )
         return methods
 
@@ -186,13 +186,13 @@ class ProtImportFluoImage(ProtFluoImportFile):
         self._insertFunctionStep(
             "importFluoImageStep",
             self.filePath.get(),
-            (self.sr_xy.get(), self.sr_z.get()),
+            (self.vs_xy.get(), self.vs_z.get()),
         )
 
     # --------------------------- STEPS functions -----------------------------
 
     def importFluoImageStep(
-        self, file_path: str, samplingRate: Tuple[float, float]
+        self, file_path: str, voxelSize: Tuple[float, float]
     ) -> None:
         """Copy the file.
         Register other parameters.
@@ -200,7 +200,7 @@ class ProtImportFluoImage(ProtFluoImportFile):
         self.info("")
 
         img = FluoImage(data=file_path)
-        img.setSamplingRate(samplingRate)
+        img.getVoxelSize(voxelSize)
 
         # Set default origin
         origin = Transform()
@@ -209,9 +209,9 @@ class ProtImportFluoImage(ProtFluoImportFile):
             raise ValueError("Image '%s' has no dimension" % file_path)
         x, y, z = dim
         origin.setShifts(
-            x / -2.0 * samplingRate[0],
-            y / -2.0 * samplingRate[0],
-            z / -2.0 * samplingRate[1],
+            x / -2.0 * voxelSize[0],
+            y / -2.0 * voxelSize[0],
+            z / -2.0 * voxelSize[1],
         )
         img.setOrigin(origin)
 
@@ -242,9 +242,9 @@ class ProtImportFluoImage(ProtFluoImportFile):
                     "%s imported from:\n%s" % (self._getTomMessage(), self.filePath.get())
                 )
 
-                if (sr_xy := self.sr_xy.get()) and (sr_z := self.sr_z.get()):
+                if (vs_xy := self.vs_xy.get()) and (vs_z := self.vs_z.get()):
                     summary.append(
-                        f"Sampling rate: *{sr_xy:.2f}x{sr_z:.2f}* (nm/px)"
+                        f"Voxel size: *{vs_xy:.2f}x{vs_z:.2f}* (nm/px)"
                     )
 
         except Exception as e:
@@ -255,9 +255,9 @@ class ProtImportFluoImage(ProtFluoImportFile):
     def _methods(self) -> List[str]:
         methods = []
         if self._hasOutput():
-            sr_xy, sr_z = self.sr_xy.get(), self.sr_z.get()
+            vs_xy, vs_z = self.vs_xy.get(), self.vs_z.get()
             methods.append(
-                f"{self._getTomMessage()} imported with a sampling rate *{sr_xy:.2f}x{sr_z:.2f}* (nm/px)"
+                f"{self._getTomMessage()} imported with a voxel size *{vs_xy:.2f}x{vs_z:.2f}* (nm/px)"
             )
         return methods
 
@@ -302,13 +302,13 @@ class ProtImportSetOfParticles(ProtFluoImportFiles):
         self._insertFunctionStep(
             self.importParticlesStep,
             self.getPattern(),
-            (self.sr_xy.get(), self.sr_z.get()),
+            (self.vs_xy.get(), self.vs_z.get()),
         )
 
     # --------------------------- STEPS functions -----------------------------
 
     def importParticlesStep(
-        self, pattern: str, samplingRate: Tuple[float, float]
+        self, pattern: str, voxelSize: Tuple[float, float]
     ) -> None:
         """Copy images matching the filename pattern
         Register other parameters.
@@ -316,12 +316,12 @@ class ProtImportSetOfParticles(ProtFluoImportFiles):
         self.info("Using pattern: '%s'" % pattern)
 
         particles = self._createSetOfParticles()
-        particles.setSamplingRate(samplingRate)
+        particles.setVoxelSize(voxelSize)
 
         fileNameList = []
         for fileName, fileId in self.iterFiles():
             particle = Particle(data=fileName)
-            particle.setSamplingRate(samplingRate)
+            particle.getVoxelSize(voxelSize)
 
             # Set default origin
             origin = Transform()
@@ -330,9 +330,9 @@ class ProtImportSetOfParticles(ProtFluoImportFiles):
                 raise ValueError("Image '%s' has no dimension" % fileName)
             x, y, z = dim
             origin.setShifts(
-                x / -2.0 * samplingRate[0],
-                y / -2.0 * samplingRate[0],
-                z / -2.0 * samplingRate[1],
+                x / -2.0 * voxelSize[0],
+                y / -2.0 * voxelSize[0],
+                z / -2.0 * voxelSize[1],
             )
             particle.setOrigin(origin)
 
@@ -371,9 +371,9 @@ class ProtImportSetOfParticles(ProtFluoImportFiles):
                     "%s imported from:\n%s" % (self._getTomMessage(), self.getPattern())
                 )
 
-                if (sr_xy := self.sr_xy.get()) and (sr_z := self.sr_z.get()):
+                if (vs_xy := self.vs_xy.get()) and (vs_z := self.vs_z.get()):
                     summary.append(
-                        f"Sampling rate: *{sr_xy:.2f}x{sr_z:.2f}* (nm/px)"
+                        f"Voxel size: *{vs_xy:.2f}x{vs_z:.2f}* (nm/px)"
                     )
 
         except Exception as e:
@@ -384,9 +384,9 @@ class ProtImportSetOfParticles(ProtFluoImportFiles):
     def _methods(self) -> List[str]:
         methods = []
         if self._hasOutput():
-            sr_xy, sr_z = self.sr_xy.get(), self.sr_z.get()
+            vs_xy, vs_z = self.vs_xy.get(), self.vs_z.get()
             methods.append(
-                f"{self._getTomMessage()} imported with a sampling rate *{sr_xy:.2f}x{sr_z:.2f}* (nm/px)"
+                f"{self._getTomMessage()} imported with a voxel size *{vs_xy:.2f}x{vs_z:.2f}* (nm/px)"
             )
         return methods
 
@@ -439,13 +439,13 @@ class ProtImportFluoImage(ProtFluoImportFile):
         self._insertFunctionStep(
             "importFluoImageStep",
             self.filePath.get(),
-            (self.sr_xy.get(), self.sr_z.get()),
+            (self.vs_xy.get(), self.vs_z.get()),
         )
 
     # --------------------------- STEPS functions -----------------------------
 
     def importFluoImageStep(
-        self, file_path: str, samplingRate: Tuple[float, float]
+        self, file_path: str, voxelSize: Tuple[float, float]
     ) -> None:
         """Copy the file.
         Register other parameters.
@@ -453,7 +453,7 @@ class ProtImportFluoImage(ProtFluoImportFile):
         self.info("")
 
         img = FluoImage(data=file_path)
-        img.setSamplingRate(samplingRate)
+        img.getVoxelSize(voxelSize)
 
         # Set default origin
         origin = Transform()
@@ -462,9 +462,9 @@ class ProtImportFluoImage(ProtFluoImportFile):
             raise ValueError("Image '%s' has no dimension" % file_path)
         x, y, z = dim
         origin.setShifts(
-            x / -2.0 * samplingRate[0],
-            y / -2.0 * samplingRate[0],
-            z / -2.0 * samplingRate[1],
+            x / -2.0 * voxelSize[0],
+            y / -2.0 * voxelSize[0],
+            z / -2.0 * voxelSize[1],
         )
         img.setOrigin(origin)
 
@@ -495,9 +495,9 @@ class ProtImportFluoImage(ProtFluoImportFile):
                     "%s imported from:\n%s" % (self._getTomMessage(), self.filePath.get())
                 )
 
-                if (sr_xy := self.sr_xy.get()) and (sr_z := self.sr_z.get()):
+                if (vs_xy := self.vs_xy.get()) and (vs_z := self.vs_z.get()):
                     summary.append(
-                        f"Sampling rate: *{sr_xy:.2f}x{sr_z:.2f}* (nm/px)"
+                        f"Voxel size: *{vs_xy:.2f}x{vs_z:.2f}* (nm/px)"
                     )
 
         except Exception as e:
@@ -508,9 +508,9 @@ class ProtImportFluoImage(ProtFluoImportFile):
     def _methods(self) -> List[str]:
         methods = []
         if self._hasOutput():
-            sr_xy, sr_z = self.sr_xy.get(), self.sr_z.get()
+            vs_xy, vs_z = self.vs_xy.get(), self.vs_z.get()
             methods.append(
-                f"{self._getTomMessage()} imported with a sampling rate *{sr_xy:.2f}x{sr_z:.2f}* (nm/px)"
+                f"{self._getTomMessage()} imported with a voxel size *{vs_xy:.2f}x{vs_z:.2f}* (nm/px)"
             )
         return methods
 
@@ -558,13 +558,13 @@ class ProtImportPSFModel(ProtFluoImportFile):
         self._insertFunctionStep(
             "importPSFModelStep",
             self.filePath.get(),
-            (self.sr_xy.get(), self.sr_z.get()),
+            (self.vs_xy.get(), self.vs_z.get()),
         )
 
     # --------------------------- STEPS functions -----------------------------
 
     def importPSFModelStep(
-        self, file_path: str, samplingRate: Tuple[float, float]
+        self, file_path: str, voxelSize: Tuple[float, float]
     ) -> None:
         """Copy the file.
         Register other parameters.
@@ -572,7 +572,7 @@ class ProtImportPSFModel(ProtFluoImportFile):
         self.info("")
 
         img = PSFModel(data=file_path)
-        img.setSamplingRate(samplingRate)
+        img.getVoxelSize(voxelSize)
 
         # Set default origin
         origin = Transform()
@@ -581,9 +581,9 @@ class ProtImportPSFModel(ProtFluoImportFile):
             raise ValueError("Image '%s' has no dimension" % file_path)
         x, y, z = dim
         origin.setShifts(
-            x / -2.0 * samplingRate[0],
-            y / -2.0 * samplingRate[0],
-            z / -2.0 * samplingRate[1],
+            x / -2.0 * voxelSize[0],
+            y / -2.0 * voxelSize[0],
+            z / -2.0 * voxelSize[1],
         )
         img.setOrigin(origin)
 
@@ -611,9 +611,9 @@ class ProtImportPSFModel(ProtFluoImportFile):
                     "%s imported from:\n%s" % (self._getTomMessage(), self.filePath.get())
                 )
 
-                if (sr_xy := self.sr_xy.get()) and (sr_z := self.sr_z.get()):
+                if (vs_xy := self.vs_xy.get()) and (vs_z := self.vs_z.get()):
                     summary.append(
-                        f"Sampling rate: *{sr_xy:.2f}x{sr_z:.2f}* (nm/px)"
+                        f"Voxel size: *{vs_xy:.2f}x{vs_z:.2f}* (nm/px)"
                     )
 
         except Exception as e:
@@ -624,9 +624,9 @@ class ProtImportPSFModel(ProtFluoImportFile):
     def _methods(self) -> List[str]:
         methods = []
         if self._hasOutput():
-            sr_xy, sr_z = self.sr_xy.get(), self.sr_z.get()
+            vs_xy, vs_z = self.vs_xy.get(), self.vs_z.get()
             methods.append(
-                f"{self._getTomMessage()} imported with a sampling rate *{sr_xy:.2f}x{sr_z:.2f}* (nm/px)"
+                f"{self._getTomMessage()} imported with a voxel size *{vs_xy:.2f}x{vs_z:.2f}* (nm/px)"
             )
         return methods
 

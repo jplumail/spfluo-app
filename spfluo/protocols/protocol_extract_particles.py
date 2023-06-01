@@ -62,7 +62,7 @@ class ProtSPFluoExtractParticles(Protocol, ProtFluoBase):
         new_particle.setImgId(os.path.basename(filepath))
         new_particle.setCoordinate3D(coord)
         new_particle.setImageName(im.getFileName())
-        new_particle.setSamplingRate(im.getSamplingRate())
+        new_particle.getVoxelSize(im.getVoxelSize())
         # did not set origin, is it a problem?
         
         # save to disk

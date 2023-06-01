@@ -128,7 +128,7 @@ class ProtSPFluoPickingPredict(ProtFluoPicking):
                 boxsize = self.trainRun.inputCoordinates.get().getBoxSize()
                 coordSet.setBoxSize(boxsize)
                 coordSet.setName("predCoord_"+k)
-                coordSet.setSamplingRate(setOfImages.getSamplingRate())
+                coordSet.setVoxelSize(setOfImages.getVoxelSize())
 
                 for image in setOfImages.iterItems():
                     if self.image_paths[image.getBaseName()] in preds:

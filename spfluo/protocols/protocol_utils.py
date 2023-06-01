@@ -77,17 +77,17 @@ class ProtSPFluoUtils(Protocol, ProtFluoBase):
     
     def outputStep(self):
         imgSet = self._createSetOfFluoImages()
-        sr = self.inputfluoImages.getSamplingRate()
+        vs = self.inputfluoImages.getVoxelSize()
         if self.function.get() == "resample":
-            sr = (sr[0] * self.factor.get(), sr[1] * self.factor.get())
-        imgSet.setSamplingRate(sr)
+            vs = (vs[0] * self.factor.get(), vs[1] * self.factor.get())
+        imgSet.setVoxelSize(vs)
 
         for input_im in self.inputfluoImages:
             input_im: FluoImage
             output_path = join(self.output_dir, basename(input_im.getFileName()))
             assert os.path.exists(output_path)
             im = FluoImage(data=output_path)
-            im.setSamplingRate(sr)
+            im.getVoxelSize(vs)
             im.setImgId(input_im.getImgId())
             im.cleanObjId()
 
@@ -98,9 +98,9 @@ class ProtSPFluoUtils(Protocol, ProtFluoBase):
                 raise ValueError()
             x, y, z = dim
             origin.setShifts(
-                x / -2.0 * sr[0],
-                y / -2.0 * sr[0],
-                z / -2.0 * sr[1],
+                x / -2.0 * vs[0],
+                y / -2.0 * vs[0],
+                z / -2.0 * vs[1],
             )
             im.setOrigin(origin)
 

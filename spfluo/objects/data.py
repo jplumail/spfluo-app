@@ -248,8 +248,8 @@ class ImageDim(CsvList, FluoObject):
         return s
 
 
-class SamplingRate(CsvList, FluoObject):
-    """ Just a wrapper to a CsvList to store a sampling rate
+class VoxelSize(CsvList, FluoObject):
+    """ Just a wrapper to a CsvList to store a voxel size
     as XY and Z.
     """
 
@@ -259,24 +259,24 @@ class SamplingRate(CsvList, FluoObject):
             self.append(xy)
             self.append(z)
     
-    def setSR(self, xy: float, z: float) -> None:
+    def setVoxelSize(self, xy: float, z: float) -> None:
         if self.isEmpty():
             self.append(xy)
             self.append(z)
         else:
             self[0], self[1] = xy, z
 
-    def getSR(self) -> Optional[Tuple[float, float]]:
+    def getVoxelSize(self) -> Optional[Tuple[float, float]]:
         if self.isEmpty():
             return None
         return self[0], self[1]
 
     def __str__(self) -> str:
-        sr = self.getSR()
-        if sr is None:
-            s = 'No-SR'
+        vs = self.getVoxelSize()
+        if vs is None:
+            s = 'No-VoxelSize'
         else:
-            xy, z = sr
+            xy, z = vs
             s = '%d x %d' % (xy, xy)
             s += ' x %d' % z
         return s
@@ -295,7 +295,7 @@ class Image(FluoObject):
         # Image location is composed by an index and a filename
         self._filename: String = String()
         self._img: Optional[AICSImage] = None
-        self._samplingRate: SamplingRate = SamplingRate()
+        self._voxelSize: VoxelSize = VoxelSize()
         # _transform property will store the transformation matrix
         # this matrix can be used for 2D/3D alignment or
         # to represent projection directions
@@ -339,12 +339,12 @@ class Image(FluoObject):
     def isEmpty(self):
         return self.img is None
 
-    def getSamplingRate(self) -> Optional[Tuple[float, float]]:
-        """ Return image sampling rate. (A/pix) """
-        return self._samplingRate.getSR()
+    def getVoxelSize(self) -> Optional[Tuple[float, float]]:
+        """ Return image voxel size. (A/pix) """
+        return self._voxelSize.getVoxelSize()
 
-    def setSamplingRate(self, sampling: Tuple[float, float]) -> None:
-        self._samplingRate.setSR(*sampling)
+    def getVoxelSize(self, voxel_size: Tuple[float, float]) -> None:
+        self._voxelSize.setVoxelSize(*voxel_size)
 
     def getFormat(self):
         pass
@@ -396,7 +396,7 @@ class Image(FluoObject):
 
     def copyInfo(self, other: 'Image') -> None:
         """ Copy basic information """
-        self.copyAttributes(other, '_samplingRate')
+        self.copyAttributes(other, '_voxelSize')
 
     def copyFilename(self, other: 'Image')-> None:
         """ Copy location index and filename from other image. """
@@ -422,13 +422,13 @@ class Image(FluoObject):
             return self._getDefaultOrigin()
 
     def _getDefaultOrigin(self) -> Transform:
-        sampling = self.getSamplingRate()
+        voxel_size = self.getVoxelSize()
         dim = self.getDim()
-        if sampling is None or dim is None:
+        if voxel_size is None or dim is None:
             return Transform()
         t = Transform()
         x, y, z = dim
-        t.setShifts(float(x) / -2. * sampling[0], float(y) / -2. * sampling[0], float(z) * sampling[1])
+        t.setShifts(float(x) / -2. * voxel_size[0], float(y) / -2. * voxel_size[0], float(z) * voxel_size[1])
         return t  # The identity matrix
 
     def getShiftsFromOrigin(self) -> Tuple[float, float, float]:
@@ -451,10 +451,10 @@ class Image(FluoObject):
         else:
             self._origin = self._getDefaultOrigin()
 
-    def originResampled(self, originNotResampled: Transform, oldSampling: SamplingRate) -> Optional[Transform]:
-        if self.getSamplingRate() is None or oldSampling.getSR() is None:
-            raise RuntimeError("Sampling rate is None")
-        factor = np.array(self.getSamplingRate()) / np.array(oldSampling.getSR())
+    def originResampled(self, originNotResampled: Transform, old_voxel_size: VoxelSize) -> Optional[Transform]:
+        if self.getVoxelSize() is None or old_voxel_size.getVoxelSize() is None:
+            raise RuntimeError("Voxel size is None")
+        factor = np.array(self.getVoxelSize()) / np.array(old_voxel_size.getVoxelSize())
         shifts = originNotResampled.getShifts()
         origin = self.getOrigin()
         origin.setShifts(shifts[0] * factor[0],
@@ -464,7 +464,7 @@ class Image(FluoObject):
 
     def __str__(self) -> str:
         """ String representation of an Image. """
-        return f"{self.getClassName()} ({str(self._imageDim)}, {str(self._samplingRate)} nm/px, {str(self._num_channels)} channel(s)))"
+        return f"{self.getClassName()} ({str(self._imageDim)}, {str(self._voxelSize)} nm/px, {str(self._num_channels)} channel(s)))"
 
     def getFiles(self) -> set:
         return set([self.getFileName()])
@@ -616,7 +616,7 @@ class Coordinate3D(FluoObject):
 
 class Particle(FluoImage):
     """The coordinate associated to each particle is not scaled. To do that, the coordinates and the particles
-    sampling rates should be compared (because of how the extraction protocol works). But when shifts are applied to
+    voxel sizes should be compared (because of how the extraction protocol works). But when shifts are applied to
     the coordinates, it has to be considered that if we're operating with coordinates coming from particles, those
     shifts will be scaled, but if the coordinates come from coordinates, they won't be."""
 
@@ -624,7 +624,7 @@ class Particle(FluoImage):
     COORD_VOL_NAME_FIELD = "_coordinate.%s" % Coordinate3D.IMAGE_ID_ATTR
     def __init__(self, **kwargs) -> None:
         FluoImage.__init__(self, **kwargs)
-        # This coordinate is NOT SCALED. To do that, the coordinates and subtomograms sampling rates
+        # This coordinate is NOT SCALED. To do that, the coordinates and subtomograms voxel sizes
         # should be compared (because of how the extraction protocol works)
         self._coordinate: Optional[Coordinate3D] = None
         self._imageName: String = String()
@@ -802,7 +802,7 @@ class SetOfImages(FluoSet):
 
     def __init__(self, **kwargs):
         Set.__init__(self, **kwargs)
-        self._samplingRate = SamplingRate()
+        self._voxelSize = VoxelSize()
         self._dim = ImageDim()  # Dimensions of the first image
         self._num_channels = Integer()
 
@@ -810,17 +810,17 @@ class SetOfImages(FluoSet):
         """ Add a image to the set. """
         if image.isEmpty():
             raise ValueError(f"Image {image} is empty!")
-        # If the sampling rate was set before, the same value
+        # If the voxel size was set before, the same value
         # will be set for each image added to the set
-        sr = self.getSamplingRate()
-        im_sr = image.getSamplingRate()
-        if (sr is not None) and (im_sr is None):
-            image.setSamplingRate(sr)
-        elif (sr is not None) and (im_sr is not None):
-            if sr != im_sr:
-                raise ValueError(f"{image} has different sampling rate than {self}, found {sr} and {im_sr}")
-        elif (sr is None) and (im_sr is not None):
-            self.setSamplingRate(im_sr)
+        vs = self.getVoxelSize()
+        im_vs = image.getVoxelSize()
+        if (vs is not None) and (im_vs is None):
+            image.getVoxelSize(vs)
+        elif (vs is not None) and (im_vs is not None):
+            if vs != im_vs:
+                raise ValueError(f"{image} has different voxel size than {self}, found {vs} and {im_vs}")
+        elif (vs is None) and (im_vs is not None):
+            self.setVoxelSize(im_vs)
         else:
             pass
 
@@ -859,9 +859,9 @@ class SetOfImages(FluoSet):
         self._dim.set_(dim)
 
     def copyInfo(self, other: 'SetOfImages') -> None:
-        """ Copy basic information (sampling rate and psf)
+        """ Copy basic information (voxel size and psf)
         from other set of images to current one"""
-        self.copyAttributes(other, '_samplingRate')
+        self.copyAttributes(other, '_voxelSize')
 
     def getFiles(self) -> set:
         filePaths = set()
@@ -872,20 +872,20 @@ class SetOfImages(FluoSet):
         return filePaths
 
     def setDownsample(self, downFactor: float) -> None:
-        """ Update the values of samplingRate and scannedPixelSize
+        """ Update the values of voxelSize and scannedPixelSize
         after applying a downsampling factor of downFactor.
         """
-        sr = self.getSamplingRate()
-        if sr is None:
-            raise RuntimeError("Couldn't downsample, sampling rate is not set")
-        self.setSamplingRate((sr[0]*downFactor, sr[1]*downFactor))
+        vs = self.getVoxelSize()
+        if vs is None:
+            raise RuntimeError("Couldn't downsample, voxel size is not set")
+        self.setVoxelSize((vs[0]*downFactor, vs[1]*downFactor))
 
-    def setSamplingRate(self, samplingRate: Tuple[float, float]) -> None:
-        """ Set the sampling rate and adjust the scannedPixelSize. """
-        self._samplingRate.setSR(*samplingRate)
+    def setVoxelSize(self, voxelSize: Tuple[float, float]) -> None:
+        """ Set the voxel size and adjust the scannedPixelSize. """
+        self._voxelSize.setVoxelSize(*voxelSize)
 
-    def getSamplingRate(self) -> Union[Tuple[float, float], None]:
-        return self._samplingRate.getSR()
+    def getVoxelSize(self) -> Union[Tuple[float, float], None]:
+        return self._voxelSize.getVoxelSize()
     
     def writeSet(
         self,
@@ -922,16 +922,16 @@ class SetOfImages(FluoSet):
         """ String representation of a set of images. """
         s = "%s (%d items, %s, %s, %s%s)" % \
             (self.getClassName(), self.getSize(),
-             self._dimStr(), self._channelsStr(), self._samplingRateStr(), self._appendStreamState())
+             self._dimStr(), self._channelsStr(), self._voxelSizeStr(), self._appendStreamState())
         return s
-    def _samplingRateStr(self) -> str:
-        """ Returns how the sampling rate is presented in a 'str' context."""
-        sampling = self.getSamplingRate()
+    def _voxelSizeStr(self) -> str:
+        """ Returns how the voxel size is presented in a 'str' context."""
+        voxel_size = self.getVoxelSize()
 
-        if not sampling:
-            raise RuntimeError("Sampling rate is not set")
+        if not voxel_size:
+            raise RuntimeError("Voxel size is not set")
 
-        return f"{sampling[0]:.2f}x{sampling[1]:.2f} nm/px"
+        return f"{voxel_size[0]:.2f}x{voxel_size[1]:.2f} nm/px"
     
     def _channelsStr(self):
         c = self.getNumChannels()
@@ -995,7 +995,7 @@ class SetOfCoordinates3D(FluoSet):
     def __init__(self, **kwargs) -> None:
         FluoSet.__init__(self, **kwargs)
         self._boxSize: Integer = Integer()
-        self._samplingRate: SamplingRate = SamplingRate()
+        self._voxelSize: VoxelSize = VoxelSize()
         self._precedentsPointer: Pointer = Pointer() # Points to the SetOfFluoImages associated to
         self._images: Optional[Dict[str, FluoImage]] = None
 
@@ -1008,13 +1008,13 @@ class SetOfCoordinates3D(FluoSet):
         """ Set the box size of the particles. """
         self._boxSize.set(boxSize)
 
-    def getSamplingRate(self) -> Union[Tuple[float, float], None]:
-        """ Return the sampling rate of the particles. """
-        return self._samplingRate.getSR()
+    def getVoxelSize(self) -> Union[Tuple[float, float], None]:
+        """ Return the voxel size of the particles. """
+        return self._voxelSize.getVoxelSize()
 
-    def setSamplingRate(self, sampling: Tuple[float, float]) -> None:
-        """ Set the sampling rate of the particles. """
-        self._samplingRate.setSR(*sampling)
+    def setVoxelSize(self, voxel_size: Tuple[float, float]) -> None:
+        """ Set the voxel size of the particles. """
+        self._voxelSize.setVoxelSize(*voxel_size)
 
     def iterImages(self) -> Iterable[FluoImage]:
         """ Iterate over the objects set associated with this
@@ -1124,8 +1124,8 @@ class SetOfCoordinates3D(FluoSet):
         from other set of objects to current one.
         """
         self.setBoxSize(other.getBoxSize())
-        if sr := other.getSamplingRate():
-            self.setSamplingRate(sr)
+        if vs := other.getVoxelSize():
+            self.setVoxelSize(vs)
         self.setPrecedents(other.getPrecedents())
 
     def __str__(self) -> str:
@@ -1136,7 +1136,7 @@ class SetOfCoordinates3D(FluoSet):
         else:
             boxStr = 'No-Box'
         s = "%s (%d items, %s, %s nm/px%s)" % (self.getClassName(), self.getSize(), boxStr,
-                                              self.getSamplingRate(), self._appendStreamState())
+                                              self.getVoxelSize(), self._appendStreamState())
 
         return s
 
@@ -1189,7 +1189,7 @@ class SetOfParticles(SetOfImages):
         self._images: Optional[Dict[str, FluoImage]] = None
 
     def copyInfo(self, other: 'SetOfParticles') -> None:
-        """ Copy basic information (sampling rate and ctf)
+        """ Copy basic information (voxel size and ctf)
         from other set of images to current one"""
         super().copyInfo(other)
         if hasattr(other, '_coordsPointer'):  # Like the vesicles in pyseg

@@ -148,9 +148,9 @@ class ProtFluoImportFiles(ProtImportFiles, ProtFluoBase):
 
     def _defineAcquisitionParams(self, form: Form) -> None:
         """Override to add options related to acquisition info."""
-        form.addGroup("Sampling rate")
-        form.addParam("sr_xy", FloatParam, label="XY")
-        form.addParam("sr_z", FloatParam, label="Z")
+        form.addGroup("Voxel size")
+        form.addParam("vs_xy", FloatParam, label="XY")
+        form.addParam("vs_z", FloatParam, label="Z")
 
     def _validate(self):
         pass
@@ -159,9 +159,9 @@ class ProtFluoImportFile(ProtImportFile, ProtFluoBase): # TODO: find a better ar
 
     def _defineAcquisitionParams(self, form: Form) -> None:
         """Override to add options related to acquisition info."""
-        form.addGroup("Sampling rate")
-        form.addParam("sr_xy", FloatParam, label="XY")
-        form.addParam("sr_z", FloatParam, label="Z")
+        form.addGroup("Voxel size")
+        form.addParam("vs_xy", FloatParam, label="XY")
+        form.addParam("vs_z", FloatParam, label="Z")
 
     def _validate(self):
         pass

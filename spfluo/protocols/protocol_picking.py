@@ -67,8 +67,8 @@ class ProtSPFluoPickingNapari(ProtFluoPicking):
 
         coords3D = self._createSetOfCoordinates3D(fluoimages, suffix)
         coords3D.setName("fluoCoord")
-        sr_xy, sr_z = fluoimages.getSamplingRate()
-        coords3D.setSamplingRate((sr_xy, sr_z))
+        vs_xy, vs_z = fluoimages.getVoxelSize()
+        coords3D.setVoxelSize((vs_xy, vs_z))
         coords3D.enableAppend()
         box_size = None
         for imfluo in fluoimages.iterItems():
