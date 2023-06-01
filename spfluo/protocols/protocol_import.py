@@ -68,7 +68,7 @@ class ProtImportFluoImages(ProtFluoImportFiles):
         fileNameList = []
         for fileName, fileId in self.iterFiles():
             img = FluoImage(data=fileName)
-            img.getVoxelSize(voxelSize)
+            img.setVoxelSize(voxelSize)
 
             # Set default origin
             origin = Transform()
@@ -200,7 +200,7 @@ class ProtImportFluoImage(ProtFluoImportFile):
         self.info("")
 
         img = FluoImage(data=file_path)
-        img.getVoxelSize(voxelSize)
+        img.setVoxelSize(voxelSize)
 
         # Set default origin
         origin = Transform()
@@ -321,7 +321,7 @@ class ProtImportSetOfParticles(ProtFluoImportFiles):
         fileNameList = []
         for fileName, fileId in self.iterFiles():
             particle = Particle(data=fileName)
-            particle.getVoxelSize(voxelSize)
+            particle.setVoxelSize(voxelSize)
 
             # Set default origin
             origin = Transform()
@@ -453,7 +453,7 @@ class ProtImportFluoImage(ProtFluoImportFile):
         self.info("")
 
         img = FluoImage(data=file_path)
-        img.getVoxelSize(voxelSize)
+        img.setVoxelSize(voxelSize)
 
         # Set default origin
         origin = Transform()
@@ -572,7 +572,7 @@ class ProtImportPSFModel(ProtFluoImportFile):
         self.info("")
 
         img = PSFModel(data=file_path)
-        img.getVoxelSize(voxelSize)
+        img.setVoxelSize(voxelSize)
 
         # Set default origin
         origin = Transform()

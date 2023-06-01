@@ -343,7 +343,7 @@ class Image(FluoObject):
         """ Return image voxel size. (A/pix) """
         return self._voxelSize.getVoxelSize()
 
-    def getVoxelSize(self, voxel_size: Tuple[float, float]) -> None:
+    def setVoxelSize(self, voxel_size: Tuple[float, float]) -> None:
         self._voxelSize.setVoxelSize(*voxel_size)
 
     def getFormat(self):
@@ -815,7 +815,7 @@ class SetOfImages(FluoSet):
         vs = self.getVoxelSize()
         im_vs = image.getVoxelSize()
         if (vs is not None) and (im_vs is None):
-            image.getVoxelSize(vs)
+            image.setVoxelSize(vs)
         elif (vs is not None) and (im_vs is not None):
             if vs != im_vs:
                 raise ValueError(f"{image} has different voxel size than {self}, found {vs} and {im_vs}")

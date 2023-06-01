@@ -87,7 +87,7 @@ class ProtSPFluoUtils(Protocol, ProtFluoBase):
             output_path = join(self.output_dir, basename(input_im.getFileName()))
             assert os.path.exists(output_path)
             im = FluoImage(data=output_path)
-            im.getVoxelSize(vs)
+            im.setVoxelSize(vs)
             im.setImgId(input_im.getImgId())
             im.cleanObjId()
 
