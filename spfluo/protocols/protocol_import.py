@@ -120,7 +120,7 @@ class ProtImportFluoImages(ProtFluoImportFiles):
 
                 if (sr_xy := self.sr_xy.get()) and (sr_z := self.sr_z.get()):
                     summary.append(
-                        f"Sampling rate: *{sr_xy:.2f}x{sr_z:.2f}* (Å/px)"
+                        f"Sampling rate: *{sr_xy:.2f}x{sr_z:.2f}* (nm/px)"
                     )
 
         except Exception as e:
@@ -133,7 +133,7 @@ class ProtImportFluoImages(ProtFluoImportFiles):
         if self._hasOutput():
             sr_xy, sr_z = self.sr_xy.get(), self.sr_z.get()
             methods.append(
-                f"{self._getTomMessage()} imported with a sampling rate *{sr_xy:.2f}x{sr_z:.2f}* (Å/px)"
+                f"{self._getTomMessage()} imported with a sampling rate *{sr_xy:.2f}x{sr_z:.2f}* (nm/px)"
             )
         return methods
 
@@ -244,7 +244,7 @@ class ProtImportFluoImage(ProtFluoImportFile):
 
                 if (sr_xy := self.sr_xy.get()) and (sr_z := self.sr_z.get()):
                     summary.append(
-                        f"Sampling rate: *{sr_xy:.2f}x{sr_z:.2f}* (Å/px)"
+                        f"Sampling rate: *{sr_xy:.2f}x{sr_z:.2f}* (nm/px)"
                     )
 
         except Exception as e:
@@ -257,7 +257,7 @@ class ProtImportFluoImage(ProtFluoImportFile):
         if self._hasOutput():
             sr_xy, sr_z = self.sr_xy.get(), self.sr_z.get()
             methods.append(
-                f"{self._getTomMessage()} imported with a sampling rate *{sr_xy:.2f}x{sr_z:.2f}* (Å/px)"
+                f"{self._getTomMessage()} imported with a sampling rate *{sr_xy:.2f}x{sr_z:.2f}* (nm/px)"
             )
         return methods
 
@@ -373,7 +373,7 @@ class ProtImportSetOfParticles(ProtFluoImportFiles):
 
                 if (sr_xy := self.sr_xy.get()) and (sr_z := self.sr_z.get()):
                     summary.append(
-                        f"Sampling rate: *{sr_xy:.2f}x{sr_z:.2f}* (Å/px)"
+                        f"Sampling rate: *{sr_xy:.2f}x{sr_z:.2f}* (nm/px)"
                     )
 
         except Exception as e:
@@ -386,7 +386,7 @@ class ProtImportSetOfParticles(ProtFluoImportFiles):
         if self._hasOutput():
             sr_xy, sr_z = self.sr_xy.get(), self.sr_z.get()
             methods.append(
-                f"{self._getTomMessage()} imported with a sampling rate *{sr_xy:.2f}x{sr_z:.2f}* (Å/px)"
+                f"{self._getTomMessage()} imported with a sampling rate *{sr_xy:.2f}x{sr_z:.2f}* (nm/px)"
             )
         return methods
 
@@ -497,7 +497,7 @@ class ProtImportFluoImage(ProtFluoImportFile):
 
                 if (sr_xy := self.sr_xy.get()) and (sr_z := self.sr_z.get()):
                     summary.append(
-                        f"Sampling rate: *{sr_xy:.2f}x{sr_z:.2f}* (Å/px)"
+                        f"Sampling rate: *{sr_xy:.2f}x{sr_z:.2f}* (nm/px)"
                     )
 
         except Exception as e:
@@ -510,7 +510,7 @@ class ProtImportFluoImage(ProtFluoImportFile):
         if self._hasOutput():
             sr_xy, sr_z = self.sr_xy.get(), self.sr_z.get()
             methods.append(
-                f"{self._getTomMessage()} imported with a sampling rate *{sr_xy:.2f}x{sr_z:.2f}* (Å/px)"
+                f"{self._getTomMessage()} imported with a sampling rate *{sr_xy:.2f}x{sr_z:.2f}* (nm/px)"
             )
         return methods
 
@@ -613,7 +613,7 @@ class ProtImportPSFModel(ProtFluoImportFile):
 
                 if (sr_xy := self.sr_xy.get()) and (sr_z := self.sr_z.get()):
                     summary.append(
-                        f"Sampling rate: *{sr_xy:.2f}x{sr_z:.2f}* (Å/px)"
+                        f"Sampling rate: *{sr_xy:.2f}x{sr_z:.2f}* (nm/px)"
                     )
 
         except Exception as e:
@@ -626,7 +626,7 @@ class ProtImportPSFModel(ProtFluoImportFile):
         if self._hasOutput():
             sr_xy, sr_z = self.sr_xy.get(), self.sr_z.get()
             methods.append(
-                f"{self._getTomMessage()} imported with a sampling rate *{sr_xy:.2f}x{sr_z:.2f}* (Å/px)"
+                f"{self._getTomMessage()} imported with a sampling rate *{sr_xy:.2f}x{sr_z:.2f}* (nm/px)"
             )
         return methods
 

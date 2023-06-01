@@ -437,7 +437,7 @@ class Image(FluoObject):
         y = origin[1]
         z = origin[2]
         return x, y, z
-        # x, y, z are floats in Angstroms
+        # x, y, z are floats in nanometers
 
     def setShiftsInOrigin(self, x: float, y: float, z: float) -> None:
         origin = self.getOrigin()
@@ -445,7 +445,7 @@ class Image(FluoObject):
 
     def setOrigin(self, newOrigin: Transform) -> None:
         """If None, default origin will be set.
-        Note: shifts are in Angstroms"""
+        Note: shifts are in nanometers"""
         if newOrigin:
             self._origin = newOrigin
         else:
@@ -464,7 +464,7 @@ class Image(FluoObject):
 
     def __str__(self) -> str:
         """ String representation of an Image. """
-        return f"{self.getClassName()} ({str(self._imageDim)}, {str(self._samplingRate)} Å/px, {str(self._num_channels)} channel(s)))"
+        return f"{self.getClassName()} ({str(self._imageDim)}, {str(self._samplingRate)} nm/px, {str(self._num_channels)} channel(s)))"
 
     def getFiles(self) -> set:
         return set([self.getFileName()])
@@ -931,7 +931,7 @@ class SetOfImages(FluoSet):
         if not sampling:
             raise RuntimeError("Sampling rate is not set")
 
-        return f"{sampling[0]:.2f}x{sampling[1]:.2f} Å/px" # FIXME unités
+        return f"{sampling[0]:.2f}x{sampling[1]:.2f} nm/px"
     
     def _channelsStr(self):
         c = self.getNumChannels()
@@ -1135,7 +1135,7 @@ class SetOfCoordinates3D(FluoSet):
             boxStr = ' %d x %d x %d' % (boxSize, boxSize, boxSize)
         else:
             boxStr = 'No-Box'
-        s = "%s (%d items, %s, %s Å/px%s)" % (self.getClassName(), self.getSize(), boxStr,
+        s = "%s (%d items, %s, %s nm/px%s)" % (self.getClassName(), self.getSize(), boxStr,
                                               self.getSamplingRate(), self._appendStreamState())
 
         return s
