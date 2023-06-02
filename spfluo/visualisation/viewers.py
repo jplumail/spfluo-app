@@ -52,5 +52,7 @@ def show_particles(im_paths: List[str]):
     with tempfile.NamedTemporaryFile(suffix=".tif") as f:
         AICSImage(im_paths, indexer=indexer, single_file_dims=("Z","Y","X")).save(f.name)
         viewer.open(f.name, colormap='gray', name='particle', plugin='napari-aicsimageio')
+    link_layers(viewer.layers)
+    unlink_layers(viewer.layers, attributes=('visible',))
     viewer.grid.enabled = True
     napari.run()
