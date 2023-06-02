@@ -46,12 +46,25 @@ class ProtSPFluoExtractParticles(Protocol, ProtFluoBase):
             im: FluoImage
             for coord_im in coords.iterCoordinates(im):
                 extracted_particle = self.extract_particle(im, coord_im, box_size, subpixel=self.subpixel.get())
+
+                ext = os.path.splitext(im.getFileName())[1]
+                coord_str = "-".join([f"{x:.2f}" for x in coord_im.getPosition()])
+                name = im.getImgId() + '_' + coord_str + ext
+                filepath = self._getExtraPath(name)
+                extracted_particle.setImgId(os.path.basename(filepath))
+                
+                # save to disk
+                extracted_particle.save(filepath)
+                extracted_particle.setFileName(filepath)
+
                 particles.append(extracted_particle)
+        
         particles.write()
         
         self._defineOutputs(**{self.OUTPUT_NAME: particles})
     
-    def extract_particle(self, im: FluoImage, coord: Coordinate3D, box_size: int, subpixel: bool=False) -> Particle:
+    @staticmethod
+    def extract_particle(im: FluoImage, coord: Coordinate3D, box_size: int, subpixel: bool=False) -> Particle:
         mat = coord.getMatrix()
         mat[:3, 3] -= float(box_size) / 2
         mat[:3, :3] = np.eye(3)
@@ -70,19 +83,9 @@ class ProtSPFluoExtractParticles(Protocol, ProtFluoBase):
             else:
                 particle_data[0, c] = im_array_c[xmin:xmax, ymin:ymax, zmin:zmax]
 
-        ext = os.path.splitext(im.getFileName())[1]
-        coord_str = "-".join([f"{x:.2f}" for x in coord.getPosition()])
-        name = im.getImgId() + '_' + coord_str + ext
-        filepath = self._getExtraPath(name)
         new_particle = Particle(data=particle_data)
-        new_particle.setImgId(os.path.basename(filepath))
         new_particle.setCoordinate3D(coord)
         new_particle.setImageName(im.getFileName())
         new_particle.setVoxelSize(im.getVoxelSize())
         # did not set origin, is it a problem?
-        
-        # save to disk
-        new_particle.save(filepath)
-        new_particle.setFileName(filepath)
-
         return new_particle
