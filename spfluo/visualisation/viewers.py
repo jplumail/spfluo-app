@@ -1,11 +1,16 @@
 from spfluo.visualisation import add_orthoviewer_widget, init_qt
 
+from typing import List
 import napari
 from napari.layers import Points
 import numpy as np
+from aicsimageio.aics_image import AICSImage
+import pandas as pd
+import tempfile
 
 
-def show_points(im_path, csv_path):
+
+def show_points(im_path: str, csv_path: str):
     init_qt()
     view = napari.Viewer()
     #view.window._qt_viewer.dockLayerList.toggleViewAction().trigger()
@@ -38,4 +43,14 @@ def show_points(im_path, csv_path):
 
     view.add_layer(points_layer)
 
+    napari.run()
+
+
+def show_particles(im_paths: List[str]):
+    viewer = napari.Viewer()
+    indexer = lambda p: pd.Series([im_paths.index(p),0,0,0], index=['C', 'S', 'T', 'Z']).astype(int)
+    with tempfile.NamedTemporaryFile(suffix=".tif") as f:
+        AICSImage(im_paths, indexer=indexer, single_file_dims=("Z","Y","X")).save(f.name)
+        viewer.open(f.name, colormap='gray', name='particle', plugin='napari-aicsimageio')
+    viewer.grid.enabled = True
     napari.run()
