@@ -1,4 +1,4 @@
-from .viewers import show_points
+from ..viewers import show_points
 
 import argparse
 
