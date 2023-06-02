@@ -13,7 +13,7 @@ from pyworkflow.protocol import Protocol
 
 import os
 import threading
-from typing import List
+from typing import List, Union
 from aicsimageio.aics_image import AICSImage
 
 
@@ -41,8 +41,27 @@ class NapariDataViewer(Viewer):
             self._views.append(ImageView(obj))
         elif issubclass(cls, fluoobj.SetOfParticles):
             self._views.append(SetOfParticlesView(obj, self.protocol))
+        elif issubclass(cls, fluoobj.SetOfImages):
+            self._views.append(SetOfImagesView(obj))
         
         return self._views
+
+
+#################
+## SetOfImages ##
+#################
+
+class SetOfImagesView(View):
+    def __init__(self, images: fluoobj.SetOfImages):
+        self.images = images
+    
+    def show(self):
+        self.proc = threading.Thread(target=self.lanchNapariForSetOfImages, args=(self.images,))
+        self.proc.start()
+    
+    def lanchNapariForSetOfImages(self, images: fluoobj.SetOfImages):
+        filenames = [p.getFileName() for p in images]
+        ImageView.launchNapari(filenames)
 
 
 ####################
@@ -82,9 +101,12 @@ class ImageView(View):
         self.launchNapari(path)
     
     @staticmethod
-    def launchNapari(path: str):
+    def launchNapari(path: Union[str, List[str]]):
+        if type(path) is str:
+            path = [path]
+        path = list(map(lambda x: '"'+x+'"', path))
         fullProgram = Plugin.getFullProgram(Plugin.getNapariProgram())
-        runJob(None, fullProgram, path, env=Plugin.getEnviron())
+        runJob(None, fullProgram, " ".join(path), env=Plugin.getEnviron())
 
 
 ########################
