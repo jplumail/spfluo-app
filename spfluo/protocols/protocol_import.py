@@ -119,9 +119,7 @@ class ProtImportFluoImages(ProtFluoImportFiles):
                 )
 
                 if (vs_xy := self.vs_xy.get()) and (vs_z := self.vs_z.get()):
-                    summary.append(
-                        f"Voxel size: *{vs_xy:.2f}x{vs_z:.2f}* (nm/px)"
-                    )
+                    summary.append(f"Voxel size: *{vs_xy:.2f}x{vs_z:.2f}* (nm/px)")
 
         except Exception as e:
             print(e)
@@ -176,7 +174,7 @@ class ProtImportFluoImage(ProtFluoImportFile):
     def _defineParams(self, form):
         ProtFluoImportFile._defineParams(self, form)
 
-    def _getImportChoices(self): # TODO: remove this
+    def _getImportChoices(self):  # TODO: remove this
         """Return a list of possible choices
         from which the import can be done.
         """
@@ -239,13 +237,12 @@ class ProtImportFluoImage(ProtFluoImportFile):
             summary = []
             if self._hasOutput():
                 summary.append(
-                    "%s imported from:\n%s" % (self._getTomMessage(), self.filePath.get())
+                    "%s imported from:\n%s"
+                    % (self._getTomMessage(), self.filePath.get())
                 )
 
                 if (vs_xy := self.vs_xy.get()) and (vs_z := self.vs_z.get()):
-                    summary.append(
-                        f"Voxel size: *{vs_xy:.2f}x{vs_z:.2f}* (nm/px)"
-                    )
+                    summary.append(f"Voxel size: *{vs_xy:.2f}x{vs_z:.2f}* (nm/px)")
 
         except Exception as e:
             print(e)
@@ -307,9 +304,7 @@ class ProtImportSetOfParticles(ProtFluoImportFiles):
 
     # --------------------------- STEPS functions -----------------------------
 
-    def importParticlesStep(
-        self, pattern: str, voxelSize: Tuple[float, float]
-    ) -> None:
+    def importParticlesStep(self, pattern: str, voxelSize: Tuple[float, float]) -> None:
         """Copy images matching the filename pattern
         Register other parameters.
         """
@@ -372,9 +367,7 @@ class ProtImportSetOfParticles(ProtFluoImportFiles):
                 )
 
                 if (vs_xy := self.vs_xy.get()) and (vs_z := self.vs_z.get()):
-                    summary.append(
-                        f"Voxel size: *{vs_xy:.2f}x{vs_z:.2f}* (nm/px)"
-                    )
+                    summary.append(f"Voxel size: *{vs_xy:.2f}x{vs_z:.2f}* (nm/px)")
 
         except Exception as e:
             print(e)
@@ -429,7 +422,7 @@ class ProtImportFluoImage(ProtFluoImportFile):
     def _defineParams(self, form):
         ProtFluoImportFile._defineParams(self, form)
 
-    def _getImportChoices(self): # TODO: remove this
+    def _getImportChoices(self):  # TODO: remove this
         """Return a list of possible choices
         from which the import can be done.
         """
@@ -492,13 +485,12 @@ class ProtImportFluoImage(ProtFluoImportFile):
             summary = []
             if self._hasOutput():
                 summary.append(
-                    "%s imported from:\n%s" % (self._getTomMessage(), self.filePath.get())
+                    "%s imported from:\n%s"
+                    % (self._getTomMessage(), self.filePath.get())
                 )
 
                 if (vs_xy := self.vs_xy.get()) and (vs_z := self.vs_z.get()):
-                    summary.append(
-                        f"Voxel size: *{vs_xy:.2f}x{vs_z:.2f}* (nm/px)"
-                    )
+                    summary.append(f"Voxel size: *{vs_xy:.2f}x{vs_z:.2f}* (nm/px)")
 
         except Exception as e:
             print(e)
@@ -548,7 +540,7 @@ class ProtImportPSFModel(ProtFluoImportFile):
     def _defineParams(self, form):
         ProtFluoImportFile._defineParams(self, form)
 
-    def _getImportChoices(self): # TODO: remove this
+    def _getImportChoices(self):  # TODO: remove this
         """Return a list of possible choices
         from which the import can be done.
         """
@@ -608,13 +600,12 @@ class ProtImportPSFModel(ProtFluoImportFile):
             summary = []
             if self._hasOutput():
                 summary.append(
-                    "%s imported from:\n%s" % (self._getTomMessage(), self.filePath.get())
+                    "%s imported from:\n%s"
+                    % (self._getTomMessage(), self.filePath.get())
                 )
 
                 if (vs_xy := self.vs_xy.get()) and (vs_z := self.vs_z.get()):
-                    summary.append(
-                        f"Voxel size: *{vs_xy:.2f}x{vs_z:.2f}* (nm/px)"
-                    )
+                    summary.append(f"Voxel size: *{vs_xy:.2f}x{vs_z:.2f}* (nm/px)")
 
         except Exception as e:
             print(e)

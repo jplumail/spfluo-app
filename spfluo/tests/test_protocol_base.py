@@ -12,7 +12,7 @@ class TestProtocolBase(BaseTest):
     def setUpClass(cls):
         setupTestProject(cls)
         cls.ds = DataSet.getDataSet("fluo")
-    
+
     @classmethod
     def runImportFluoImages(cls):
         protImportFluoImages = cls.newProtocol(
@@ -24,4 +24,6 @@ class TestProtocolBase(BaseTest):
         cls.launchProtocol(protImportFluoImages)
         fluoimagesImported = protImportFluoImages.FluoImages
         print(fluoimagesImported)
-        cls.assertIsNotNone(fluoimagesImported, "There was a problem with tomogram output")
+        cls.assertIsNotNone(
+            fluoimagesImported, "There was a problem with tomogram output"
+        )

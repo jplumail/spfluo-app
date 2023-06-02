@@ -145,7 +145,6 @@ class ProtFluoPicking(ProtImport, ProtFluoBase):
 
 
 class ProtFluoImportFiles(ProtImportFiles, ProtFluoBase):
-
     def _defineAcquisitionParams(self, form: Form) -> None:
         """Override to add options related to acquisition info."""
         form.addGroup("Voxel size")
@@ -155,8 +154,10 @@ class ProtFluoImportFiles(ProtImportFiles, ProtFluoBase):
     def _validate(self):
         pass
 
-class ProtFluoImportFile(ProtImportFile, ProtFluoBase): # TODO: find a better architecture
 
+class ProtFluoImportFile(
+    ProtImportFile, ProtFluoBase
+):  # TODO: find a better architecture
     def _defineAcquisitionParams(self, form: Form) -> None:
         """Override to add options related to acquisition info."""
         form.addGroup("Voxel size")

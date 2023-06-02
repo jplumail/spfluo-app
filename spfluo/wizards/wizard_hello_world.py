@@ -1,6 +1,7 @@
 from pyworkflow.gui import ListTreeProviderString, dialog
 from pyworkflow.object import String
 from pyworkflow.wizard import Wizard
+
 """from spfluo.protocols import SPFluoPrefixHelloWorld
 
 class SPFluoPrefixHelloWorldWizard(Wizard):

@@ -10,5 +10,9 @@ from .protocol_ab_initio import ProtSPFluoAbInitio, ProtSPFluoParticleAverage
 from .protocol_utils import ProtSPFluoUtils
 from .protocol_extract_particles import ProtSPFluoExtractParticles
 
-from .protocol_import import ProtImportFluoImages, ProtImportPSFModel, ProtImportSetOfParticles
+from .protocol_import import (
+    ProtImportFluoImages,
+    ProtImportPSFModel,
+    ProtImportSetOfParticles,
+)
 from .protocol_base import ProtFluoBase, ProtFluoPicking

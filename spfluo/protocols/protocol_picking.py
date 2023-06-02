@@ -17,31 +17,32 @@ class ProtSPFluoPickingNapari(ProtFluoPicking):
     """
     Picking with the Napari plugin.
     """
-    _label = 'manual picking'
+
+    _label = "manual picking"
     _devStatus = BETA
 
     def __init__(self, **kwargs):
         ProtFluoPicking.__init__(self, **kwargs)
-    
+
     def _defineParams(self, form: Form):
         ProtFluoPicking._defineParams(self, form)
-    
+
     def _insertAllSteps(self):
         self._insertFunctionStep(self.launchBoxingGUIStep, interactive=True)
-    
+
     def getCsvPath(self, im: FluoImage) -> Tuple[str, str]:
-        """ Get the FluoImage path and its csv file path"""
+        """Get the FluoImage path and its csv file path"""
         path = im.getFileName()
         if path is None:
             raise Exception(f"{im} file path is None! Cannot launch napari.")
         path = os.path.abspath(path)
         fname, _ = os.path.splitext(os.path.basename(path))
-        csv_file = fname + '.csv'
+        csv_file = fname + ".csv"
         csv_path = os.path.abspath(self._getExtraPath(csv_file))
         return path, csv_path
-    
+
     def launchBoxingGUIStep(self):
-        self.info_path = self._getExtraPath('info')
+        self.info_path = self._getExtraPath("info")
 
         fluoList = []
         fluoimages: SetOfFluoImages = self.inputFluoImages.get()
@@ -57,10 +58,11 @@ class ProtSPFluoPickingNapari(ProtFluoPicking):
 
         # Open dialog to request confirmation to create output
         import tkinter as tk
+
         frame = tk.Frame()
         if askYesNo(Message.TITLE_SAVE_OUTPUT, Message.LABEL_SAVE_OUTPUT, frame):
             self.createOuput()
-    
+
     def createOuput(self):
         fluoimages: SetOfFluoImages = self.inputFluoImages.get()
         suffix = self._getOutputSuffix(SetOfCoordinates3D)
@@ -82,7 +84,7 @@ class ProtSPFluoPickingNapari(ProtFluoPicking):
         if box_size:
             coords3D.setBoxSize(box_size)
         coords3D.write()
-        
+
         name = self.OUTPUT_PREFIX + suffix
         self._defineOutputs(**{name: coords3D})
         self._defineRelation(pwobj.RELATION_SOURCE, fluoimages, coords3D)

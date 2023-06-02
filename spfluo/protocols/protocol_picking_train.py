@@ -45,7 +45,8 @@ class ProtSPFluoPickingTrain(Protocol):
     """
     Picking for fluo data with deep learning
     """
-    _label = 'picking train'
+
+    _label = "picking train"
     _devStatus = BETA
 
     # -------------------------- DEFINE param functions ----------------------
@@ -53,150 +54,158 @@ class ProtSPFluoPickingTrain(Protocol):
         form.addSection(label="Data params")
         group = form.addGroup("Input")
         group.addParam(
-            'inputCoordinates', params.PointerParam, pointerClass='SetOfCoordinates3D',
-            label='Annotations 3D coordinates', important=True
+            "inputCoordinates",
+            params.PointerParam,
+            pointerClass="SetOfCoordinates3D",
+            label="Annotations 3D coordinates",
+            important=True,
         )
         form.addParam(
-            'pu',
+            "pu",
             params.BooleanParam,
-            label='Positive Unlabelled learning',
+            label="Positive Unlabelled learning",
             default=True,
-            expertLevel=params.LEVEL_ADVANCED
-        )
-        group = form.addGroup("PU params", condition='pu')
-        group.addParam(
-            'num_particles_per_image',
-            params.IntParam,
-            default=None,
-            condition='pu',
-            label='Number of particles per image',
-        )
-        group.addParam(
-            'radius',
-            params.IntParam,
-            default=None,
-            condition='pu',
-            label='Radius',
             expertLevel=params.LEVEL_ADVANCED,
-            allowsNull=True
+        )
+        group = form.addGroup("PU params", condition="pu")
+        group.addParam(
+            "num_particles_per_image",
+            params.IntParam,
+            default=None,
+            condition="pu",
+            label="Number of particles per image",
+        )
+        group.addParam(
+            "radius",
+            params.IntParam,
+            default=None,
+            condition="pu",
+            label="Radius",
+            expertLevel=params.LEVEL_ADVANCED,
+            allowsNull=True,
         )
         form.addSection(label="Advanced", expertLevel=params.LEVEL_ADVANCED)
         form.addParam(
-            'lr',
+            "lr",
             params.FloatParam,
-            label='Learning rate',
+            label="Learning rate",
             default=1e-3,
         )
         group = form.addGroup("Data params")
         group.addParam(
-            'train_val_split',
+            "train_val_split",
             params.FloatParam,
             default=0.7,
             label="Train/val split",
             help="By default 70% of the data is in the training set",
         )
         group.addParam(
-            'batch_size',
+            "batch_size",
             params.IntParam,
-            label='Batch size',
+            label="Batch size",
             default=128,
         )
         group.addParam(
-            'epoch_size',
+            "epoch_size",
             params.IntParam,
-            label='epoch size',
+            label="epoch size",
             default=20,
         )
         group.addParam(
-            'num_epochs',
+            "num_epochs",
             params.IntParam,
-            label='num epochs',
+            label="num epochs",
             default=5,
         )
         group.addParam(
-            'shuffle',
+            "shuffle",
             params.BooleanParam,
-            label='Shuffle samples at each epoch',
+            label="Shuffle samples at each epoch",
             default=True,
         )
         group.addParam(
-            'augment',
+            "augment",
             params.FloatParam,
-            label='Augment rate',
+            label="Augment rate",
             default=0.8,
         )
         # SWA
         form.addParam(
-            'swa',
+            "swa",
             params.BooleanParam,
-            label='Enable SWA',
+            label="Enable SWA",
             default=True,
-            help='Stochastic Weight Averaging',
-            expertLevel=params.LEVEL_ADVANCED
+            help="Stochastic Weight Averaging",
+            expertLevel=params.LEVEL_ADVANCED,
         )
-        group = form.addGroup("SWA params", condition='swa')
+        group = form.addGroup("SWA params", condition="swa")
         group.addParam(
-            'swa_lr',
+            "swa_lr",
             params.FloatParam,
-            condition='swa',
-            label='SWA learning rate',
+            condition="swa",
+            label="SWA learning rate",
             default=1e-5,
-            expertLevel=params.LEVEL_ADVANCED
+            expertLevel=params.LEVEL_ADVANCED,
         )
-    
+
     # --------------------------- STEPS functions ------------------------------
     def _insertAllSteps(self):
         self.pickingPath = os.path.abspath(self._getExtraPath(PICKING_WORKING_DIR))
         self.rootDir = os.path.join(self.pickingPath, "rootdir")
         self._insertFunctionStep(self.prepareStep)
         self._insertFunctionStep(self.trainStep)
-    
+
     def prepareStep(self):
         if not os.path.exists(self.rootDir):
             os.makedirs(self.rootDir, exist_ok=True)
-        os.makedirs(os.path.join(self.rootDir, 'train'), exist_ok=True)
-        os.makedirs(os.path.join(self.rootDir, 'val'), exist_ok=True)
+        os.makedirs(os.path.join(self.rootDir, "train"), exist_ok=True)
+        os.makedirs(os.path.join(self.rootDir, "val"), exist_ok=True)
 
         # Image links
         inputCoordinates: SetOfCoordinates3D = self.inputCoordinates.get()
-        images = set([coord.getFluoImage() for coord in inputCoordinates.iterCoordinates()])
+        images = set(
+            [coord.getFluoImage() for coord in inputCoordinates.iterCoordinates()]
+        )
         for im in images:
             im_path = os.path.abspath(im.getFileName())
             ext = os.path.splitext(im_path)[1]
             im_name = im.getImgId()
-            im_newPath = os.path.join(self.rootDir, im_name+'.tif')
-            if ext != '.tif' and ext != '.tiff':
-                raise NotImplementedError(f"Found ext {ext} in particles: {im_path}. Only tiff file are supported.") # FIXME: allow formats accepted by AICSImageio
+            im_newPath = os.path.join(self.rootDir, im_name + ".tif")
+            if ext != ".tif" and ext != ".tiff":
+                raise NotImplementedError(
+                    f"Found ext {ext} in particles: {im_path}. Only tiff file are supported."
+                )  # FIXME: allow formats accepted by AICSImageio
             else:
                 if not os.path.exists(im_newPath):
                     print(f"Link {im_path} -> {im_newPath}")
                     os.link(im_path, im_newPath)
             for s in ["train", "val"]:
-                im_newPathSet = os.path.join(self.rootDir, s, im_name+'.tif')
+                im_newPathSet = os.path.join(self.rootDir, s, im_name + ".tif")
                 if not os.path.exists(im_newPathSet):
                     print(f"Link {im_newPath} -> {im_newPathSet}")
                     os.link(im_newPath, im_newPathSet)
-        
-        # Splitting annotations in train/val        
+
+        # Splitting annotations in train/val
         annotations = []
         for i, coord in enumerate(inputCoordinates.iterCoordinates()):
             x, y, z = coord.getPosition()
-            annotations.append((
-                coord.getFluoImage().getImgId()+'.tif',
-                i,
-                x,
-                y,
-                z
-            ))
+            annotations.append((coord.getFluoImage().getImgId() + ".tif", i, x, y, z))
 
-        print(f"Found {len(annotations)} annotations in SetOfCoordinates created at {inputCoordinates.getObjCreationAsDate()}")
+        print(
+            f"Found {len(annotations)} annotations in SetOfCoordinates created at {inputCoordinates.getObjCreationAsDate()}"
+        )
         random.shuffle(annotations)
         i = int(self.train_val_split.get() * len(annotations))
         train_annotations, val_annotations = annotations[:i], annotations[i:]
 
         # Write CSV
-        write_csv(os.path.join(self.rootDir, 'train', 'train_coordinates.csv'), train_annotations)
-        write_csv(os.path.join(self.rootDir, 'val', 'val_coordinates.csv'), val_annotations)
+        write_csv(
+            os.path.join(self.rootDir, "train", "train_coordinates.csv"),
+            train_annotations,
+        )
+        write_csv(
+            os.path.join(self.rootDir, "val", "val_coordinates.csv"), val_annotations
+        )
 
         # Prepare stage
         ps = inputCoordinates.getBoxSize()
@@ -224,7 +233,7 @@ class ProtSPFluoPickingTrain(Protocol):
             f"--num_epochs {self.num_epochs.get()}",
             f"--lr {self.lr.get()}",
             f"--extension tif",
-            f"--augment {self.augment.get()}"
+            f"--augment {self.augment.get()}",
         ]
         if self.pu:
             args += [f"--mode pu"]
@@ -241,10 +250,10 @@ class ProtSPFluoPickingTrain(Protocol):
             args += ["--swa", f"--swa_lr {self.swa_lr.get()}"]
         args = " ".join(args)
         Plugin.runSPFluo(self, Plugin.getProgram(PICKING_MODULE), args=args)
-    
+
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):
-        """ Summarize what the protocol has done"""
+        """Summarize what the protocol has done"""
         summary = []
 
         if self.isFinished():

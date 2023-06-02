@@ -13,29 +13,29 @@ from spfluo.objects.data import FluoImage
 
 
 class PickingTreeProvider(TreeProvider):
-    """ Populate Tree from SetOfFluoImages. """
+    """Populate Tree from SetOfFluoImages."""
 
     def __init__(self, fluoimagesList: List[FluoImage]):
         TreeProvider.__init__(self)
         self.fluoimagesList: List[FluoImage] = fluoimagesList
 
     def getColumns(self):
-        return [('FluoImage', 300), ("# coords", 100), ('status', 150)]
+        return [("FluoImage", 300), ("# coords", 100), ("status", 150)]
 
     def getObjectInfo(self, im: FluoImage) -> Optional[dict]:
         path = im.getFileName()
         im_name, _ = os.path.splitext(os.path.basename(path))
-        d = {'key': im_name, 'parent': None, 'text': im_name}
+        d = {"key": im_name, "parent": None, "text": im_name}
         if im.in_viewer:
             status_text = "IN PROGRESS"
-            d['tags'] = ("in progress")
+            d["tags"] = "in progress"
         elif im.count > 0:
             status_text = "DONE"
-            d['tags'] = ("done")
+            d["tags"] = "done"
         else:
             status_text = "TODO"
-            d['tags'] = ("pending")
-        d['values'] = (im.count, status_text)
+            d["tags"] = "pending"
+        d["values"] = (im.count, status_text)
         return d
 
     def getObjectPreview(self, obj):
@@ -65,34 +65,41 @@ class PickingDialog(ToolbarListDialog):
     a Napari subprocess from a list of FluoImages.
     """
 
-    def __init__(self, parent, provider: PickingTreeProvider, protocol: Protocol, **kwargs):
+    def __init__(
+        self, parent, provider: PickingTreeProvider, protocol: Protocol, **kwargs
+    ):
         self.provider = provider
         self.size = 10
         self._protocol = protocol
         self.refresh_gui(initialized=False)
-        ToolbarListDialog.__init__(self, parent,
-                                   "Fluoimage List",
-                                   self.provider,
-                                   allowsEmptySelection=False,
-                                   itemDoubleClick=self.doubleClickOnFluoimage,
-                                   allowSelect=False,
-                                   **kwargs)
+        ToolbarListDialog.__init__(
+            self,
+            parent,
+            "Fluoimage List",
+            self.provider,
+            allowsEmptySelection=False,
+            itemDoubleClick=self.doubleClickOnFluoimage,
+            allowSelect=False,
+            **kwargs,
+        )
 
     def refresh_gui(self, initialized=True):
         for im in self.provider.fluoimagesList:
             _, csv_path = self._protocol.getCsvPath(im)
             if os.path.isfile(csv_path):
                 # count number of lines in csv file
-                with open(csv_path, 'r') as f:
+                with open(csv_path, "r") as f:
                     count = sum(1 for line in f)
                 if count > 0:
                     im.count = count - 1
-                    with open(csv_path, 'r') as f:
-                        next(f) # skip header
+                    with open(csv_path, "r") as f:
+                        next(f)  # skip header
                         line = f.readline()
-                        line = line.split(',')
-                        if len(line) == 5: # verify if csv has data
-                            self.size = int(float(line[4])) # last column is the boxsize
+                        line = line.split(",")
+                        if len(line) == 5:  # verify if csv has data
+                            self.size = int(
+                                float(line[4])
+                            )  # last column is the boxsize
         if initialized:
             if not self.proc.is_alive():
                 self.fluoimage.in_viewer = False
@@ -102,20 +109,23 @@ class PickingDialog(ToolbarListDialog):
     def doubleClickOnFluoimage(self, e=None):
         self.fluoimage = e
         self.fluoimage.in_viewer = True
-        self.proc = threading.Thread(target=self.lanchNapariForFluoImage, args=(self.fluoimage,))
+        self.proc = threading.Thread(
+            target=self.lanchNapariForFluoImage, args=(self.fluoimage,)
+        )
         self.proc.start()
         self.after(1000, self.refresh_gui)
 
     def lanchNapariForFluoImage(self, im: FluoImage):
         from spfluo import Plugin
         from spfluo.constants import MANUAL_PICKING_MODULE
+
         path, csv_path = self._protocol.getCsvPath(im)
         args = " ".join([path, csv_path, f"--size {self.size}"])
         Plugin.runSPFluo(self._protocol, Plugin.getProgram(MANUAL_PICKING_MODULE), args)
 
 
 class PickingView(View):
-    """ This class implements a view using Tkinter ListDialog
+    """This class implements a view using Tkinter ListDialog
     and the PickingTreeProvider.
     """
 

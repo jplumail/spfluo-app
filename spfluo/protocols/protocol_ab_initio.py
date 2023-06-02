@@ -62,37 +62,78 @@ class ProtSPFluoAbInitio(Protocol, ProtFluoBase):
     """
     Ab initio reconstruction
     """
-    _label = 'ab initio reconstruction'
+
+    _label = "ab initio reconstruction"
     _devStatus = BETA
-    _GPU_libraries = ['no', 'cucim', 'pytorch']
+    _GPU_libraries = ["no", "cucim", "pytorch"]
     _possibleOutputs = outputs
 
     # -------------------------- DEFINE param functions ----------------------
     def _defineParams(self, form: Form):
         form.addSection(label="Data params")
-        form.addParam('inputParticles', params.PointerParam, pointerClass='SetOfParticles',
-                      label="Particles", important=True,
-                      help='Select the input particles.')
-        form.addParam('inputPSF', params.PointerParam, pointerClass='PSFModel',
-                      label="PSF", important=True,
-                      help='Select the PSF.')
         form.addParam(
-            'channel',
+            "inputParticles",
+            params.PointerParam,
+            pointerClass="SetOfParticles",
+            label="Particles",
+            important=True,
+            help="Select the input particles.",
+        )
+        form.addParam(
+            "inputPSF",
+            params.PointerParam,
+            pointerClass="PSFModel",
+            label="PSF",
+            important=True,
+            help="Select the PSF.",
+        )
+        form.addParam(
+            "channel",
             params.IntParam,
             default=0,
             label="Reconstruct on channel?",
             help="This protocol reconstruct an average particle in one channel only.",
         )
-        form.addParam('gpu', params.EnumParam, choices=self._GPU_libraries,
-                       display=params.EnumParam.DISPLAY_LIST,
-                       label='GPU Library')
-        form.addParam('pad', params.BooleanParam, default=True, expertLevel=params.LEVEL_ADVANCED, label='Pad particles?')
+        form.addParam(
+            "gpu",
+            params.EnumParam,
+            choices=self._GPU_libraries,
+            display=params.EnumParam.DISPLAY_LIST,
+            label="GPU Library",
+        )
+        form.addParam(
+            "pad",
+            params.BooleanParam,
+            default=True,
+            expertLevel=params.LEVEL_ADVANCED,
+            label="Pad particles?",
+        )
         form.addSection(label="Reconstruction params")
-        form.addParam('numIterMax', params.IntParam, default=20, label="Max number of epochs")
-        form.addParam('N_axes', params.IntParam, default=25, label="N axes", expertLevel=params.LEVEL_ADVANCED)
-        form.addParam('N_rot', params.IntParam, default=20, label="N rot", expertLevel=params.LEVEL_ADVANCED)
-        form.addParam('lr', params.FloatParam, default=0.1, label="learning rate", expertLevel=params.LEVEL_ADVANCED)
-    
+        form.addParam(
+            "numIterMax", params.IntParam, default=20, label="Max number of epochs"
+        )
+        form.addParam(
+            "N_axes",
+            params.IntParam,
+            default=25,
+            label="N axes",
+            expertLevel=params.LEVEL_ADVANCED,
+        )
+        form.addParam(
+            "N_rot",
+            params.IntParam,
+            default=20,
+            label="N rot",
+            expertLevel=params.LEVEL_ADVANCED,
+        )
+        form.addParam(
+            "lr",
+            params.FloatParam,
+            default=0.1,
+            label="learning rate",
+            expertLevel=params.LEVEL_ADVANCED,
+        )
+
     # --------------------------- STEPS functions ------------------------------
     def _insertAllSteps(self):
         self.particlesDir = os.path.abspath(self._getExtraPath("particles"))
@@ -102,15 +143,15 @@ class ProtSPFluoAbInitio(Protocol, ProtFluoBase):
         self._insertFunctionStep(self.prepareStep)
         self._insertFunctionStep(self.reconstructionStep)
         self._insertFunctionStep(self.createOutputStep)
-    
+
     def prepareStep(self):
-        print('Creating particles directory')
+        print("Creating particles directory")
         if not os.path.exists(self.particlesDir):
             os.makedirs(self.particlesDir, exist_ok=True)
 
         # Image links for particles
         particles_paths = []
-        inputParticles : SetOfParticles = self.inputParticles.get()
+        inputParticles: SetOfParticles = self.inputParticles.get()
         max_dim = 0
         for im in inputParticles:
             im: Particle
@@ -118,13 +159,19 @@ class ProtSPFluoAbInitio(Protocol, ProtFluoBase):
             im_path = os.path.abspath(im.getFileName())
             ext = os.path.splitext(im_path)[1]
             im_name = im.strId()
-            im_newPath = os.path.join(self.particlesDir, im_name+'.tif')
+            im_newPath = os.path.join(self.particlesDir, im_name + ".tif")
             particles_paths.append(im_newPath)
             if im.getNumChannels() > 1:
-                AICSImage(reshape_data(im.getData(), im.img.dims.order, "TCZYX", C=self.channel.get())).save(im_newPath)
+                AICSImage(
+                    reshape_data(
+                        im.getData(), im.img.dims.order, "TCZYX", C=self.channel.get()
+                    )
+                ).save(im_newPath)
             else:
-                if ext != '.tif' and ext != '.tiff':
-                    raise NotImplementedError(f"Found ext {ext} in particles: {im_path}. Only tiff file are supported.") # FIXME: allow formats accepted by AICSImageio
+                if ext != ".tif" and ext != ".tiff":
+                    raise NotImplementedError(
+                        f"Found ext {ext} in particles: {im_path}. Only tiff file are supported."
+                    )  # FIXME: allow formats accepted by AICSImageio
                 else:
                     os.link(im_path, im_newPath)
 
@@ -132,46 +179,53 @@ class ProtSPFluoAbInitio(Protocol, ProtFluoBase):
         psf: PSFModel = self.inputPSF.get()
         psf_path = os.path.abspath(psf.getFileName())
         ext = os.path.splitext(psf_path)[1]
-        if ext != '.tif' and ext != '.tiff':
-            raise NotImplementedError(f"Found ext {ext} in particles: {im_path}. Only tiff file are supported.")
+        if ext != ".tif" and ext != ".tiff":
+            raise NotImplementedError(
+                f"Found ext {ext} in particles: {im_path}. Only tiff file are supported."
+            )
         else:
             os.link(psf_path, self.psfPath)
-        
+
         # Make isotropic
         vs = inputParticles.getVoxelSize()
         if vs is None:
             raise RuntimeError("Input Particles don't have a voxel size.")
-        
+
         input_paths = particles_paths + [self.psfPath]
         args = ["-f isotropic_resample"]
         args += ["-i"] + input_paths
-        folder_isotropic = os.path.abspath(self._getExtraPath('isotropic'))
+        folder_isotropic = os.path.abspath(self._getExtraPath("isotropic"))
         if not os.path.exists(folder_isotropic):
             os.makedirs(folder_isotropic, exist_ok=True)
         args += [f"-o {folder_isotropic}"]
         args += [f"--spacing {vs[1]} {vs[0]} {vs[0]}"]
-        args = ' '.join(args)
+        args = " ".join(args)
         Plugin.runSPFluo(self, Plugin.getProgram(UTILS_MODULE), args=args)
 
         # Pad
-        input_paths = [os.path.join(folder_isotropic, f) for f in os.listdir(folder_isotropic)]
+        input_paths = [
+            os.path.join(folder_isotropic, f) for f in os.listdir(folder_isotropic)
+        ]
         if self.pad:
-            max_dim = int(max_dim*2*(2**0.5)) + 1
-        folder_resized = os.path.abspath(self._getExtraPath('isotropic_cropped'))
+            max_dim = int(max_dim * 2 * (2**0.5)) + 1
+        folder_resized = os.path.abspath(self._getExtraPath("isotropic_cropped"))
         if not os.path.exists(folder_resized):
             os.makedirs(folder_resized, exist_ok=True)
         args = ["-f resize"]
         args += ["-i"] + input_paths
         args += [f"--size {max_dim}"]
         args += [f"-o {folder_resized}"]
-        args = ' '.join(args)
+        args = " ".join(args)
         Plugin.runSPFluo(self, Plugin.getProgram(UTILS_MODULE), args=args)
 
         # Links
         os.remove(self.psfPath)
-        for p in particles_paths: os.remove(p)
+        for p in particles_paths:
+            os.remove(p)
         # Link to psf
-        os.link(os.path.join(folder_resized, os.path.basename(self.psfPath)), self.psfPath)
+        os.link(
+            os.path.join(folder_resized, os.path.basename(self.psfPath)), self.psfPath
+        )
         # Links to particles
         for p in particles_paths:
             os.link(os.path.join(folder_resized, os.path.basename(p)), p)
@@ -187,13 +241,16 @@ class ProtSPFluoAbInitio(Protocol, ProtFluoBase):
             f"--N_rot {self.N_rot.get()}",
         ]
         gpu = self._GPU_libraries[self.gpu.get()]
-        if gpu != 'no':
-            args += [f'--gpu {gpu}']
-            args += ['--interp_order 1']
+        if gpu != "no":
+            args += [f"--gpu {gpu}"]
+            args += ["--interp_order 1"]
         args = " ".join(args)
         print("Launching reconstruction")
         Plugin.runSPFluo(self, Plugin.getProgram(AB_INITIO_MODULE), args=args)
-        os.link(os.path.join(self.outputDir, 'intermediar_results', 'final_recons.tif'), self.final_reconstruction)
+        os.link(
+            os.path.join(self.outputDir, "intermediar_results", "final_recons.tif"),
+            self.final_reconstruction,
+        )
 
     def createOutputStep(self):
         inputSetOfParticles = self.inputParticles.get()
@@ -203,22 +260,28 @@ class ProtSPFluoAbInitio(Protocol, ProtFluoBase):
         self._defineOutputs(**{outputs.reconstructedVolume.name: reconstruction})
 
         # Output 2 : SetOfParticles
-        particleParams = getLastParticlesParams(os.path.join(self.outputDir, "intermediar_results"))
-        outputSetOfParticles = self._createSet(SetOfParticles, 'particles%s.sqlite', "particles")
+        particleParams = getLastParticlesParams(
+            os.path.join(self.outputDir, "intermediar_results")
+        )
+        outputSetOfParticles = self._createSet(
+            SetOfParticles, "particles%s.sqlite", "particles"
+        )
         outputSetOfParticles.copyInfo(inputSetOfParticles)
         outputSetOfParticles.setCoordinates3D(inputSetOfParticles.getCoordinates3D())
         print(particleParams)
         updateSetOfParticles(inputSetOfParticles, outputSetOfParticles, particleParams)
         self._defineOutputs(**{outputs.particles.name: outputSetOfParticles})
         # Transform relation
-        self._defineRelation(pwobj.RELATION_TRANSFORM, inputSetOfParticles, outputSetOfParticles)
-        self._defineRelation(pwobj.RELATION_SOURCE, inputSetOfParticles, outputSetOfParticles)
+        self._defineRelation(
+            pwobj.RELATION_TRANSFORM, inputSetOfParticles, outputSetOfParticles
+        )
+        self._defineRelation(
+            pwobj.RELATION_SOURCE, inputSetOfParticles, outputSetOfParticles
+        )
 
-
-    
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):
-        """ Summarize what the protocol has done"""
+        """Summarize what the protocol has done"""
         summary = []
 
         if self.isFinished():
@@ -231,17 +294,22 @@ class ProtSPFluoAbInitio(Protocol, ProtFluoBase):
 
 
 class ProtSPFluoParticleAverage(Protocol):
-    _label = 'Particle average test'
+    _label = "Particle average test"
     _devStatus = BETA
     _possibleOutputs = outputs
 
     # -------------------------- DEFINE param functions ----------------------
     def _defineParams(self, form):
         form.addSection(label="Input")
-        form.addParam('inputParticle', params.PointerParam, pointerClass='SetOfParticles',
-                      label="Input Particle", important=True,
-                      help='Select the input particles.')
-    
+        form.addParam(
+            "inputParticle",
+            params.PointerParam,
+            pointerClass="SetOfParticles",
+            label="Input Particle",
+            important=True,
+            help="Select the input particles.",
+        )
+
     def _insertAllSteps(self):
         self.particlesDir = os.path.abspath(self._getExtraPath("particles"))
         self.outputDir = os.path.abspath(self._getExtraPath("working_dir"))
@@ -251,10 +319,10 @@ class ProtSPFluoParticleAverage(Protocol):
         self._insertFunctionStep(self.createOuputStep)
 
     def prepareStep(self):
-        print('Creating particles directory')
+        print("Creating particles directory")
         if not os.path.exists(self.particlesDir):
             os.makedirs(self.particlesDir, exist_ok=True)
-        
+
         inputParticles: SetOfParticles = self.inputParticle.get()
 
         # Image links for particles
@@ -263,16 +331,18 @@ class ProtSPFluoParticleAverage(Protocol):
             im_path = os.path.abspath(im.getFileName())
             ext = os.path.splitext(im_path)[1]
             im_name = im.strId()
-            im_newPath = os.path.join(self.particlesDir, im_name+'.tif')
-            if ext != '.tif' and ext != '.tiff':
-                raise NotImplementedError(f"Found ext {ext} in particles: {im_path}. Only tiff file are supported.")
+            im_newPath = os.path.join(self.particlesDir, im_name + ".tif")
+            if ext != ".tif" and ext != ".tiff":
+                raise NotImplementedError(
+                    f"Found ext {ext} in particles: {im_path}. Only tiff file are supported."
+                )
             else:
                 os.link(im_path, im_newPath)
-            
+
             # transformations
             matrices[im_name] = im.getTransform().getMatrix()
-        
-        with open(self._getExtraPath('trans_mat.pickle'), 'wb') as f:
+
+        with open(self._getExtraPath("trans_mat.pickle"), "wb") as f:
             pickle.dump(matrices, f)
 
     def launchStep(self):
@@ -282,9 +352,11 @@ class ProtSPFluoParticleAverage(Protocol):
             f"--average_path {self._getExtraPath('average.tif')}",
         ]
         args = " ".join(args)
-        Plugin.runSPFluo(self, "python -m spfluo.ab_initio_reconstruction.tests", args=args)
-    
+        Plugin.runSPFluo(
+            self, "python -m spfluo.ab_initio_reconstruction.tests", args=args
+        )
+
     def createOuputStep(self):
-        avrg_path = self._getExtraPath('average.tif')
+        avrg_path = self._getExtraPath("average.tif")
         average_output = AverageParticle(data=avrg_path)
         self._defineOutputs(**{"output": average_output})

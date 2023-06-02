@@ -15,13 +15,14 @@ class ProtSPFluoUtils(Protocol, ProtFluoBase):
     """
     Use SPFluo utils functions.
     """
+
     OUTPUT_NAME = "FluoImages"
 
-    _label = 'utils'
+    _label = "utils"
     _devStatus = BETA
 
     FUNCTION_CHOICES = ["resample"]
-    
+
     def _defineParams(self, form: Form):
         form.addSection(label="Input")
         form.addParam(
@@ -37,7 +38,7 @@ class ProtSPFluoUtils(Protocol, ProtFluoBase):
             EnumParam,
             choices=self.FUNCTION_CHOICES,
             display=EnumParam.DISPLAY_COMBO,
-            label="Function"
+            label="Function",
         )
         form.addParam(
             "factor",
@@ -45,12 +46,12 @@ class ProtSPFluoUtils(Protocol, ProtFluoBase):
             condition=f"function=={self.FUNCTION_CHOICES.index('resample')}",
             label="Resampling Factor",
         )
-    
+
     def _insertAllSteps(self):
         self._insertFunctionStep(self.prepareStep)
         self._insertFunctionStep(self.functionStep)
         self._insertFunctionStep(self.outputStep)
-    
+
     def prepareStep(self):
         self.input_images = []
         self.output_dir = self._getExtraPath("output")
@@ -62,19 +63,14 @@ class ProtSPFluoUtils(Protocol, ProtFluoBase):
             self.input_images.append(abspath(image.getFileName()))
 
     def functionStep(self):
-        args = [
-            "--input",
-            " ".join(self.input_images),
-            "--output",
-            self.output_dir
-        ]
+        args = ["--input", " ".join(self.input_images), "--output", self.output_dir]
         args += ["--function", self.FUNCTION_CHOICES[self.function.get()]]
         if self.FUNCTION_CHOICES[self.function.get()] == "resample":
             args += ["--factor", str(self.factor.get())]
-        
+
         args = " ".join(args)
         Plugin.runSPFluo(self, Plugin.getProgram(UTILS_MODULE), args=args)
-    
+
     def outputStep(self):
         imgSet = self._createSetOfFluoImages()
         vs = self.inputfluoImages.getVoxelSize()
