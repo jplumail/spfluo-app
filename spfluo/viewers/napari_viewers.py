@@ -9,10 +9,12 @@ from pyworkflow.viewer import Viewer, View, DESKTOP_TKINTER
 from pyworkflow.gui.dialog import ToolbarListDialog
 from pyworkflow.gui.tree import TreeProvider
 from pyworkflow.utils.process import runJob
+from pyworkflow.protocol import Protocol
 
 import os
 import threading
 from typing import List
+from aicsimageio.aics_image import AICSImage
 
 
 class NapariDataViewer(Viewer):
@@ -23,6 +25,7 @@ class NapariDataViewer(Viewer):
     _targets = [
         fluoobj.SetOfCoordinates3D,
         fluoobj.Image,
+        fluoobj.SetOfImages,
     ]
 
     def __init__(self, **kwargs):
@@ -36,9 +39,31 @@ class NapariDataViewer(Viewer):
             self._views.append(SetOfCoordinates3DView(self._tkRoot, obj, self.protocol))
         elif issubclass(cls, fluoobj.Image):
             self._views.append(ImageView(obj))
+        elif issubclass(cls, fluoobj.SetOfParticles):
+            self._views.append(SetOfParticlesView(obj, self.protocol))
         
         return self._views
 
+
+####################
+## SetOfParticles ##
+####################
+
+class SetOfParticlesView(View):
+    def __init__(self, particles: fluoobj.SetOfParticles, protocol: Protocol):
+        self.particles = particles
+        self.protocol = protocol
+    
+    def show(self):
+        self.proc = threading.Thread(target=self.lanchNapariForParticles, args=(self.particles,))
+        self.proc.start()
+    
+    def lanchNapariForParticles(self, particles: fluoobj.SetOfParticles):
+        filenames = [p.getFileName() for p in particles]
+        args = " ".join(filenames)
+        fullProgram = Plugin.getFullProgram(Plugin.getProgram([VISUALISATION_MODULE, "particles"]))
+        runJob(None, fullProgram, args, env=Plugin.getEnviron())
+        
 
 ###########
 ## Image ##
@@ -54,6 +79,10 @@ class ImageView(View):
     
     def lanchNapariForImage(self, im: fluoobj.Image):
         path = im.getFileName()
+        self.launchNapari(path)
+    
+    @staticmethod
+    def launchNapari(path: str):
         fullProgram = Plugin.getFullProgram(Plugin.getNapariProgram())
         runJob(None, fullProgram, path, env=Plugin.getEnviron())
 
@@ -143,5 +172,5 @@ class SetOfCoordinates3DDialog(ToolbarListDialog):
         csv_path = self._protocol._getExtraPath("coords.csv")
         save_coordinates3D(coords_im, csv_path)
         args = " ".join([path, "--coords", csv_path])
-        fullProgram = Plugin.getFullProgram(Plugin.getProgram(VISUALISATION_MODULE))
+        fullProgram = Plugin.getFullProgram(Plugin.getProgram([VISUALISATION_MODULE, "coords"]))
         runJob(None, fullProgram, args, env=Plugin.getEnviron())

@@ -13,6 +13,7 @@ import os
 import subprocess
 import sys
 import re
+from typing import List, Union
 from packaging.version import parse, InvalidVersion
 import pyworkflow.utils as pwutils
 from pyworkflow import plugin
@@ -88,9 +89,13 @@ class Plugin(plugin.Plugin):
         protocol.runJob(cls.getFullProgram(program), args, env=cls.getEnviron(), cwd=cwd, numberOfMpi=1)
 
     @classmethod
-    def getProgram(cls, program):
-        program = f"python -m spfluo.{program}"
-        return program
+    def getProgram(cls, program: Union[str, List[str]]):
+        if type(program) is str:
+            program = [program]
+        command = f"python -m spfluo"
+        for p in program:
+            command += f".{p}"
+        return command
     
     @classmethod
     def getNapariProgram(cls):
