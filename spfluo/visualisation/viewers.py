@@ -3,6 +3,7 @@ from spfluo.visualisation import add_orthoviewer_widget, init_qt
 from typing import List
 import napari
 from napari.layers import Points
+from napari.experimental import link_layers, unlink_layers
 import numpy as np
 from aicsimageio.aics_image import AICSImage
 import pandas as pd
