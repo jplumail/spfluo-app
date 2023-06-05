@@ -5,3 +5,5 @@
 # **************************************************************************
 
 from .napari_viewers import NapariDataViewer
+
+__all__ = [NapariDataViewer]

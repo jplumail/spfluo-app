@@ -16,3 +16,18 @@ from .protocol_import import (
     ProtImportSetOfParticles,
 )
 from .protocol_base import ProtFluoBase, ProtFluoPicking
+
+__all__ = [
+    ProtSPFluoPickingNapari,
+    ProtSPFluoPickingTrain,
+    ProtSPFluoPickingPredict,
+    ProtSPFluoAbInitio,
+    ProtSPFluoParticleAverage,
+    ProtSPFluoUtils,
+    ProtImportFluoImages,
+    ProtImportPSFModel,
+    ProtImportSetOfParticles,
+    ProtFluoBase,
+    ProtFluoPicking,
+    ProtSPFluoExtractParticles,
+]
