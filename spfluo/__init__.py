@@ -13,7 +13,7 @@ import os
 import subprocess
 import sys
 import re
-from typing import List, Union
+from typing import List, Optional, Union
 from packaging.version import parse, InvalidVersion
 import pyworkflow.utils as pwutils
 from pyworkflow import plugin
@@ -114,8 +114,11 @@ class Plugin(plugin.Plugin):
         return command
 
     @classmethod
-    def getNapariProgram(cls):
-        return f"python -m napari"
+    def getNapariProgram(cls, plugin: Optional[str]="napari-aicsimageio"):
+        napari_cmd = "python -m napari"
+        if plugin:
+            napari_cmd += f" --plugin {plugin}"
+        return napari_cmd
 
     @classmethod
     def addSPFluoPackage(cls, env):
@@ -137,15 +140,8 @@ class Plugin(plugin.Plugin):
         installCmd.append("cd spfluo && pip install .")
 
         # Temporary solution until this https://github.com/AllenCellModeling/aicsimageio/issues/495 is fixed
-        installCmd.append('pip install "aicsimageio"')
+        installCmd.append('pip install "napari-aicsimageio"')
         installCmd.append('pip install "tifffile>=2023.3.15"')
-
-        # from https://github.com/AllenCellModeling/napari-aicsimageio/tree/main#use-napari-aicsimageio-as-the-reader-for-all-file-formats
-        settings_napari = (
-            "from napari.settings import get_settings;"
-            "get_settings().plugins.extension2reader = {'*': 'napari-aicsimageio', **get_settings().plugins.extension2reader}"
-        )
-        installCmd.append(f'python -c "{settings_napari}"')
 
         installCmd.append(f"touch ../{SPFLUO_INSTALLED}")
 
