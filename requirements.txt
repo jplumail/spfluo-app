@@ -2,4 +2,3 @@ scipion-pyworkflow
 numpy
 scipy
 aicsimageio
-pre-commit
