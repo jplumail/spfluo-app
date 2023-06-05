@@ -103,7 +103,7 @@ class Plugin(plugin.Plugin):
     def getProgram(cls, program: Union[str, List[str]]):
         if type(program) is str:
             program = [program]
-        command = f"python -m spfluo"
+        command = "python -m spfluo"
         for p in program:
             command += f".{p}"
         return command

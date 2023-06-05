@@ -100,30 +100,30 @@ class ProtSPFluoPickingPredict(ProtFluoPicking):
 
     def predictStep(self):
         args = [
-            f"--stages predict",
+            "--stages predict",
             f"--checkpoint {os.path.abspath(self.trainRun._getExtraPath('picking', 'checkpoint.pt'))}",
             f"--batch_size {self.batch_size.get()}",
             f"--testdir {self.test_dir}",
             f"--output_dir {self.output_dir}",
             f"--patch_size {self.trainRun.inputCoordinates.get().getBoxSize()}",
             f"--stride {self.stride.get()}",
-            f"--extension tif",
+            "--extension tif",
         ]
         if self.trainRun.pu.get():
-            args += [f"--predict_on_u_mask"]
+            args += ["--predict_on_u_mask"]
         args = " ".join(args)
         Plugin.runSPFluo(self, Plugin.getProgram(PICKING_MODULE), args=args)
 
     def postprocessStep(self):
         args = [
-            f"--stages postprocess",
+            "--stages postprocess",
             f"--predictions {self._getExtraPath('picking', 'predictions.pickle')}",
             f"--checkpoint {os.path.abspath(self.trainRun._getExtraPath('picking', 'checkpoint.pt'))}",
             f"--testdir {self.test_dir}",
             f"--output_dir {self.output_dir}",
             f"--stride {self.stride.get()}",
-            f"--extension tif",
-            f"--iterative",
+            "--extension tif",
+            "--iterative",
         ]
         if self.patchSize.get():
             args += (f"--patch_size {self.patchSize.get()}",)

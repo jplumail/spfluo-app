@@ -210,9 +210,9 @@ class ProtSPFluoPickingTrain(Protocol):
         # Prepare stage
         ps = inputCoordinates.getBoxSize()
         args = [
-            f"--stages prepare",
+            "--stages prepare",
             f"--rootdir {self.rootDir}",
-            f"--extension tif",
+            "--extension tif",
             "--crop_output_dir cropped",
             "--make_u_masks",
             f"--patch_size {ps}",
@@ -224,7 +224,7 @@ class ProtSPFluoPickingTrain(Protocol):
         inputCoordinates: SetOfCoordinates3D = self.inputCoordinates.get()
         ps = inputCoordinates.getBoxSize()
         args = [
-            f"--stages train",
+            "--stages train",
             f"--batch_size {self.batch_size.get()}",
             f"--rootdir {self.rootDir}",
             f"--output_dir {self.pickingPath}",
@@ -232,11 +232,11 @@ class ProtSPFluoPickingTrain(Protocol):
             f"--epoch_size {self.epoch_size.get()}",
             f"--num_epochs {self.num_epochs.get()}",
             f"--lr {self.lr.get()}",
-            f"--extension tif",
+            "--extension tif",
             f"--augment {self.augment.get()}",
         ]
         if self.pu:
-            args += [f"--mode pu"]
+            args += ["--mode pu"]
             if self.radius.get() is None:
                 args += [f"--radius {ps//2}", "--load_u_masks"]
             else:
