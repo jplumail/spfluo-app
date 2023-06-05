@@ -6,6 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "spfluo"
 dependencies = [
   "numpy",
+  "cupy-wheel",
   "scipy",
   "scikit-image",
   "pandas",
