@@ -129,52 +129,6 @@ class Plugin(plugin.Plugin):
             SPFLUO_ACTIVATION_CMD,
         ]
 
-        # Install Cupy (the right version)
-        spfluo_cuda_lib: str = cls.getVar(SPFLUO_CUDA_LIB)
-        match = re.search("(cuda)-([0-9]+.[0-9])", os.path.realpath(spfluo_cuda_lib))
-        if match and len(match.groups()) == 2:
-            cuda_version = parse(match.group(2))
-        else:
-            print(
-                "Couldn't find CUDA version from path",
-                os.path.realpath(spfluo_cuda_lib),
-            )
-            cuda_version = None
-        if cuda_version is None:
-            # Maybe the SPFLUO_CUDA_LIB path doesn't contain the version
-            try:
-                result = subprocess.check_output(
-                    "nvcc --version", shell=True, text=True
-                )
-                cuda_version_str = result.split("\n")[3].split(", ")[1].split(" ")[1]
-            except subprocess.CalledProcessError:
-                print("nvcc not in $PATH. Not installing CuPY. Exiting...")
-                sys.exit(1)
-            try:
-                cuda_version = parse(cuda_version_str)
-            except InvalidVersion:
-                cuda_version = None
-                print(f"Couldn't version cuda version: {cuda_version_str}")
-                sys.exit(1)
-
-        cupy_version = None
-        if cuda_version.major == 10 and cuda_version.minor == 2:
-            cupy_version = "cupy-cuda102"
-        elif cuda_version.major == 11:
-            if cuda_version.minor == 0 or cuda_version.minor == 1:
-                cupy_version = f"cupy-cuda11{cuda_version.minor}"
-            else:
-                cupy_version = f"cupy-cuda11x"
-        elif cuda_version.major == 12:
-            cupy_version = f"cupy-cuda12x"
-        else:
-            print(
-                f"Your CUDA version {cuda_version} doesn't match one of cupy. You need to have versions CUDA 10.2, 11.x or 12.x."
-            )
-            sys.exit(1)
-        if cupy_version is not None:
-            installCmd.append(f"pip install --default-timeout=100 {cupy_version}")
-
         # Download and install spfluo
         installCmd.append(
             f"git clone https://jplumail:{GITHUB_TOKEN}@github.com/jplumail/SPFluo_stage_reconstruction_symmetryC.git"
@@ -183,6 +137,7 @@ class Plugin(plugin.Plugin):
         installCmd.append("cd spfluo && pip install .")
 
         # Temporary solution until this https://github.com/AllenCellModeling/aicsimageio/issues/495 is fixed
+        installCmd.append('pip install "aicsimageio"')
         installCmd.append('pip install "tifffile>=2023.3.15"')
 
         # from https://github.com/AllenCellModeling/napari-aicsimageio/tree/main#use-napari-aicsimageio-as-the-reader-for-all-file-formats
