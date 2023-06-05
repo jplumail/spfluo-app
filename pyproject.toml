@@ -21,7 +21,6 @@ dependencies = [
   "psutil",
   "matplotlib",
   "napari[all] @ git+https://github.com/napari/napari.git@aa0330fcace8d5855fcd1e75c1fd4384b542bd4c",
-  "napari-aicsimageio",
 ]
 version = "0.0.1"
 authors = [
