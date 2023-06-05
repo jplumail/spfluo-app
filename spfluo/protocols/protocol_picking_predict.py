@@ -4,8 +4,7 @@ from typing import Callable, Dict, Optional
 import numpy as np
 from pyworkflow import BETA
 import pyworkflow.object as pwobj
-from pyworkflow.protocol import Protocol, params
-import pyworkflow.utils as pwutils
+from pyworkflow.protocol import params
 from spfluo.objects.data import (
     Coordinate3D,
     FluoImage,

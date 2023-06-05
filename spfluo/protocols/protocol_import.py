@@ -9,7 +9,6 @@ from spfluo.objects import Transform
 from pyworkflow import BETA
 from pyworkflow import utils as pwutils
 from pyworkflow.utils.path import createAbsLink, removeExt
-import pyworkflow.protocol.params as params
 
 from spfluo.objects.data import PSFModel, Particle, SetOfParticles
 

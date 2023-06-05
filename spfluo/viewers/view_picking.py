@@ -1,12 +1,10 @@
-from typing import List, Optional, Tuple
+from typing import List, Optional
 from pyworkflow.gui.dialog import ToolbarListDialog
 from pyworkflow.gui.tree import TreeProvider
-import pyworkflow.utils as pwutils
 from pyworkflow.viewer import View
 from pyworkflow.protocol import Protocol
 
 import os
-import glob
 import threading
 
 from spfluo.objects.data import FluoImage

@@ -29,17 +29,11 @@ from pyworkflow.object import Set
 from pyworkflow.protocol import Protocol
 from pyworkflow.protocol.params import (
     PointerParam,
-    EnumParam,
-    PathParam,
     FloatParam,
-    StringParam,
-    BooleanParam,
-    TupleParam,
-    LEVEL_ADVANCED,
 )
 from pyworkflow.mapper.sqlite_db import SqliteDb
 from pyworkflow.utils.properties import Message
-from pyworkflow.protocol.params import Form, ElementGroup
+from pyworkflow.protocol.params import Form
 
 import spfluo.objects as spobj
 from spfluo.protocols.import_.base import ProtImportFiles, ProtImportFile, ProtImport

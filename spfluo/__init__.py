@@ -10,16 +10,11 @@
 # **************************************************************************
 
 import os
-import subprocess
-import sys
-import re
 from typing import List, Optional, Union
-from packaging.version import parse, InvalidVersion
 import pyworkflow.utils as pwutils
 from pyworkflow import plugin
 import pyworkflow as pw
 from pyworkflow.utils import getSubclasses
-from pyworkflow.object import Object
 from pyworkflow.viewer import Viewer
 from pyworkflow.wizard import Wizard
 from pyworkflow.protocol import Protocol

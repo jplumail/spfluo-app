@@ -2,7 +2,7 @@ from spfluo import objects as fluoobj
 from spfluo import Plugin
 from spfluo.constants import VISUALISATION_MODULE
 from spfluo.convert import save_coordinates3D
-from spfluo.objects.data import FluoImage, Image, SetOfCoordinates3D
+from spfluo.objects.data import FluoImage, SetOfCoordinates3D
 from spfluo.protocols.protocol_base import ProtFluoBase
 
 from pyworkflow.viewer import Viewer, View, DESKTOP_TKINTER
@@ -14,7 +14,6 @@ from pyworkflow.protocol import Protocol
 import os
 import threading
 from typing import List, Union
-from aicsimageio.aics_image import AICSImage
 
 
 class NapariDataViewer(Viewer):

@@ -12,8 +12,7 @@ from pyworkflow.protocol import Protocol, Form, params
 
 import os
 import numpy as np
-from scipy.ndimage import affine_transform, shift
-from aicsimageio.aics_image import AICSImage
+from scipy.ndimage import affine_transform
 
 
 class ProtSPFluoExtractParticles(Protocol, ProtFluoBase):

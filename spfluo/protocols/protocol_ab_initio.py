@@ -30,15 +30,10 @@
 Describe your python module here:
 This module will provide the traditional Hello world example
 """
-import glob
 import os
 from enum import Enum
-import csv
 import pickle
-import numpy as np
-from scipy.spatial.transform import Rotation
-from pyworkflow.protocol import Protocol, params, Integer, Form
-from pyworkflow.utils import Message
+from pyworkflow.protocol import Protocol, params, Form
 from pyworkflow import BETA
 import pyworkflow.object as pwobj
 from spfluo.objects import AverageParticle, SetOfParticles

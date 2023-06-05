@@ -1,7 +1,7 @@
 import math
 from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple, Union
 import typing
-from pyworkflow.object import Integer, String, Pointer, CsvList, Object, Scalar, Set, Boolean  # type: ignore
+from pyworkflow.object import Integer, String, Pointer, CsvList, Object, Scalar, Set  # type: ignore
 import pyworkflow.utils as pwutils  # type: ignore
 
 import os
