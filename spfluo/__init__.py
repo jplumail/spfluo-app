@@ -114,7 +114,7 @@ class Plugin(plugin.Plugin):
         return command
 
     @classmethod
-    def getNapariProgram(cls, plugin: Optional[str]="napari-aicsimageio"):
+    def getNapariProgram(cls, plugin: Optional[str] = "napari-aicsimageio"):
         napari_cmd = "python -m napari"
         if plugin:
             napari_cmd += f" --plugin {plugin}"
