@@ -13,7 +13,7 @@ from spfluo.objects.data import (
 )
 from .protocol_base import ProtFluoPicking
 from spfluo import Plugin
-from spfluo.constants import *
+from spfluo.constants import PICKING_WORKING_DIR, PICKING_MODULE
 from spfluo.protocols.protocol_picking_train import ProtSPFluoPickingTrain
 
 

@@ -36,7 +36,7 @@ from pyworkflow import BETA
 from pyworkflow.protocol import Protocol, params
 
 from spfluo import Plugin
-from spfluo.constants import *
+from spfluo.constants import PICKING_WORKING_DIR, PICKING_MODULE
 from spfluo.convert import write_csv
 from spfluo.objects.data import SetOfCoordinates3D
 

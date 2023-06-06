@@ -44,7 +44,7 @@ from aicsimageio.aics_image import AICSImage
 
 
 from spfluo import Plugin
-from spfluo.constants import *
+from spfluo.constants import UTILS_MODULE, AB_INITIO_MODULE
 from spfluo.convert import getLastParticlesParams, updateSetOfParticles
 
 
