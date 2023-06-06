@@ -212,46 +212,44 @@ class ProtSPFluoPickingTrain(Protocol):
 
         # Prepare stage
         ps = inputCoordinates.getBoxSize()
-        args = [
-            "--stages prepare",
-            f"--rootdir {self.rootDir}",
-            "--extension tif",
-            "--crop_output_dir cropped",
-            "--make_u_masks",
-            f"--patch_size {ps}",
-        ]
-        args = " ".join(args)
+        args = ["--stages", "prepare"]
+        args += ["--rootdir", f"{self.rootDir}"]
+        args += ["--extension", "tif"]
+        args += ["--crop_output_dir", "cropped"]
+        args += ["--make_u_masks"]
+        args += ["--patch_size", f"{ps}"]
         Plugin.runSPFluo(self, Plugin.getProgram(PICKING_MODULE), args=args)
 
     def trainStep(self):
         inputCoordinates: SetOfCoordinates3D = self.inputCoordinates.get()
         ps = inputCoordinates.getBoxSize()
-        args = [
-            "--stages train",
-            f"--batch_size {self.batch_size.get()}",
-            f"--rootdir {self.rootDir}",
-            f"--output_dir {self.pickingPath}",
-            f"--patch_size {ps}",
-            f"--epoch_size {self.epoch_size.get()}",
-            f"--num_epochs {self.num_epochs.get()}",
-            f"--lr {self.lr.get()}",
-            "--extension tif",
-            f"--augment {self.augment.get()}",
-        ]
+        args = ["--stages", "train"]
+        args += ["--batch_size", f"{self.batch_size.get()}"]
+        args += ["--rootdir", f"{self.rootDir}"]
+        args += ["--output_dir", f"{self.pickingPath}"]
+        args += ["--patch_size", f"{ps}"]
+        args += ["--epoch_size", f"{self.epoch_size.get()}"]
+        args += ["--num_epochs", f"{self.num_epochs.get()}"]
+        args += ["--lr", f"{self.lr.get()}"]
+        args += ["--extension", "tif"]
+        args += ["--augment", f"{self.augment.get()}"]
         if self.pu:
-            args += ["--mode pu"]
+            args += ["--mode", "pu"]
             if self.radius.get() is None:
-                args += [f"--radius {ps//2}", "--load_u_masks"]
+                args += ["--radius", f"{ps//2}"]
+                args += ["--load_u_masks"]
             else:
-                args += [f"--radius {self.radius.get()}"]
-            args += [f"--num_particles_per_image {self.num_particles_per_image.get()}"]
+                args += ["--radius", f"{self.radius.get()}"]
+            args += [
+                "--num_particles_per_image",
+                f"{self.num_particles_per_image.get()}",
+            ]
         else:
-            args += ["--mode fs"]
+            args += ["--mode", "fs"]
         if self.shuffle.get():
             args += ["--shuffle"]
         if self.swa.get():
-            args += ["--swa", f"--swa_lr {self.swa_lr.get()}"]
-        args = " ".join(args)
+            args += ["--swa", "--swa_lr", f"{self.swa_lr.get()}"]
         Plugin.runSPFluo(self, Plugin.getProgram(PICKING_MODULE), args=args)
 
     # --------------------------- INFO functions -----------------------------------

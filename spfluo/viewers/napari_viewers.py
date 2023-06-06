@@ -85,11 +85,10 @@ class SetOfParticlesView(View):
 
     def lanchNapariForParticles(self, particles: fluoobj.SetOfParticles):
         filenames = [p.getFileName() for p in particles]
-        args = " ".join(filenames)
         fullProgram = Plugin.getFullProgram(
             Plugin.getProgram([VISUALISATION_MODULE, "particles"])
         )
-        runJob(None, fullProgram, args, env=Plugin.getEnviron())
+        runJob(None, fullProgram, filenames, env=Plugin.getEnviron())
 
 
 ###########
@@ -113,11 +112,8 @@ class ImageView(View):
 
     @staticmethod
     def launchNapari(path: Union[str, List[str]]):
-        if type(path) is str:
-            path = [path]
-        path = list(map(lambda x: '"' + x + '"', path))
         fullProgram = Plugin.getFullProgram(Plugin.getNapariProgram())
-        runJob(None, fullProgram, " ".join(path), env=Plugin.getEnviron())
+        runJob(None, fullProgram, path, env=Plugin.getEnviron())
 
 
 ########################
@@ -219,8 +215,7 @@ class SetOfCoordinates3DDialog(ToolbarListDialog):
         path = im.getFileName()
         csv_path = self._protocol._getExtraPath("coords.csv")
         save_coordinates3D(coords_im, csv_path)
-        args = " ".join([path, "--coords", csv_path])
         fullProgram = Plugin.getFullProgram(
             Plugin.getProgram([VISUALISATION_MODULE, "coords"])
         )
-        runJob(None, fullProgram, args, env=Plugin.getEnviron())
+        runJob(None, fullProgram, [path, "--coords", csv_path], env=Plugin.getEnviron())

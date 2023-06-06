@@ -118,7 +118,7 @@ class PickingDialog(ToolbarListDialog):
         from spfluo.constants import MANUAL_PICKING_MODULE
 
         path, csv_path = self._protocol.getCsvPath(im)
-        args = " ".join([path, csv_path, f"--size {self.size}"])
+        args = [path, csv_path, "--size", f"{self.size}"]
         Plugin.runSPFluo(self._protocol, Plugin.getProgram(MANUAL_PICKING_MODULE), args)
 
 

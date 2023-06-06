@@ -189,14 +189,13 @@ class ProtSPFluoAbInitio(Protocol, ProtFluoBase):
             raise RuntimeError("Input Particles don't have a voxel size.")
 
         input_paths = particles_paths + [self.psfPath]
-        args = ["-f isotropic_resample"]
+        args = ["-f", "isotropic_resample"]
         args += ["-i"] + input_paths
         folder_isotropic = os.path.abspath(self._getExtraPath("isotropic"))
         if not os.path.exists(folder_isotropic):
             os.makedirs(folder_isotropic, exist_ok=True)
-        args += [f"-o {folder_isotropic}"]
-        args += [f"--spacing {vs[1]} {vs[0]} {vs[0]}"]
-        args = " ".join(args)
+        args += ["-o", f"{folder_isotropic}"]
+        args += ["--spacing", f"{vs[1]}", f"{vs[0]}", f"{vs[0]}"]
         Plugin.runSPFluo(self, Plugin.getProgram(UTILS_MODULE), args=args)
 
         # Pad
@@ -208,11 +207,10 @@ class ProtSPFluoAbInitio(Protocol, ProtFluoBase):
         folder_resized = os.path.abspath(self._getExtraPath("isotropic_cropped"))
         if not os.path.exists(folder_resized):
             os.makedirs(folder_resized, exist_ok=True)
-        args = ["-f resize"]
+        args = ["-f", "resize"]
         args += ["-i"] + input_paths
-        args += [f"--size {max_dim}"]
-        args += [f"-o {folder_resized}"]
-        args = " ".join(args)
+        args += ["--size", f"{max_dim}"]
+        args += ["-o", f"{folder_resized}"]
         Plugin.runSPFluo(self, Plugin.getProgram(UTILS_MODULE), args=args)
 
         # Links
@@ -228,20 +226,17 @@ class ProtSPFluoAbInitio(Protocol, ProtFluoBase):
             os.link(os.path.join(folder_resized, os.path.basename(p)), p)
 
     def reconstructionStep(self):
-        args = [
-            f"--particles_dir {self.particlesDir}",
-            f"--psf_path {self.psfPath}",
-            f"--output_dir {self.outputDir}",
-            f"--N_iter_max {self.numIterMax.get()}",
-            f"--lr {self.lr.get()}",
-            f"--N_axes {self.N_axes.get()}",
-            f"--N_rot {self.N_rot.get()}",
-        ]
+        args = ["--particles_dir", f"{self.particlesDir}"]
+        args += ["--psf_path", f"{self.psfPath}"]
+        args += ["--output_dir", f"{self.outputDir}"]
+        args += ["--N_iter_max", f"{self.numIterMax.get()}"]
+        args += ["--lr", f"{self.lr.get()}"]
+        args += ["--N_axes", f"{self.N_axes.get()}"]
+        args += ["--N_rot", f"{self.N_rot.get()}"]
         gpu = self._GPU_libraries[self.gpu.get()]
         if gpu != "no":
-            args += [f"--gpu {gpu}"]
-            args += ["--interp_order 1"]
-        args = " ".join(args)
+            args += ["--gpu", gpu]
+            args += ["--interp_order", str(1)]
         print("Launching reconstruction")
         Plugin.runSPFluo(self, Plugin.getProgram(AB_INITIO_MODULE), args=args)
         os.link(
@@ -344,12 +339,9 @@ class ProtSPFluoParticleAverage(Protocol):
             pickle.dump(matrices, f)
 
     def launchStep(self):
-        args = [
-            f"--particles_dir {self.particlesDir}",
-            f"--transformations_path {self._getExtraPath('trans_mat.pickle')}",
-            f"--average_path {self._getExtraPath('average.tif')}",
-        ]
-        args = " ".join(args)
+        args = ["--particles_dir", f"{self.particlesDir}"]
+        args += ["--transformations_path", f"{self._getExtraPath('trans_mat.pickle')}"]
+        args += ["--average_path", f"{self._getExtraPath('average.tif')}"]
         Plugin.runSPFluo(
             self, "python -m spfluo.ab_initio_reconstruction.tests", args=args
         )

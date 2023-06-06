@@ -104,42 +104,39 @@ class ProtSPFluoPickingPredict(ProtFluoPicking):
         checkpoint_path = os.path.abspath(
             self.trainRun._getExtraPath("picking", "checkpoint.pt")
         )
-        args = [
-            "--stages predict",
-            f"--checkpoint {checkpoint_path}",
-            f"--batch_size {self.batch_size.get()}",
-            f"--testdir {self.test_dir}",
-            f"--output_dir {self.output_dir}",
-            f"--patch_size {self.trainRun.inputCoordinates.get().getBoxSize()}",
-            f"--stride {self.stride.get()}",
-            "--extension tif",
-        ]
+        ps = self.trainRun.inputCoordinates.get().getBoxSize()
+        args = ["--stages", "predict"]
+        args += ["--checkpoint", f"{checkpoint_path}"]
+        args += ["--batch_size", f"{self.batch_size.get()}"]
+        args += ["--testdir", f"{self.test_dir}"]
+        args += ["--output_dir", "{self.output_dir}"]
+        args += ["--patch_size", f"{ps}"]
+        args += ["--stride", f"{self.stride.get()}"]
+        args += ["--extension", "tif"]
         if self.trainRun.pu.get():
             args += ["--predict_on_u_mask"]
-        args = " ".join(args)
         Plugin.runSPFluo(self, Plugin.getProgram(PICKING_MODULE), args=args)
 
     def postprocessStep(self):
         checkpoint_path = os.path.abspath(
             self.trainRun._getExtraPath("picking", "checkpoint.pt")
         )
-        args = [
-            "--stages postprocess",
-            f"--predictions {self._getExtraPath('picking', 'predictions.pickle')}",
-            f"--checkpoint {checkpoint_path}",
-            f"--testdir {self.test_dir}",
-            f"--output_dir {self.output_dir}",
-            f"--stride {self.stride.get()}",
-            "--extension tif",
-            "--iterative",
-        ]
+        predictions_path = self._getExtraPath("picking", "predictions.pickle")
+        args = ["--stages", "postprocess"]
+        args += ["--predictions", f"{predictions_path}"]
+        args += ["--checkpoint", f"{checkpoint_path}"]
+        args += ["--testdir", f"{self.test_dir}"]
+        args += ["--output_dir", f"{self.output_dir}"]
+        args += ["--stride", f"{self.stride.get()}"]
+        args += ["--extension", "tif"]
+        args += ["--iterative"]
         if self.patchSize.get():
-            args += (f"--patch_size {self.patchSize.get()}",)
+            args += ["--patch_size", f"{self.patchSize.get()}"]
         else:
-            args += (
-                f"--patch_size {self.trainRun.inputCoordinates.get().getBoxSize()}",
-            )
-        args = " ".join(args)
+            args += [
+                "--patch_size",
+                f"{self.trainRun.inputCoordinates.get().getBoxSize()}",
+            ]
         Plugin.runSPFluo(self, Plugin.getProgram(PICKING_MODULE), args=args)
 
     def createOuputStep(self):

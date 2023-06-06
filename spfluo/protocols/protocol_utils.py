@@ -63,12 +63,11 @@ class ProtSPFluoUtils(Protocol, ProtFluoBase):
             self.input_images.append(abspath(image.getFileName()))
 
     def functionStep(self):
-        args = ["--input", " ".join(self.input_images), "--output", self.output_dir]
+        args = ["--input", self.input_images, "--output", self.output_dir]
         args += ["--function", self.FUNCTION_CHOICES[self.function.get()]]
         if self.FUNCTION_CHOICES[self.function.get()] == "resample":
             args += ["--factor", str(self.factor.get())]
 
-        args = " ".join(args)
         Plugin.runSPFluo(self, Plugin.getProgram(UTILS_MODULE), args=args)
 
     def outputStep(self):
