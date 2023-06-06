@@ -173,7 +173,8 @@ class ProtSPFluoPickingTrain(Protocol):
             im_newPath = os.path.join(self.rootDir, im_name + ".tif")
             if ext != ".tif" and ext != ".tiff":
                 raise NotImplementedError(
-                    f"Found ext {ext} in particles: {im_path}. Only tiff file are supported."
+                    f"Found ext {ext} in particles: {im_path}. "
+                    "Only tiff file are supported."
                 )  # FIXME: allow formats accepted by AICSImageio
             else:
                 if not os.path.exists(im_newPath):
@@ -192,7 +193,8 @@ class ProtSPFluoPickingTrain(Protocol):
             annotations.append((coord.getFluoImage().getImgId() + ".tif", i, x, y, z))
 
         print(
-            f"Found {len(annotations)} annotations in SetOfCoordinates created at {inputCoordinates.getObjCreationAsDate()}"
+            f"Found {len(annotations)} annotations in SetOfCoordinates "
+            f"created at {inputCoordinates.getObjCreationAsDate()}"
         )
         random.shuffle(annotations)
         i = int(self.train_val_split.get() * len(annotations))

@@ -165,7 +165,8 @@ class ProtSPFluoAbInitio(Protocol, ProtFluoBase):
             else:
                 if ext != ".tif" and ext != ".tiff":
                     raise NotImplementedError(
-                        f"Found ext {ext} in particles: {im_path}. Only tiff file are supported."
+                        f"Found ext {ext} in particles: {im_path}."
+                        "Only tiff file are supported."
                     )  # FIXME: allow formats accepted by AICSImageio
                 else:
                     os.link(im_path, im_newPath)
@@ -176,7 +177,8 @@ class ProtSPFluoAbInitio(Protocol, ProtFluoBase):
         ext = os.path.splitext(psf_path)[1]
         if ext != ".tif" and ext != ".tiff":
             raise NotImplementedError(
-                f"Found ext {ext} in particles: {im_path}. Only tiff file are supported."
+                f"Found ext {ext} in particles: {im_path}."
+                "Only tiff file are supported."
             )
         else:
             os.link(psf_path, self.psfPath)
@@ -329,7 +331,8 @@ class ProtSPFluoParticleAverage(Protocol):
             im_newPath = os.path.join(self.particlesDir, im_name + ".tif")
             if ext != ".tif" and ext != ".tiff":
                 raise NotImplementedError(
-                    f"Found ext {ext} in particles: {im_path}. Only tiff file are supported."
+                    f"Found ext {ext} in particles: {im_path}. "
+                    "Only tiff file are supported."
                 )
             else:
                 os.link(im_path, im_newPath)

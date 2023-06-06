@@ -37,7 +37,8 @@ def updateSetOfParticles(
     outputSetOfParticles: SetOfParticles,
     particlesParams: Dict,
 ) -> None:
-    """Update a set of particles from a template and copy attributes coverage/score/transform"""
+    """Update a set of particles from a template
+    and copy attributes coverage/score/transform"""
 
     def updateParticle(particle: Particle, index: int):
         particleParams = particlesParams.get(index)

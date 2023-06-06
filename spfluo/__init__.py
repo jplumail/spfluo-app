@@ -86,7 +86,11 @@ class Plugin(plugin.Plugin):
 
     @classmethod
     def getFullProgram(cls, program):
-        return f"{cls.getCondaActivationCmd().replace('&&','')} && {SPFLUO_ACTIVATION_CMD} && {program}"
+        return (
+            f"{cls.getCondaActivationCmd().replace('&&','')}"
+            f"&& {SPFLUO_ACTIVATION_CMD}"
+            f"&& {program}"
+        )
 
     @classmethod
     def runSPFluo(cls, protocol: Protocol, program, args, cwd=None, useCpu=False):
@@ -134,7 +138,8 @@ class Plugin(plugin.Plugin):
         installCmd.append("mv SPFluo_stage_reconstruction_symmetryC spfluo")
         installCmd.append("cd spfluo && pip install .")
 
-        # Temporary solution until this https://github.com/AllenCellModeling/aicsimageio/issues/495 is fixed
+        # Temporary solution until
+        # https://github.com/AllenCellModeling/aicsimageio/issues/495 is fixed
         installCmd.append('pip install "napari-aicsimageio"')
         installCmd.append('pip install "tifffile>=2023.3.15"')
 

@@ -1,7 +1,15 @@
 import math
 from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple, Union
 import typing
-from pyworkflow.object import Integer, String, Pointer, CsvList, Object, Scalar, Set  # type: ignore
+from pyworkflow.object import (
+    Integer,
+    String,
+    Pointer,
+    CsvList,
+    Object,
+    Scalar,
+    Set,
+)  # type: ignore
 import pyworkflow.utils as pwutils  # type: ignore
 
 import os
@@ -117,7 +125,8 @@ class Transform(FluoObject):
         m[3, 3] = 1.0
 
     def scaleShifts(self, factor: float) -> None:
-        # By default Scipion uses a coordinate system associated with the volume rather than the projection
+        # By default Scipion uses a coordinate system associated
+        # with the volume rather than the projection
         m = self.getMatrix()
         m[:3, 3] *= factor
 
@@ -193,7 +202,8 @@ class Transform(FluoObject):
                 cls.ROT_Z_90_COUNTERCLOCKWISE,
             ]
             raise Exception(
-                "Introduced Transformation type is not recognized.\nAdmitted values are\n"
+                "Introduced Transformation type is not recognized.\n"
+                "Admitted values are\n"
                 "%s" % " ".join(TRANSFORMATION_FACTORY_TYPES)
             )
 
@@ -238,7 +248,8 @@ class ImageDim(CsvList, FluoObject):
                     self[:] = dims
             else:
                 raise Exception(
-                    f"Dimensions must be a tuple of int, got {dims} of type {type(dims)}"
+                    "Dimensions must be a tuple of int, "
+                    f"got {dims} of type {type(dims)}"
                 )
         else:
             self.clear()
@@ -476,7 +487,11 @@ class Image(FluoObject):
 
     def __str__(self) -> str:
         """String representation of an Image."""
-        return f"{self.getClassName()} ({str(self._imageDim)}, {str(self._voxelSize)} nm/px, {str(self._num_channels)} channel(s)))"
+        return (
+            f"{self.getClassName()} ({str(self._imageDim)}, "
+            f"{str(self._voxelSize)} nm/px, "
+            f"{str(self._num_channels)} channel(s)))"
+        )
 
     def getFiles(self) -> set:
         return set([self.getFileName()])
@@ -574,7 +589,6 @@ class Coordinate3D(FluoObject):
     def setMatrix(
         self, matrix: NDArray[np.float64], convention: Optional[str] = None
     ) -> None:
-        # self._eulerMatrix.setMatrix(convertMatrix(matrix, direction=const.SET, convention=convention))
         self._transform.setMatrix(matrix)
 
     def getMatrix(self, convention: Optional[str] = None) -> NDArray[np.float64]:
@@ -628,14 +642,23 @@ class Coordinate3D(FluoObject):
         return self._groupId is not None
 
     def __str__(self) -> str:
-        return f"Coordinate3D: <{str(self._imagePointer)}, {self._imgId}, {self._groupId}, {self._transform}>"
+        return (
+            f"Coordinate3D: "
+            f"<{str(self._imagePointer)}, "
+            f"{self._imgId}, "
+            f"{self._groupId}, "
+            f"{self._transform}>"
+        )
 
 
 class Particle(FluoImage):
-    """The coordinate associated to each particle is not scaled. To do that, the coordinates and the particles
-    voxel sizes should be compared (because of how the extraction protocol works). But when shifts are applied to
-    the coordinates, it has to be considered that if we're operating with coordinates coming from particles, those
-    shifts will be scaled, but if the coordinates come from coordinates, they won't be.
+    """The coordinate associated to each particle is not scaled.
+    To do that, the coordinates and the particles voxel sizes should
+    be compared (because of how the extraction protocol works).
+    But when shifts are applied to the coordinates, it has to be considered
+    that if we're operating with coordinates coming from particles,
+    those shifts will be scaled, but if the coordinates come from coordinates,
+    they won't be.
     """
 
     IMAGE_NAME_FIELD = "_imageName"
@@ -643,7 +666,8 @@ class Particle(FluoImage):
 
     def __init__(self, **kwargs) -> None:
         FluoImage.__init__(self, **kwargs)
-        # This coordinate is NOT SCALED. To do that, the coordinates and subtomograms voxel sizes
+        # This coordinate is NOT SCALED.
+        # To do that, the coordinates and subtomograms voxel sizes
         # should be compared (because of how the extraction protocol works)
         self._coordinate: Optional[Coordinate3D] = None
         self._imageName: String = String()
@@ -655,8 +679,9 @@ class Particle(FluoImage):
         self._coordinate = coordinate
 
     def getCoordinate3D(self) -> Union[Coordinate3D, None]:
-        """Since the object Coordinate3D needs a volume, use the information stored in the
-        SubTomogram to reconstruct the corresponding Tomogram associated to its Coordinate3D
+        """Since the object Coordinate3D needs a volume,
+        use the information stored in the SubTomogram to
+        reconstruct the corresponding Tomogram associated to its Coordinate3D
         """
         return self._coordinate
 
@@ -843,7 +868,8 @@ class SetOfImages(FluoSet):
         elif (vs is not None) and (im_vs is not None):
             if vs != im_vs:
                 raise ValueError(
-                    f"{image} has different voxel size than {self}, found {vs} and {im_vs}"
+                    f"{image} has different voxel size than {self}, "
+                    f"found {vs} and {im_vs}"
                 )
         elif (vs is None) and (im_vs is not None):
             self.setVoxelSize(im_vs)
@@ -1013,7 +1039,8 @@ class SetOfFluoImages(SetOfImages):
         if image.hasPSF() and self.hasPSF():
             if self._psf != image.getPSF():
                 raise ValueError(
-                    f"Image {image} PSF does not match with {self}'s PSF, found {image.getPSF()} and {self._psf}!"
+                    f"Image {image} PSF does not match with {self}'s PSF, "
+                    f"found {image.getPSF()} and {self._psf}!"
                 )
         elif image.hasPSF() and not self.hasPSF():
             self._psf = image.getPSF()
@@ -1070,18 +1097,20 @@ class SetOfCoordinates3D(FluoSet):
         If image=None, the iteration is performed over the whole
         set of coordinates.
 
-        IMPORTANT NOTE: During the storing process in the database, Coordinates3D will lose their
-        pointer to ther associated FluoImage. This method overcomes this problem by retrieving and
+        IMPORTANT NOTE: During the storing process in the database,
+        Coordinates3D will lose their pointer to ther associated FluoImage.
+        This method overcomes this problem by retrieving and
         relinking the FluoImage as if nothing would ever happened.
 
-        It is recommended to use this method when working with Coordinates3D, being the common
-        "iterItems" deprecated for this set.
+        It is recommended to use this method when working with Coordinates3D,
+        being the common "iterItems" deprecated for this set.
 
         Example:
 
             >>> for coord in coordSet.iterItems()
             >>>     print(coord.getVolName())
-            >>>     Error: Tomogram associated to Coordinate3D is NoneType (pointer lost)
+            >>>     Error: Tomogram associated to Coordinate3D is NoneType
+            >>>            (pointer lost)
             >>> for coord in coordSet.iterCoordinates()
             >>>     print(coord.getVolName())
             >>>     '/path/to/Tomo.file' retrieved correctly
@@ -1196,8 +1225,8 @@ class SetOfCoordinates3D(FluoSet):
         return coord
 
     def getPrecedentsInvolved(self) -> dict:
-        """Returns a list with only the images involved in the particles. May differ when
-        subsets are done."""
+        """Returns a list with only the images involved in the particles.
+        May differ when subsets are done."""
 
         uniqueTomos = self.aggregate(["count"], "_imgId", ["_imgId"])
 
@@ -1260,7 +1289,8 @@ class SetOfParticles(SetOfImages):
     def iterCoordinates(
         self, image: Optional[FluoImage] = None, orderBy: str = "id"
     ) -> Iterator[Union[Coordinate3D, None]]:
-        """Mimics SetOfCoordinates.iterCoordinates so can be passed to viewers or protocols transparently"""
+        """Mimics SetOfCoordinates.iterCoordinates
+        so can be passed to viewers or protocols transparently"""
         if self.hasCoordinates3D():
             for particle in self.iterParticles(image, orderBy=orderBy):
                 coord = particle.getCoordinate3D()
@@ -1273,22 +1303,25 @@ class SetOfParticles(SetOfImages):
     def iterParticles(
         self, image: Optional[FluoImage] = None, orderBy: str = "id"
     ) -> Iterator[Particle]:
-        """Iterates over the particles, enriching them with the related image if apply so coordinate getters and setters will work
+        """Iterates over the particles, enriching them with the related image
+        if apply so coordinate getters and setters will work
         If image=None, the iteration is performed over the whole
         set of particles.
 
-        IMPORTANT NOTE: During the storing process in the database, Coordinates3D will lose their
-        pointer to the associated Image. This method overcomes this problem by retrieving and
+        IMPORTANT NOTE: During the storing process in the database,
+        Coordinates3D will lose their pointer to the associated Image.
+        This method overcomes this problem by retrieving and
         relinking the Image as if nothing would ever happend.
 
-        It is recommended to use this method when working with subtomograms, anytime you want to properly use
-        its coordinate3D attached object.
+        It is recommended to use this method when working with subtomograms,
+        anytime you want to properly use its coordinate3D attached object.
 
         Example:
 
             >>> for subtomo in subtomos.iterItems()
             >>>     print(subtomo.getCoordinate3D().getX(SCIPION))
-            >>>     Error: Tomogram associated to Coordinate3D is NoneType (pointer lost)
+            >>>     Error: Tomogram associated to Coordinate3D is NoneType
+            >>>            (pointer lost)
             >>> for subtomo in subtomos.iterSubtomos()
             >>>     print(subtomo.getCoordinate3D().getX(SCIPION))
             >>>     330 retrieved correctly
@@ -1313,7 +1346,8 @@ class SetOfParticles(SetOfImages):
 
     def getFluoImage(self, particle: Particle) -> Union[FluoImage, None]:
         """returns and caches the tomogram related with a subtomogram.
-        If the subtomograms were imported and not associated to any tomogram returns None.
+        If the subtomograms were imported and not associated to any tomogram,
+        it returns None.
         """
 
         # Tomogram is stored with the coordinate data
@@ -1331,7 +1365,9 @@ class SetOfParticles(SetOfImages):
 
         # If tsId is not cached, save both identifiers.
         if imgId not in self._images:
-            img = self.getCoordinates3D().getPrecedents()[{FluoImage.IMG_ID_FIELD: imgId}]  # type: ignore
+            img = self.getCoordinates3D().getPrecedents()[
+                {FluoImage.IMG_ID_FIELD: imgId}
+            ]  # type: ignore
             self._images[imgId] = img
             return img
         else:
@@ -1344,8 +1380,8 @@ class SetOfParticles(SetOfImages):
         # self._images = typing.cast(Dict[str, FluoImage], self._images)
 
     def getFluoImages(self) -> Dict[str, FluoImage]:
-        """Returns a list  with only the tomograms involved in the subtomograms. May differ when
-        subsets are done."""
+        """Returns a list  with only the tomograms involved in the subtomograms.
+        May differ when subsets are done."""
 
         imageId_attr = Particle.COORD_VOL_NAME_FIELD
         if self._images is None:
@@ -1354,7 +1390,9 @@ class SetOfParticles(SetOfImages):
             uniqueImages = self.aggregate(["count"], imageId_attr, [imageId_attr])
             for row in uniqueImages:
                 imgId = row[imageId_attr]
-                self._images[imgId] = self.getCoordinates3D().getPrecedents()[{FluoImage.IMG_ID_FIELD: imgId}]  # type: ignore
+                self._images[imgId] = self.getCoordinates3D().getPrecedents()[
+                    {FluoImage.IMG_ID_FIELD: imgId}
+                ]  # type: ignore
 
         return self._images
 
@@ -1366,7 +1404,8 @@ class SetOfParticles(SetOfImages):
         if dim is not None:
             if dim != im_dim:
                 raise ValueError(
-                    f"{particle} has different dimension than {self}, found {dim} and {im_dim}"
+                    f"{particle} has different dimension than {self}, "
+                    f"found {dim} and {im_dim}"
                 )
         else:
             self.setDim(im_dim)

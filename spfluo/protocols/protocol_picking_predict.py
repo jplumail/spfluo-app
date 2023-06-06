@@ -39,9 +39,6 @@ class ProtSPFluoPickingPredict(ProtFluoPicking):
             important=True,
             help="Select the train run that contains the trained PyTorch model.",
         )
-        # form.addParam('inputImages', params.PointerParam, pointerClass='SetOfTomograms',
-        #              label="Images", important=True,
-        #              help='Select the input images.')
         form.addParam(
             "patchSize",
             params.StringParam,
@@ -53,7 +50,9 @@ class ProtSPFluoPickingPredict(ProtFluoPicking):
             params.IntParam,
             label="Stride",
             default=12,
-            help="Stride of the sliding window. Prefere something around patch_size/2. Small values might cause Out Of Memory errors !",
+            help="Stride of the sliding window. "
+            "Prefere something around patch_size/2."
+            "Small values might cause Out Of Memory errors !",
         )
         form.addParam(
             "batch_size",
@@ -93,15 +92,19 @@ class ProtSPFluoPickingPredict(ProtFluoPicking):
             im_newPath = os.path.join(self.test_dir, im_name + ".tif")
             if ext != ".tif" and ext != ".tiff":
                 raise NotImplementedError(
-                    f"Found ext {ext} in particles: {im_path}. Only tiff file are supported."
+                    f"Found ext {ext} in particles: {im_path}."
+                    "Only tiff file are supported."
                 )  # FIXME: allow formats accepted by AICSImageio
             else:
                 os.link(im_path, im_newPath)
 
     def predictStep(self):
+        checkpoint_path = os.path.abspath(
+            self.trainRun._getExtraPath("picking", "checkpoint.pt")
+        )
         args = [
             "--stages predict",
-            f"--checkpoint {os.path.abspath(self.trainRun._getExtraPath('picking', 'checkpoint.pt'))}",
+            f"--checkpoint {checkpoint_path}",
             f"--batch_size {self.batch_size.get()}",
             f"--testdir {self.test_dir}",
             f"--output_dir {self.output_dir}",
@@ -115,10 +118,13 @@ class ProtSPFluoPickingPredict(ProtFluoPicking):
         Plugin.runSPFluo(self, Plugin.getProgram(PICKING_MODULE), args=args)
 
     def postprocessStep(self):
+        checkpoint_path = os.path.abspath(
+            self.trainRun._getExtraPath("picking", "checkpoint.pt")
+        )
         args = [
             "--stages postprocess",
             f"--predictions {self._getExtraPath('picking', 'predictions.pickle')}",
-            f"--checkpoint {os.path.abspath(self.trainRun._getExtraPath('picking', 'checkpoint.pt'))}",
+            f"--checkpoint {checkpoint_path}",
             f"--testdir {self.test_dir}",
             f"--output_dir {self.output_dir}",
             f"--stride {self.stride.get()}",

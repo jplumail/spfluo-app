@@ -75,25 +75,6 @@ class ProtFluoBase:
     def _createSetOfParticles(self, suffix: str = "") -> spobj.SetOfParticles:
         return self._createSet(spobj.SetOfParticles, "particles%s.sqlite", suffix)
 
-    # def _createSetOfAverageSubTomograms(self, suffix='')-> spobj.SetOfAverageSubTomograms:
-    #    return self._createSet(spobj.SetOfAverageSubTomograms,
-    #                           'avgSubtomograms%s.sqlite', suffix)
-
-    # def _createSetOfClassesSubTomograms(self, subTomograms, suffix='')->spobj.SetOfClassesSubTomograms:
-    #    classes = self._createSet(spobj.SetOfClassesSubTomograms,
-    #                              'subtomogramClasses%s.sqlite', suffix)
-    #    classes.setImages(subTomograms)
-    #    return classes
-
-    # def _createSetOfLandmarkModels(self, suffix='') -> spobj.SetOfLandmarkModels:
-    #    return self._createSet(spobj.SetOfLandmarkModels, 'setOfLandmarks%s.sqlite', suffix)
-
-    # def _createSetOfMeshes(self, volSet, suffix='')->spobj.SetOfMeshes:
-    #    meshSet = self._createSet(spobj.SetOfMeshes,
-    #                              'meshes%s.sqlite', suffix)
-    #    meshSet.setPrecedents(volSet)
-    #    return meshSet
-
     def _getOutputSuffix(self, cls: type) -> str:
         """Get the name to be used for a new output.
         For example: output3DCoordinates7.

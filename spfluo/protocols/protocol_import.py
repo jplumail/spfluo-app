@@ -130,7 +130,8 @@ class ProtImportFluoImages(ProtFluoImportFiles):
         if self._hasOutput():
             vs_xy, vs_z = self.vs_xy.get(), self.vs_z.get()
             methods.append(
-                f"{self._getTomMessage()} imported with a voxel size *{vs_xy:.2f}x{vs_z:.2f}* (nm/px)"
+                f"{self._getTomMessage()} imported with a voxel size "
+                f"*{vs_xy:.2f}x{vs_z:.2f}* (nm/px)"
             )
         return methods
 
@@ -260,7 +261,8 @@ class ProtImportSetOfParticles(ProtFluoImportFiles):
         if self._hasOutput():
             vs_xy, vs_z = self.vs_xy.get(), self.vs_z.get()
             methods.append(
-                f"{self._getTomMessage()} imported with a voxel size *{vs_xy:.2f}x{vs_z:.2f}* (nm/px)"
+                f"{self._getTomMessage()} imported with a voxel size "
+                f"*{vs_xy:.2f}x{vs_z:.2f}* (nm/px)"
             )
         return methods
 
@@ -383,7 +385,8 @@ class ProtImportFluoImage(ProtFluoImportFile):
         if self._hasOutput():
             vs_xy, vs_z = self.vs_xy.get(), self.vs_z.get()
             methods.append(
-                f"{self._getTomMessage()} imported with a voxel size *{vs_xy:.2f}x{vs_z:.2f}* (nm/px)"
+                f"{self._getTomMessage()} imported with a voxel size "
+                f"*{vs_xy:.2f}x{vs_z:.2f}* (nm/px)"
             )
         return methods
 
@@ -498,7 +501,8 @@ class ProtImportPSFModel(ProtFluoImportFile):
         if self._hasOutput():
             vs_xy, vs_z = self.vs_xy.get(), self.vs_z.get()
             methods.append(
-                f"{self._getTomMessage()} imported with a voxel size *{vs_xy:.2f}x{vs_z:.2f}* (nm/px)"
+                f"{self._getTomMessage()} imported with a voxel size "
+                f"*{vs_xy:.2f}x{vs_z:.2f}* (nm/px)"
             )
         return methods
 
