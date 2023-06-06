@@ -9,11 +9,9 @@ from pyworkflow import BETA
 from pyworkflow import utils as pwutils
 from pyworkflow.utils.path import createAbsLink, removeExt
 
-from spfluo.objects import Transform
+from spfluo.objects import FluoImage, SetOfFluoImages, Transform
 from spfluo.objects.data import Particle, PSFModel, SetOfParticles
-
-from ..objects import FluoImage, SetOfFluoImages
-from .protocol_base import ProtFluoImportFile, ProtFluoImportFiles
+from spfluo.protocols.protocol_base import ProtFluoImportFile, ProtFluoImportFiles
 
 
 def _getUniqueFileName(pattern, filename, filePaths=None):

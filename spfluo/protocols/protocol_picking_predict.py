@@ -15,9 +15,8 @@ from spfluo.objects.data import (
     SetOfCoordinates3D,
     SetOfFluoImages,
 )
+from spfluo.protocols.protocol_base import ProtFluoPicking
 from spfluo.protocols.protocol_picking_train import ProtSPFluoPickingTrain
-
-from .protocol_base import ProtFluoPicking
 
 
 class ProtSPFluoPickingPredict(ProtFluoPicking):

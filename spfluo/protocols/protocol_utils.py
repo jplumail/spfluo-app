@@ -8,8 +8,7 @@ from pyworkflow.protocol.params import EnumParam, FloatParam, PointerParam
 from spfluo import Plugin
 from spfluo.constants import UTILS_MODULE
 from spfluo.objects.data import FluoImage, SetOfFluoImages, Transform
-
-from .protocol_base import ProtFluoBase
+from spfluo.protocols.protocol_base import ProtFluoBase
 
 
 class ProtSPFluoUtils(Protocol, ProtFluoBase):

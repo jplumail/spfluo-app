@@ -9,9 +9,8 @@ from pyworkflow.utils.properties import Message
 
 from spfluo.convert import read_coordinate3D
 from spfluo.objects.data import FluoImage, SetOfCoordinates3D, SetOfFluoImages
+from spfluo.protocols.protocol_base import ProtFluoPicking
 from spfluo.viewers.view_picking import PickingView
-
-from .protocol_base import ProtFluoPicking
 
 
 class ProtSPFluoPickingNapari(ProtFluoPicking):

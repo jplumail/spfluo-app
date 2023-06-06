@@ -45,8 +45,7 @@ from spfluo.constants import AB_INITIO_MODULE, UTILS_MODULE
 from spfluo.convert import getLastParticlesParams, updateSetOfParticles
 from spfluo.objects import AverageParticle, SetOfParticles
 from spfluo.objects.data import Particle, PSFModel
-
-from .protocol_base import ProtFluoBase
+from spfluo.protocols.protocol_base import ProtFluoBase
 
 
 class outputs(Enum):

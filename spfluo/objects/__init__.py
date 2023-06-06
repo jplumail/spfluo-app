@@ -1,4 +1,4 @@
-from .data import (
+from spfluo.objects.data import (
     AverageParticle,
     Coordinate3D,
     FluoImage,

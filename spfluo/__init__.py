@@ -20,9 +20,7 @@ from pyworkflow.utils import getSubclasses
 from pyworkflow.viewer import Viewer
 from pyworkflow.wizard import Wizard
 
-from spfluo.objects import FluoObject
-
-from .constants import (
+from spfluo.constants import (
     CUDA_LIB_VAR,
     FLUO_ROOT_VAR,
     GITHUB_TOKEN,
@@ -33,6 +31,7 @@ from .constants import (
     SPFLUO_VERSION,
     getSPFluoEnvName,
 )
+from spfluo.objects import FluoObject
 
 _logo = "icon.png"
 _references = ["Fortun2017"]
