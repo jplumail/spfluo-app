@@ -9,6 +9,8 @@ from .data import (
     SetOfCoordinates3D,
     FluoImage,
     AverageParticle,
+    Image,
+    SetOfImages,
 )
 
 __all__ = [
@@ -22,4 +24,6 @@ __all__ = [
     SetOfCoordinates3D,
     FluoImage,
     AverageParticle,
+    Image,
+    SetOfImages,
 ]
