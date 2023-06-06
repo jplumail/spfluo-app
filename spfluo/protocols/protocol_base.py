@@ -105,7 +105,7 @@ class ProtFluoBase:
             suffix = attrName.replace(self.OUTPUT_PREFIX, "")
             try:
                 counter = int(suffix)
-            except:
+            except ValueError:
                 counter = 1  # when there is not number assume 1
             maxCounter = max(counter, maxCounter)
 
