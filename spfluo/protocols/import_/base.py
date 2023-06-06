@@ -1,13 +1,13 @@
-from pyworkflow.protocol import Protocol
-import pyworkflow.protocol.params as params
-from pyworkflow.protocol.params import Form
-import pyworkflow.utils as pwutils
-
-from typing import Callable, Iterator, List, Tuple, Union
 import os
 import re
-from glob import glob
 from datetime import datetime
+from glob import glob
+from typing import Callable, Iterator, List, Tuple, Union
+
+import pyworkflow.protocol.params as params
+import pyworkflow.utils as pwutils
+from pyworkflow.protocol import Protocol
+from pyworkflow.protocol.params import Form
 
 
 class ProtImport(Protocol):

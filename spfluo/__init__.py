@@ -11,15 +11,17 @@
 
 import os
 from typing import List, Optional, Union
+
+import pyworkflow as pw
 import pyworkflow.utils as pwutils
 from pyworkflow import plugin
-import pyworkflow as pw
+from pyworkflow.protocol import Protocol
 from pyworkflow.utils import getSubclasses
 from pyworkflow.viewer import Viewer
 from pyworkflow.wizard import Wizard
-from pyworkflow.protocol import Protocol
 
 from spfluo.objects import FluoObject
+
 from .constants import (
     CUDA_LIB_VAR,
     FLUO_ROOT_VAR,

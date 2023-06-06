@@ -1,20 +1,23 @@
 import os
 import pickle
 from typing import Callable, Dict, Optional
+
 import numpy as np
-from pyworkflow import BETA
 import pyworkflow.object as pwobj
+from pyworkflow import BETA
 from pyworkflow.protocol import params
+
+from spfluo import Plugin
+from spfluo.constants import PICKING_MODULE, PICKING_WORKING_DIR
 from spfluo.objects.data import (
     Coordinate3D,
     FluoImage,
     SetOfCoordinates3D,
     SetOfFluoImages,
 )
-from .protocol_base import ProtFluoPicking
-from spfluo import Plugin
-from spfluo.constants import PICKING_WORKING_DIR, PICKING_MODULE
 from spfluo.protocols.protocol_picking_train import ProtSPFluoPickingTrain
+
+from .protocol_base import ProtFluoPicking
 
 
 class ProtSPFluoPickingPredict(ProtFluoPicking):

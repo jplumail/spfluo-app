@@ -31,21 +31,22 @@ Describe your python module here:
 This module will provide the traditional Hello world example
 """
 import os
-from enum import Enum
 import pickle
-from pyworkflow.protocol import Protocol, params, Form
-from pyworkflow import BETA
-import pyworkflow.object as pwobj
-from spfluo.objects import AverageParticle, SetOfParticles
-from spfluo.objects.data import PSFModel, Particle
-from .protocol_base import ProtFluoBase
-from aicsimageio.transforms import reshape_data
-from aicsimageio.aics_image import AICSImage
+from enum import Enum
 
+import pyworkflow.object as pwobj
+from aicsimageio.aics_image import AICSImage
+from aicsimageio.transforms import reshape_data
+from pyworkflow import BETA
+from pyworkflow.protocol import Form, Protocol, params
 
 from spfluo import Plugin
-from spfluo.constants import UTILS_MODULE, AB_INITIO_MODULE
+from spfluo.constants import AB_INITIO_MODULE, UTILS_MODULE
 from spfluo.convert import getLastParticlesParams, updateSetOfParticles
+from spfluo.objects import AverageParticle, SetOfParticles
+from spfluo.objects.data import Particle, PSFModel
+
+from .protocol_base import ProtFluoBase
 
 
 class outputs(Enum):

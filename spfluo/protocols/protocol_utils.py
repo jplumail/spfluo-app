@@ -1,14 +1,15 @@
-from spfluo import Plugin
-from spfluo.constants import UTILS_MODULE
-from spfluo.objects.data import FluoImage, SetOfFluoImages, Transform
-from .protocol_base import ProtFluoBase
+import os
+from os.path import abspath, basename, join
 
 from pyworkflow import BETA
 from pyworkflow.protocol import Form, Protocol
-from pyworkflow.protocol.params import PointerParam, EnumParam, FloatParam
+from pyworkflow.protocol.params import EnumParam, FloatParam, PointerParam
 
-import os
-from os.path import basename, abspath, join
+from spfluo import Plugin
+from spfluo.constants import UTILS_MODULE
+from spfluo.objects.data import FluoImage, SetOfFluoImages, Transform
+
+from .protocol_base import ProtFluoBase
 
 
 class ProtSPFluoUtils(Protocol, ProtFluoBase):

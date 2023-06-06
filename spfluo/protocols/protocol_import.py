@@ -1,19 +1,19 @@
 # coding=utf-8
 
 import os
-from os.path import abspath, basename
 import re
+from os.path import abspath, basename
 from typing import List, Optional, Tuple
 
-from spfluo.objects import Transform
 from pyworkflow import BETA
 from pyworkflow import utils as pwutils
 from pyworkflow.utils.path import createAbsLink, removeExt
 
-from spfluo.objects.data import PSFModel, Particle, SetOfParticles
+from spfluo.objects import Transform
+from spfluo.objects.data import Particle, PSFModel, SetOfParticles
 
-from .protocol_base import ProtFluoImportFile, ProtFluoImportFiles
 from ..objects import FluoImage, SetOfFluoImages
+from .protocol_base import ProtFluoImportFile, ProtFluoImportFiles
 
 
 def _getUniqueFileName(pattern, filename, filePaths=None):

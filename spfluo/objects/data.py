@@ -1,28 +1,28 @@
+import json
 import math
-from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple, Union
+import os
 import typing
+from typing import Any, Callable, Dict, Iterable, Iterator, List, Optional, Tuple, Union
+
+import numpy as np
+
+# type: ignore
+import pyworkflow.utils as pwutils  # type: ignore
+from aicsimageio import AICSImage
+from aicsimageio.types import ImageLike, PathLike
+from aicsimageio.writers.ome_tiff_writer import OmeTiffWriter
+from numpy.typing import NDArray
+from ome_types import OME
 from pyworkflow.object import (
-    Integer,
-    String,
-    Pointer,
     CsvList,
+    Integer,
     Object,
+    Pointer,
     Scalar,
     Set,
-)  # type: ignore
-import pyworkflow.utils as pwutils  # type: ignore
-
-import os
-import numpy as np
-from numpy.typing import NDArray
-import json
-
-from ome_types import OME
-from aicsimageio import AICSImage
-from aicsimageio.writers.ome_tiff_writer import OmeTiffWriter
-from aicsimageio.types import ImageLike, PathLike
+    String,
+)
 from scipy.ndimage import affine_transform  # type: ignore
-
 
 NO_INDEX = 0
 

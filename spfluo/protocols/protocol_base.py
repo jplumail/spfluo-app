@@ -24,21 +24,21 @@
 # *
 # **************************************************************************
 
+from typing import List, Type, TypeVar
+
 import pyworkflow as pw
+from pyworkflow.mapper.sqlite_db import SqliteDb
 from pyworkflow.object import Set
 from pyworkflow.protocol import Protocol
 from pyworkflow.protocol.params import (
-    PointerParam,
     FloatParam,
+    Form,
+    PointerParam,
 )
-from pyworkflow.mapper.sqlite_db import SqliteDb
 from pyworkflow.utils.properties import Message
-from pyworkflow.protocol.params import Form
 
 import spfluo.objects as spobj
-from spfluo.protocols.import_.base import ProtImportFiles, ProtImportFile, ProtImport
-
-from typing import List, TypeVar, Type
+from spfluo.protocols.import_.base import ProtImport, ProtImportFile, ProtImportFiles
 
 
 class ProtFluoBase:

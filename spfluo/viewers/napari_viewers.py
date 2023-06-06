@@ -1,19 +1,19 @@
-from spfluo import objects as fluoobj
+import os
+import threading
+from typing import List, Union
+
+from pyworkflow.gui.dialog import ToolbarListDialog
+from pyworkflow.gui.tree import TreeProvider
+from pyworkflow.protocol import Protocol
+from pyworkflow.utils.process import runJob
+from pyworkflow.viewer import DESKTOP_TKINTER, View, Viewer
+
 from spfluo import Plugin
+from spfluo import objects as fluoobj
 from spfluo.constants import VISUALISATION_MODULE
 from spfluo.convert import save_coordinates3D
 from spfluo.objects.data import FluoImage, SetOfCoordinates3D
 from spfluo.protocols.protocol_base import ProtFluoBase
-
-from pyworkflow.viewer import Viewer, View, DESKTOP_TKINTER
-from pyworkflow.gui.dialog import ToolbarListDialog
-from pyworkflow.gui.tree import TreeProvider
-from pyworkflow.utils.process import runJob
-from pyworkflow.protocol import Protocol
-
-import os
-import threading
-from typing import List, Union
 
 
 class NapariDataViewer(Viewer):

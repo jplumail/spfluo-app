@@ -1,4 +1,4 @@
-from pyworkflow.tests import BaseTest, setupTestProject, DataSet
+from pyworkflow.tests import BaseTest, DataSet, setupTestProject
 
 from spfluo.protocols.protocol_import import ProtImportFluoImages
 

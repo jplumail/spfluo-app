@@ -1,13 +1,13 @@
+import csv
+import glob
+import itertools
+import os
 from typing import Dict, Iterator, List, Tuple
-from spfluo.objects import SetOfParticles, Particle, Coordinate3D, Transform
 
 import numpy as np
 from scipy.spatial.transform import Rotation
-import itertools
-import csv
-import glob
-import os
 
+from spfluo.objects import Coordinate3D, Particle, SetOfParticles, Transform
 from spfluo.objects.data import SetOfCoordinates3D
 
 
