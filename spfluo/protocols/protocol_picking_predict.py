@@ -150,7 +150,6 @@ class ProtSPFluoPickingPredict(ProtFluoPicking):
         step_keys = preds[
             self.image_paths[setOfImages.getFirstItem().getBaseName()]
         ].keys()
-        coordSets: Dict[str, SetOfCoordinates3D] = {}
         for k in step_keys:
             if k != "raw":
                 coordSet = self._createSetOfCoordinates3D(setOfImages, suffix)
