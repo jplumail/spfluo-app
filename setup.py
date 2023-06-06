@@ -39,5 +39,5 @@ setup(
     package_data={  # Optional
         "spfluo": ["icon.png", "protocols.conf"],
     },
-    extra_require={"dev": ["black", "pre-commit"]},
+    extra_require={"dev": ["black", "pre-commit", "ruff"]},
 )
