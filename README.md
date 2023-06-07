@@ -1,4 +1,4 @@
-# SPFluo_stage_reconstruction_symmetryC
+# SP-Fluo
 
 This repository contains code for picking and single particle reconstruction in fluorescence imaging.
 
@@ -11,11 +11,11 @@ Pipeline :
 ## Installation
 
 ```bash
-git clone https://github.com/dfortun2/SPFluo_stage_reconstruction_symmetryC
+git clone https://github.com/jplumail/spfluo
 ```
 
 ```bash
-cd SPFluo_stage_reconstruction_symmetryC
+cd spfluo
 pip install .
 ```
 
