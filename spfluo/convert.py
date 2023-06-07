@@ -5,10 +5,14 @@ import os
 from typing import Dict, Iterator, List, Tuple
 
 import numpy as np
+from pwfluo.objects import (
+    Coordinate3D,
+    Particle,
+    SetOfCoordinates3D,
+    SetOfParticles,
+    Transform,
+)
 from scipy.spatial.transform import Rotation
-
-from spfluo.objects import Coordinate3D, Particle, SetOfParticles, Transform
-from spfluo.objects.data import SetOfCoordinates3D
 
 
 def getLastParticlesParams(folder):

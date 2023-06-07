@@ -33,13 +33,13 @@ This module will provide the traditional Hello world example
 import os
 import random
 
+from pwfluo.objects import SetOfCoordinates3D
 from pyworkflow import BETA
 from pyworkflow.protocol import Protocol, params
 
 from spfluo import Plugin
 from spfluo.constants import PICKING_MODULE, PICKING_WORKING_DIR
 from spfluo.convert import write_csv
-from spfluo.objects.data import SetOfCoordinates3D
 
 
 class ProtSPFluoPickingTrain(Protocol):

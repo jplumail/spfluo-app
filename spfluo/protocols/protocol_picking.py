@@ -2,14 +2,14 @@ import os
 from typing import Tuple
 
 import pyworkflow.object as pwobj
+from pwfluo.objects import FluoImage, SetOfCoordinates3D, SetOfFluoImages
+from pwfluo.protocols import ProtFluoPicking
 from pyworkflow import BETA
 from pyworkflow.gui.dialog import askYesNo
 from pyworkflow.protocol import Form
 from pyworkflow.utils.properties import Message
 
 from spfluo.convert import read_coordinate3D
-from spfluo.objects.data import FluoImage, SetOfCoordinates3D, SetOfFluoImages
-from spfluo.protocols.protocol_base import ProtFluoPicking
 from spfluo.viewers.view_picking import PickingView
 
 

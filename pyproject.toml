@@ -6,3 +6,4 @@ select = [
 
 [tool.ruff.isort]
 known-first-party = ["spfluo"]
+known-third-party = ["pyworflow", "pwfluo"]

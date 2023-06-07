@@ -1,18 +1,17 @@
 import os
 
 import numpy as np
-from pyworkflow import BETA
-from pyworkflow.protocol import Form, Protocol, params
-from scipy.ndimage import affine_transform
-
-from spfluo.objects.data import (
+from pwfluo.objects import (
     Coordinate3D,
     FluoImage,
     Particle,
     SetOfCoordinates3D,
     SetOfParticles,
 )
-from spfluo.protocols.protocol_base import ProtFluoBase
+from pwfluo.protocols import ProtFluoBase
+from pyworkflow import BETA
+from pyworkflow.protocol import Form, Protocol, params
+from scipy.ndimage import affine_transform
 
 
 class ProtSPFluoExtractParticles(Protocol, ProtFluoBase):

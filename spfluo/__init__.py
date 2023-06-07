@@ -14,6 +14,7 @@ from typing import List, Optional, Union
 
 import pyworkflow as pw
 import pyworkflow.utils as pwutils
+from pwfluo.objects import FluoObject
 from pyworkflow import plugin
 from pyworkflow.protocol import Protocol
 from pyworkflow.utils import getSubclasses
@@ -31,7 +32,6 @@ from spfluo.constants import (
     SPFLUO_VERSION,
     getSPFluoEnvName,
 )
-from spfluo.objects import FluoObject
 
 _logo = "icon.png"
 _references = ["Fortun2017"]

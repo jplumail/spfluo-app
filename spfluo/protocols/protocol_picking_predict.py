@@ -4,18 +4,18 @@ from typing import Callable, Dict, Optional
 
 import numpy as np
 import pyworkflow.object as pwobj
-from pyworkflow import BETA
-from pyworkflow.protocol import params
-
-from spfluo import Plugin
-from spfluo.constants import PICKING_MODULE, PICKING_WORKING_DIR
-from spfluo.objects.data import (
+from pwfluo.objects import (
     Coordinate3D,
     FluoImage,
     SetOfCoordinates3D,
     SetOfFluoImages,
 )
-from spfluo.protocols.protocol_base import ProtFluoPicking
+from pwfluo.protocols import ProtFluoPicking
+from pyworkflow import BETA
+from pyworkflow.protocol import params
+
+from spfluo import Plugin
+from spfluo.constants import PICKING_MODULE, PICKING_WORKING_DIR
 from spfluo.protocols.protocol_picking_train import ProtSPFluoPickingTrain
 
 

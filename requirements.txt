@@ -1,4 +1,5 @@
 scipion-pyworkflow
+scipion-fluo @ git+https://github.com/jplumail/scipion-fluo
 numpy
 scipy
 aicsimageio

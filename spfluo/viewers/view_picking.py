@@ -2,12 +2,11 @@ import os
 import threading
 from typing import List, Optional
 
+from pwfluo.objects import FluoImage
 from pyworkflow.gui.dialog import ToolbarListDialog
 from pyworkflow.gui.tree import TreeProvider
 from pyworkflow.protocol import Protocol
 from pyworkflow.viewer import View
-
-from spfluo.objects.data import FluoImage
 
 
 class PickingTreeProvider(TreeProvider):

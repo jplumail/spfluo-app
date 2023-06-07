@@ -2,6 +2,8 @@ import os
 import threading
 from typing import List, Union
 
+from pwfluo.objects import FluoImage, SetOfCoordinates3D
+from pwfluo.protocols import ProtFluoBase
 from pyworkflow.gui.dialog import ToolbarListDialog
 from pyworkflow.gui.tree import TreeProvider
 from pyworkflow.protocol import Protocol
@@ -12,8 +14,6 @@ from spfluo import Plugin
 from spfluo import objects as fluoobj
 from spfluo.constants import VISUALISATION_MODULE
 from spfluo.convert import save_coordinates3D
-from spfluo.objects.data import FluoImage, SetOfCoordinates3D
-from spfluo.protocols.protocol_base import ProtFluoBase
 
 
 class NapariDataViewer(Viewer):
