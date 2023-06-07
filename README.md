@@ -18,8 +18,3 @@ git clone https://github.com/jplumail/spfluo
 cd spfluo
 pip install .
 ```
-
-### To-Do
-
-- release on PyPI
-- separate download data and source code (use Pooch)
