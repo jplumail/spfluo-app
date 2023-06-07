@@ -2,6 +2,7 @@ import os
 import threading
 from typing import List, Union
 
+from pwfluo import objects as pwfluoobj
 from pwfluo.objects import FluoImage, SetOfCoordinates3D
 from pwfluo.protocols import ProtFluoBase
 from pyworkflow.gui.dialog import ToolbarListDialog
@@ -11,7 +12,6 @@ from pyworkflow.utils.process import runJob
 from pyworkflow.viewer import DESKTOP_TKINTER, View, Viewer
 
 from spfluo import Plugin
-from spfluo import objects as fluoobj
 from spfluo.constants import VISUALISATION_MODULE
 from spfluo.convert import save_coordinates3D
 
@@ -23,25 +23,25 @@ class NapariDataViewer(Viewer):
 
     _environments = [DESKTOP_TKINTER]
     _targets = [
-        fluoobj.SetOfCoordinates3D,
-        fluoobj.Image,
-        fluoobj.SetOfImages,
+        pwfluoobj.SetOfCoordinates3D,
+        pwfluoobj.Image,
+        pwfluoobj.SetOfImages,
     ]
 
     def __init__(self, **kwargs):
         Viewer.__init__(self, **kwargs)
         self._views = []
 
-    def _visualize(self, obj: fluoobj.FluoObject, **kwargs) -> List[View]:
+    def _visualize(self, obj: pwfluoobj.FluoObject, **kwargs) -> List[View]:
         cls = type(obj)
 
-        if issubclass(cls, fluoobj.SetOfCoordinates3D):
+        if issubclass(cls, pwfluoobj.SetOfCoordinates3D):
             self._views.append(SetOfCoordinates3DView(self._tkRoot, obj, self.protocol))
-        elif issubclass(cls, fluoobj.Image):
+        elif issubclass(cls, pwfluoobj.Image):
             self._views.append(ImageView(obj))
-        elif issubclass(cls, fluoobj.SetOfParticles):
+        elif issubclass(cls, pwfluoobj.SetOfParticles):
             self._views.append(SetOfParticlesView(obj, self.protocol))
-        elif issubclass(cls, fluoobj.SetOfImages):
+        elif issubclass(cls, pwfluoobj.SetOfImages):
             self._views.append(SetOfImagesView(obj))
 
         return self._views
@@ -53,7 +53,7 @@ class NapariDataViewer(Viewer):
 
 
 class SetOfImagesView(View):
-    def __init__(self, images: fluoobj.SetOfImages):
+    def __init__(self, images: pwfluoobj.SetOfImages):
         self.images = images
 
     def show(self):
@@ -62,7 +62,7 @@ class SetOfImagesView(View):
         )
         self.proc.start()
 
-    def lanchNapariForSetOfImages(self, images: fluoobj.SetOfImages):
+    def lanchNapariForSetOfImages(self, images: pwfluoobj.SetOfImages):
         filenames = [p.getFileName() for p in images]
         ImageView.launchNapari(filenames)
 
@@ -73,7 +73,7 @@ class SetOfImagesView(View):
 
 
 class SetOfParticlesView(View):
-    def __init__(self, particles: fluoobj.SetOfParticles, protocol: Protocol):
+    def __init__(self, particles: pwfluoobj.SetOfParticles, protocol: Protocol):
         self.particles = particles
         self.protocol = protocol
 
@@ -83,7 +83,7 @@ class SetOfParticlesView(View):
         )
         self.proc.start()
 
-    def lanchNapariForParticles(self, particles: fluoobj.SetOfParticles):
+    def lanchNapariForParticles(self, particles: pwfluoobj.SetOfParticles):
         filenames = [p.getFileName() for p in particles]
         fullProgram = Plugin.getFullProgram(
             Plugin.getProgram([VISUALISATION_MODULE, "particles"])
@@ -97,7 +97,7 @@ class SetOfParticlesView(View):
 
 
 class ImageView(View):
-    def __init__(self, image: fluoobj.Image):
+    def __init__(self, image: pwfluoobj.Image):
         self.image = image
 
     def show(self):
@@ -106,7 +106,7 @@ class ImageView(View):
         )
         self.proc.start()
 
-    def lanchNapariForImage(self, im: fluoobj.Image):
+    def lanchNapariForImage(self, im: pwfluoobj.Image):
         path = im.getFileName()
         self.launchNapari(path)
 
