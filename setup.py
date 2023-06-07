@@ -25,14 +25,14 @@ with open("requirements.txt") as f:
 # Fields marked as "Optional" may be commented out.
 
 setup(
-    name="scipion-em-spfluo",  # Required
+    name="scipion-fluo-spfluo",  # Required
     version="0.1",  # Required
     description="Scipion plugin spfluo.",  # Required
     long_description=long_description,  # Optional
-    url="https://github.com/scipion-em/scipion-em-spfluo",  # Optional
+    url="https://github.com/jplumail/scipion-fluo-spfluo",  # Optional
     author="you",  # Optional
     author_email="jplumail@unistra.fr",  # Optional
-    keywords="scipion cryoem imageprocessing scipion-3.0",  # Optional
+    keywords="scipion fluorescence imageprocessing scipion-3.0",  # Optional
     packages=find_packages(),
     install_requires=[requirements],
     entry_points={"pyworkflow.plugin": "spfluo = spfluo"},
