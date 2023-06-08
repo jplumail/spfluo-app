@@ -127,6 +127,14 @@ class ProtSPFluoAbInitio(Protocol, ProtFluoBase):
             label="learning rate",
             expertLevel=params.LEVEL_ADVANCED,
         )
+        form.addParam(
+            "eps",
+            params.FloatParam,
+            default=-100,
+            label="eps",
+            expertLevel=params.LEVEL_ADVANCED,
+            help="minimum gain in energy before stopping",
+        )
 
     # --------------------------- STEPS functions ------------------------------
     def _insertAllSteps(self):
@@ -232,6 +240,7 @@ class ProtSPFluoAbInitio(Protocol, ProtFluoBase):
         args += ["--lr", f"{self.lr.get()}"]
         args += ["--N_axes", f"{self.N_axes.get()}"]
         args += ["--N_rot", f"{self.N_rot.get()}"]
+        args += ["--eps", self.eps.get()]
         gpu = self._GPU_libraries[self.gpu.get()]
         if gpu != "no":
             args += ["--gpu", gpu]
