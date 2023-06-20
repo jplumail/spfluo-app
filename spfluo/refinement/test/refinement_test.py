@@ -128,3 +128,23 @@ def test_shapes_find_angles_grid():
     
     assert best_poses.shape == (N, 6)
     assert errors.shape == (N,)
+
+###############
+# Test refine #
+###############
+
+def test_refine_shapes():
+    if torch.cuda.is_available(): device = 'cuda'
+    else: device = 'cpu'
+    N, D, H, W = 150, 32, 32, 32
+    patches = torch.randn((N, D, H, W), device=device)
+    psf = torch.randn((D, H, W), device=device)
+    guessed_poses = torch.randn((N, 6))
+
+    S = 1
+    steps = [(12*12,12)] + [(S*S,S)] * 4
+    ranges = [0, 40, 20, 10, 5]
+    recon, poses = refine(patches, psf, guessed_poses, steps, ranges)
+
+    assert recon.shape == patches[0].shape
+    assert poses.shape == guessed_poses.shape
