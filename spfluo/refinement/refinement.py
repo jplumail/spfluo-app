@@ -3,7 +3,7 @@
 from spfluo.utils import pad_to_size, fftn, dftregistrationND, discretize_sphere_uniformly, affine_transform
 from spfluo.utils.memory import split_batch_func
 
-from typing import Tuple
+from typing import Any, List, Optional, Tuple
 import math
 import numpy as np
 import torch
@@ -209,25 +209,27 @@ def find_L(precision):
     return math.ceil(((360 / precision) ** 2) / torch.pi)
 
 
-def create_poses_grid(L, dtype=torch.float64, device=None):
-    theta, phi, _, precision = discretize_sphere_uniformly(L, 0, dtype, device)
-    list_angles = torch.stack([torch.zeros_like(theta), phi, theta], dim=-1)
+def create_poses_grid(M_axes, M_rot, symmetry=1, **tensor_kwargs):
+    (theta, phi, psi), precision = discretize_sphere_uniformly(M_axes, M_rot, product=True, symmetry=symmetry, **tensor_kwargs)
+    list_angles = torch.stack([psi, phi, theta], dim=-1)
     M = list_angles.shape[0]
-    list_translation = torch.zeros((M,3), dtype=dtype, device=device)
+    list_translation = torch.zeros((M,3), **tensor_kwargs)
     potential_poses = torch.cat([list_angles,list_translation], dim=1)
     return potential_poses, precision
 
 
 def find_angles_grid(reconstruction, patches, psf, precision=10):
     L = find_L(precision)
-    potential_poses, _ = create_poses_grid(L, reconstruction.dtype, reconstruction.device)
-
+    potential_poses, _ = create_poses_grid(L, 1, symmetry=1, dtype=reconstruction.dtype, device=reconstruction.device)
     best_poses, best_errors = convolution_matching_poses_grid(reconstruction, patches, psf, potential_poses)
 
     return best_poses, best_errors
 
+def get_refined_values1D_uniform(loc: float, N: int, range: float, **tensor_kwargs):
+    return torch.linspace(loc-range/2, loc+range/2, N, **tensor_kwargs)
 
-def get_refined_values1D(loc, N, sigma=10, range=0.8, device=None, dtype=torch.float32):
+
+def get_refined_values1D_gaussian(loc, N, sigma=10, range=0.8, device=None, dtype=torch.float32):
     d = torch.distributions.normal.Normal(loc, sigma)
     step = range / N
     lowest = 0.5 - torch.floor(N/2) * step
@@ -235,31 +237,57 @@ def get_refined_values1D(loc, N, sigma=10, range=0.8, device=None, dtype=torch.f
     return d.icdf(torch.arange(lowest, highest, step, device=device, dtype=dtype))
 
 
-def get_refined_valuesND(locs, N, sigmas, ranges, **kwargs):
+def get_refined_valuesND(locs: List[float], N: List[int], ranges: List[float], method: str='uniform', sigmas: Optional[List[float]]=None, **kwargs):
     n = len(locs)
-    values_1d = [get_refined_values1D(locs[i], int(N**(1/n)), sigma=sigmas[i], range=ranges[i], **kwargs) for i in range(n)]
+    assert n == len(N) == len(ranges)
+    if method == "uniform":
+        values_1d = [get_refined_values1D_uniform(locs[i], N[i], range=ranges[i], **kwargs) for i in range(n)]
+    elif method == "gaussian":
+        values_1d = [get_refined_values1D_gaussian(locs[i], N[i], sigma=sigmas[i], range=ranges[i], **kwargs) for i in range(n)]
 
     return torch.cartesian_prod(*values_1d)
 
 
-def create_refined_poses(poses, M, **kwargs):
-    potential_poses = torch.clone(poses).unsqueeze(1).repeat(1,M,1)
+def create_poses_refined(poses: torch.Tensor, ranges: List[float], M: List[int], **kwargs):
+    potential_poses = torch.clone(poses).unsqueeze(1).repeat(1,np.prod(M),1)
     for i in range(poses.size(0)):
-        pose = poses[i]
-        refined_angles = get_refined_valuesND(poses[[1,2]], M, [5,5], [0.9,0.9], **kwargs)
-        potential_poses[i, :, [1,2]] = refined_angles
+        potential_poses[i, :, :3] = get_refined_valuesND(poses[i,:3], M, ranges, **kwargs)
     
     return potential_poses
 
 
-def refine_poses(reconstruction, patches, psf, guessed_poses, M=20):
+def refine_poses(reconstruction: torch.Tensor, patches: torch.Tensor, psf: torch.Tensor, guessed_poses: torch.Tensor, range: float, steps: int) -> Tuple[torch.Tensor]:
     device = reconstruction.device
     dtype = reconstruction.dtype
-    potential_poses = create_refined_poses(guessed_poses, M, dtype=dtype, device=device)
+    potential_poses = create_poses_refined(guessed_poses, [range]*3,  [steps]*3, dtype=dtype, device=device)
 
-    best_poses, best_errors = convolution_matching_poses_refined(reconstruction, patches, psf, potential_poses, max_batch=8)
+    best_poses, best_errors = convolution_matching_poses_refined(reconstruction, patches, psf, potential_poses)
 
     return best_poses, best_errors
+
+
+def refine(patches: torch.Tensor, psf: torch.Tensor, guessed_poses: torch.Tensor, steps: List[Tuple[int,int]], ranges: List[float], lambda_=100, symmetry=1):
+    assert len(steps) == len(ranges)
+    assert len(steps) > 0
+    tensor_kwargs = dict(dtype=patches.dtype, device=patches.device)
+    lambda_ = torch.tensor(lambda_, **tensor_kwargs)
+    initial_reconstruction, _ = reconstruction_L2(patches, psf, guessed_poses, lambda_)
+    
+    current_reconstruction = initial_reconstruction
+    for i in range(len(steps)):
+        # Poses estimation
+        M_axes, M_rot = steps[i]
+        if ranges[i] == 0: # Discretization of the whole sphere
+            potential_poses, _ = create_poses_grid(M_axes, M_rot, symmetry=symmetry, **tensor_kwargs)
+            current_poses, _ = convolution_matching_poses_grid(current_reconstruction, patches, psf, potential_poses)
+        else: # Refinement around the current poses
+            steps_ = int((M_axes*M_rot)**(1/3))
+            current_poses, _ = refine_poses(current_reconstruction, patches, psf, current_poses, ranges[i], steps_)
+        
+        # Reconstruction
+        current_reconstruction, _ = reconstruction_L2(patches, psf, current_poses, lambda_)
+    
+    return current_reconstruction, current_poses
 
 
 def distance_poses(p1, p2):
