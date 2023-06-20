@@ -1,6 +1,6 @@
 """Some functions from this file were translated from a Matlab project made by Denis Fortun"""
 
-from spfluo.utils import pad_to_size, fftn, dftregistrationND, discretize_sphere_uniformly
+from spfluo.utils import pad_to_size, fftn, dftregistrationND, discretize_sphere_uniformly, affine_transform
 from spfluo.utils.memory import split_batch_func
 
 from typing import Tuple
@@ -9,6 +9,11 @@ import numpy as np
 import torch
 from scipy.spatial.transform import Rotation
 
+
+def affine_transform_wrapper(volumes, poses):
+    tensor_kwargs = {"device": volumes.device, "dtype": volumes.dtype}
+    matrices = torch.tensor(Rotation.from_euler("ZXZ", poses[:,:3].cpu().numpy(), degrees=True).as_matrix(), **tensor_kwargs)
+    return affine_transform(volumes, matrices)
 
 def reconstruction_L2(volumes: torch.Tensor, psf: torch.Tensor, poses: torch.Tensor, lambda_: torch.Tensor) -> torch.Tensor:
     """Reconstruct a particule from volumes and their poses. M reconstructions can be done at once.
@@ -57,11 +62,11 @@ def reconstruction_L2(volumes: torch.Tensor, psf: torch.Tensor, poses: torch.Ten
     ):
         size_batch = end - start
         y = volumes.unsqueeze(1).repeat(size_batch,1,1,1,1) # shape (size_batch, N, D, H, W)
-        y = inverse_affine_transform(y.view(size_batch*N,D,H,W)[:,None], poses[start:end].view(size_batch*N,6))[:,0].view(size_batch,N,D,H,W)
+        y = affine_transform_wrapper(y.view(size_batch*N,D,H,W)[:,None], poses[start:end].view(size_batch*N,6))[:,0].view(size_batch,N,D,H,W)
         y = y.type(torch.complex64)
         
         h_ = psf.unsqueeze(0).repeat(N*size_batch,1,1,1).unsqueeze(1)
-        h_ = inverse_affine_transform(h_, poses_psf[start:end].view(size_batch*N,6))[:,0].view(size_batch,N,d,h,w)
+        h_ = affine_transform_wrapper(h_, poses_psf[start:end].view(size_batch*N,6))[:,0].view(size_batch,N,d,h,w)
         H_ = pad_to_size(h_, y.size())
         H_ = H_.type(torch.complex64)
         del h_
@@ -124,7 +129,7 @@ def convolution_matching_poses_grid(
 
         # Rotate the reference
         reference_minibatch = reference.repeat(end2-start2, 1, 1, 1)
-        reference_minibatch = affine_transform(reference_minibatch[:,None], potential_poses_minibatch)[:,0]
+        reference_minibatch = affine_transform_wrapper(reference_minibatch[:,None], potential_poses_minibatch)[:,0]
         reference_minibatch = h * torch.fft.fftn(reference_minibatch, dim=(1,2,3))
 
         # Registration
@@ -182,7 +187,7 @@ def convolution_matching_poses_refined(
 
         # Rotate the reference
         reference_minibatch = reference.repeat(minibatch_size, 1, 1, 1)
-        reference_minibatch = affine_transform(reference_minibatch[:,None], potential_poses_minibatch.view(minibatch_size,d))[:,0].view(end1-start1,end2-start2,D,H,W)
+        reference_minibatch = affine_transform_wrapper(reference_minibatch[:,None], potential_poses_minibatch.view(minibatch_size,d))[:,0].view(end1-start1,end2-start2,D,H,W)
         reference_minibatch = h * torch.fft.fftn(reference_minibatch, dim=(2,3,4))
 
         # Registration
@@ -298,7 +303,7 @@ def first_reconstruction(patches, views, poses, psf, step=10):
         
         # compute error
         N = patches[mask_top_side].shape[0]
-        recon_noised_transformed = affine_transform(recon_noised[None,None].repeat(N,1,1,1,1), poses_known[mask_top_side])[:,0]
+        recon_noised_transformed = affine_transform_wrapper(recon_noised[None,None].repeat(N,1,1,1,1), poses_known[mask_top_side])[:,0]
         error = (((recon_noised_transformed - patches[mask_top_side])**2).view(N,-1).sum(dim=1)**0.5).sum() / N
         errors.append(error)
 
