@@ -355,18 +355,35 @@ def dftregistrationND(reference: torch.Tensor, moving_images: torch.Tensor, nb_s
     return error, tuple([shift[...,i] for i in range(shift.size(-1))])
 
 
-def discretize_sphere_uniformly(N, M, dtype=torch.float64, device=None):
-    ''' Generates a list of the two first euler angles that describe a uniform discretization of the sphere with the Fibonnaci sphere algorithm
-    :param N: number of points
+def discretize_sphere_uniformly(N: int, M: int, symmetry: int=1, product: bool=False, **tensor_kwargs) -> Tuple[Tuple[torch.Tensor, torch.Tensor, torch.Tensor], float]:
+    ''' Generates a list of the two first euler angles that describe a uniform discretization of the sphere
+    with the Fibonnaci sphere algorithm.
+    Params:
+        N, the number of axes (two first euler angles)
+        M, the number of rotations around the axes (third euler angle)
+        symmetry, the order of symmetry to reduce the range of the 3rd angle. Default to 1, no symmetry
+        product, if True return the cartesian product between the axes and the rotations
+    Returns: (theta, phi, psi), precision
+        precision, a float representing an approximation of the sampling done
+        (theta, phi, psi), a tuple of 1D tensors containing the 1st, 2nd and 3rd euler angles
+            theta.shape == phi.shape == (N,)
+            psi.shape == (M,)
+        if product is false,
+            theta.shape == phi.shape == psi.shape == (N*M,)
     '''
     epsilon = 0.5
     goldenRatio = (1 + 5 ** 0.5) / 2
-    i = torch.arange(0, N, dtype=dtype, device=device)
+    i = torch.arange(0, N, **tensor_kwargs)
     theta = torch.remainder(2 * torch.pi * i / goldenRatio, 2*torch.pi)
     phi = torch.acos(1 - 2 * (i + epsilon) / N)
-    psi = torch.linspace(0,2*np.pi, M)
+    psi = torch.linspace(0,2*np.pi/symmetry, M, **tensor_kwargs)
+    if product:
+        theta, psi2 = torch.cartesian_prod(theta, psi).T
+        phi, _ = torch.cartesian_prod(phi, psi).T
+        psi = psi2
     precision = 360 / (torch.pi * N) ** 0.5
-    return theta*180/torch.pi, phi*180/torch.pi, psi*180/torch.pi, precision
+    theta, phi, psi = theta*180/torch.pi, phi*180/torch.pi, psi*180/torch.pi
+    return (theta, phi, psi), precision
 
 
 def normalize_patches(patches: torch.Tensor) -> torch.Tensor:
