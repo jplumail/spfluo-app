@@ -186,10 +186,10 @@ class DataGenerator:
     # |                                 AUGMENT POINTCLOUD                                    | #
     # +---------------------------------------------------------------------------------------+ #
 
-    def augment_pointcloud(self, rotation_angles: Tuple[int]=None) -> np.ndarray:
+    def augment_pointcloud(self, shrink_range: Optional[Tuple[float, float]]=None, rotation_angles: Tuple[int]=None, translation: Tuple[float]=None) -> np.ndarray:
         cfg = self.config.augmentation
         # 1. Shrink
-        a, b   = cfg.shrink_range
+        a, b = shrink_range if shrink_range else cfg.shrink_range
         factor = (b - a) * R.random_sample() + a
         pointcloud = F.shrink(self.template_pointcloud, factor)
         # 2. Rotate
