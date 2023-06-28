@@ -54,13 +54,13 @@ def shrink(pointcloud: torch.Tensor, factor: float=1500.0) -> torch.Tensor:
     """ Shrink a point cloud tensor by a given factor and center it.
 
     Args:
-        pointcloud (torch.Tensor): Point cloud tensor to be shrinked, of shape (N, 3).
+        pointcloud (torch.Tensor): Point cloud tensor to be shrinked, of shape (N, 3). SHOULD BE CENTERED!
         factor (float, optional): Shrink factor. Defaults to 1500.0.
 
     Returns:
         torch.Tensor: Shrinked and centered point cloud tensor.
     """
-    return (pointcloud - pointcloud.mean(dim=0, keepdim=True)) / factor
+    return pointcloud / factor
 
 
 # _______________________________________________________________________________________________ #
