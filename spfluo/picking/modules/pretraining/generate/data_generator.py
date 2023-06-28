@@ -1,11 +1,12 @@
 import os
 import csv
+from pathlib import Path
 import torch
 import pickle
 import numpy as np
 import numpy.random as R
 from tqdm import tqdm
-from typing import Tuple, List
+from typing import Optional, Tuple, List
 from skimage.util import random_noise
 from scipy.stats import truncnorm
 from scipy.ndimage.filters import gaussian_filter
@@ -341,6 +342,41 @@ class DataGenerator:
     # +---------------------------------------------------------------------------------------+ #
     # |                                      WRAPPERS                                         | #
     # +---------------------------------------------------------------------------------------+ #
+
+    def create_groundtruth(self, path: str):
+        # center the pointcloud
+        gt, _ = self.image_from_pointcloud(self.template_pointcloud.cpu().numpy(), fov=self.common_fov)
+        tifffile.imwrite(path, gt)
+
+    def create_particles(self, output: str=None, output_extension: str='npz'):
+        angles  = self.generate_angles(self.config.voxelisation.tilt_strategy, self.config.voxelisation.tilt_margin)
+        translations = self.generate_translations(self.config.augmentation.max_translation)
+        particles, real_translations = [], []
+        
+        if output is not None:
+            output_dir = Path(output)
+            os.makedirs(output_dir, exist_ok=True)
+            f = open(output_dir / "poses.csv", "w")
+            csvwriter = csv.writer(f)
+            csvwriter.writerow(["name", "rot1", "rot2", "rot3", "t1", "t2", "t3"])
+
+        for i, rotation_angles, translation in tqdm(zip(range(len(angles)), angles, translations), total=len(angles), desc="Creating particles..."):
+            particle, center = self.image_from_pointcloud(self.augment_pointcloud(rotation_angles=rotation_angles, translation=translation), fov=self.common_fov)
+            # add anisotropic blur
+            sigma = self.config.sensor.anisotropic_blur_sigma
+            mode  = self.config.sensor.anisotropic_blur_border_mode
+            particle = gaussian_filter(particle, sigma=sigma, mode=mode)
+            particles.append(particle)
+            real_translations.append(center)
+            if output is not None:
+                csvwriter.writerow([f"{i}.tiff", *rotation_angles, *center])
+                tifffile.imwrite(output_dir / f"{i}.tiff", particle)
+        
+        real_translations = np.stack(real_translations)
+        if output is not None:
+            f.close()
+        
+        return angles, real_translations
 
     
     def create_image(self, output: str=None, output_extension: str='npz') -> np.ndarray:
