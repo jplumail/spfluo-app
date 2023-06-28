@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from typing import Tuple
 
+import torch
+
 
 # +------------------------------------------------------------------------------------------+ #
 # |                                           I/O                                            | #
@@ -246,6 +248,7 @@ class DataGenerationConfig:
     """
     disable_cuda:         bool = True
     target_shape:   Tuple[int] = (128, 1024, 1024)
+    dtype:         torch.dtype = torch.float64
     io:                     IO = field(default_factory=IO)
     voxelisation: Voxelisation = field(default_factory=Voxelisation)
     augmentation: Augmentation = field(default_factory=Augmentation)

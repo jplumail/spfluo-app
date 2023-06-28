@@ -29,6 +29,7 @@ class DataGenerator:
     def __init__(self, config: DataGenerationConfig) -> None:
         self.config = config
         self.device = self.__set_device()
+        self.dtype = self.config.dtype
         self.template_pointcloud = self.__load_pointcloud_tensor()
         x_min, x_max, y_min, y_max, z_min, z_max = F.get_FOV(self.template_pointcloud)
         max_delta = max(x_max - x_min, y_max - y_min, z_max - z_min)
@@ -37,7 +38,7 @@ class DataGenerator:
 
     def __load_pointcloud_tensor(self) -> torch.Tensor:
         template_point_cloud = np.loadtxt(self.config.io.point_cloud_path, delimiter=',')
-        return torch.as_tensor(template_point_cloud, dtype=torch.float64).to(self.device)
+        pointcloud = torch.as_tensor(template_point_cloud, dtype=self.dtype).to(self.device)
 
     def __set_device(self):
         if self.config.disable_cuda:
