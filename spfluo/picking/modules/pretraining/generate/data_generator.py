@@ -34,7 +34,7 @@ class DataGenerator:
         self.template_pointcloud = self.__load_pointcloud_tensor()
         x_min, x_max, y_min, y_max, z_min, z_max = F.get_FOV(self.template_pointcloud)
         max_delta = max(x_max - x_min, y_max - y_min, z_max - z_min)
-        self.step = max_delta / self.config.voxelisation.max_particle_dim
+        self.step = float(max_delta / self.config.voxelisation.max_particle_dim)
         self.output_image = np.zeros(self.config.target_shape)
 
         # Particles FOV
