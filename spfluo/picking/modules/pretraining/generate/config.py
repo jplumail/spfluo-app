@@ -131,6 +131,7 @@ class Augmentation:
     intensity_mean_ratio:      float = 0.3
     intensity_std_ratio_range: float = (0.15, 0.25)
     rotation_proba:            float = 1.0
+    max_translation:           float = 0.2
 
 
 # +------------------------------------------------------------------------------------------+ #

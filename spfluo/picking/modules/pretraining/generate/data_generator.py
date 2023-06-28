@@ -176,6 +176,11 @@ class DataGenerator:
         tilt_angles  = self.sample_tilt_angles(num_particles, tilt_strategy, margin=tilt_margin) # TO CHANGE
         other_angles = R.uniform(low=0, high=360, size=(num_particles, 2))
         return np.vstack((other_angles[:, 0], tilt_angles, other_angles[:, 1])).T
+    
+    def generate_translations(self, max_translation_ratio: float) -> np.ndarray:
+        num_particles = self.config.voxelisation.num_particles
+        return R.uniform(low=-max_translation_ratio, high=max_translation_ratio, size=(num_particles, 3))
+
 
     # +---------------------------------------------------------------------------------------+ #
     # |                                 AUGMENT POINTCLOUD                                    | #
@@ -189,7 +194,9 @@ class DataGenerator:
         pointcloud = F.shrink(self.template_pointcloud, factor)
         # 2. Rotate
         pointcloud = F.rotate(pointcloud, rotation_angles, cfg.rotation_proba, self.device)
-        # 3. Make holes
+        # 3. Translate
+        pointcloud = F.translate(pointcloud, translation, self.device)
+        # 4. Make holes
         a, b = cfg.intensity_std_ratio_range
         std_ratio = (b - a) * R.random_sample() + a
         #pointcloud = F.non_uniform_density(
@@ -342,10 +349,11 @@ class DataGenerator:
         centers = self.generate_centers()
         real_centers = []
         angles  = self.generate_angles(self.config.voxelisation.tilt_strategy, self.config.voxelisation.tilt_margin)
+        translations = self.generate_translations(self.config.augmentation.max_translation)
         views = np.array(list(map(self.get_view_from_angles, angles)))
         # 2. Augment, voxelize and put images inside one big image
-        for center, rotation_angles in tqdm(zip(centers, angles), total=len(centers), desc="Creating particles..."):
-            particle, crop_center = self.image_from_pointcloud(self.augment_pointcloud(rotation_angles))
+        for center, rotation_angles, translation in tqdm(zip(centers, angles, translations), total=len(centers), desc="Creating particles..."):
+            particle, crop_center = self.image_from_pointcloud(self.augment_pointcloud(rotation_angles=rotation_angles, translation=translation))
             depth, height, width = particle.shape
             z, y, x = center
             z_min, y_min, x_min = z - depth // 2, y - height // 2, x - width // 2
@@ -366,14 +374,14 @@ class DataGenerator:
                 self.output_image = self.output_image.astype(float)
                 self.output_image = (self.output_image - self.output_image.min()) / (self.output_image.max() - self.output_image.min())
                 tifffile.imwrite(output_path, (255*self.output_image).astype(np.uint8))
-        return real_centers, views, angles
+        return real_centers, views, angles, translations
 
     def generate_dataset(self):
         os.makedirs(self.config.io.output_dir, exist_ok=True)
         self.create_psf()
         all_centers, all_views, all_angles = [], [], []
         for i in tqdm(range(self.config.io.generated_dataset_size)):
-            centers, views, angles = self.create_image(output=str(i), output_extension=self.config.io.extension)
+            centers, views, angles, _ = self.create_image(output=str(i), output_extension=self.config.io.extension)
             width = int(np.ceil(np.log10(len(centers))))
             for j, (center, view, angles_) in enumerate(zip(centers, views, angles)):
                 all_centers.append((f'{i}.{self.config.io.extension}', str(j).zfill(width), *center))

@@ -97,6 +97,35 @@ def rotate(
 # _______________________________________________________________________________________________ #
 
 
+def translate(
+    pointcloud: torch.Tensor,
+    translation: Tuple[float]=None,
+    device: torch.device=torch.device('cpu')
+) -> torch.Tensor:
+    """ Randomly rotate a pointcloud with a given probability. If no angles are provided, the
+        rotation is determined by uniformly sampling 3 Euler's angles.
+
+    Args:
+        pointcloud (torch.Tensor): Point cloud tensor, of shape (N, 3).
+        rotation_angles (Tuple[int]): zyx Euler's angles. If None, will be sampled uniformely in
+                                      [0, 360]. Defaults to None.
+        p (float, optional): Rotation probability. Defaults to 0.5.
+        device (torch.device, optional): CPU or GPU. Defaults to torch.device('cpu').
+
+    Returns:
+        torch.Tensor: * Rotated point cloud tensor, of shape (N, 3).
+    """
+    if translation is None:
+        return pointcloud
+    t = torch.as_tensor(translation, dtype=pointcloud.dtype, device=pointcloud.device)
+    x_min, x_max, y_min, y_max, z_min, z_max = get_FOV(pointcloud)
+    range = max(x_max-x_min, y_max-y_min, z_max-z_min)
+    return pointcloud - t * range
+
+
+# _______________________________________________________________________________________________ #
+
+
 def uniform_in_sphere(center: torch.Tensor, radius: float, N: int=1,
                       device: torch.device=torch.device('cpu')) -> torch.Tensor:
     """ Generate N points uniformly in the sphere(center, radius).
