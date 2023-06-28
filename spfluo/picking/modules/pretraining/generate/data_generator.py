@@ -45,7 +45,7 @@ class DataGenerator:
     def __load_pointcloud_tensor(self) -> torch.Tensor:
         template_point_cloud = np.loadtxt(self.config.io.point_cloud_path, delimiter=',')
         pointcloud = torch.as_tensor(template_point_cloud, dtype=self.dtype).to(self.device)
-        return pointcloud - pointcloud.mean(dim=0, keepdim=True)
+        return (pointcloud - pointcloud.mean(dim=0, keepdim=True))[:, [2,1,0]]
 
     def __set_device(self):
         if self.config.disable_cuda:
@@ -239,7 +239,6 @@ class DataGenerator:
         figtree_kwargs = {'bandwidth': cfg.bandwidth, 'epsilon': cfg.epsilon}
         densities = figtree(pointcloud, target_points, weights, **figtree_kwargs)
         densities = densities.reshape((x_range, y_range, z_range))
-        densities = np.transpose(densities, (2,1,0))
         densities = (densities - densities.min()) / (densities.max() - densities.min())
                 
         densities = densities.astype(dtype)
