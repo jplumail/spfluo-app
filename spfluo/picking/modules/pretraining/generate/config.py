@@ -73,6 +73,7 @@ class Voxelisation:
     """
     num_particles:                         int = 150
     max_particle_dim:                      int = 25
+    image_shape:                           int = 50
     bandwidth:                             int = 10
     epsilon:                               int = 1e-3
     cluster_range_xy:               Tuple[int] = (100, 480)

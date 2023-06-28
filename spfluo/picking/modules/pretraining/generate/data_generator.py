@@ -36,9 +36,15 @@ class DataGenerator:
         self.step = max_delta / self.config.voxelisation.max_particle_dim
         self.output_image = np.zeros(self.config.target_shape)
 
+        # Particles FOV
+        image_shape = self.config.voxelisation.image_shape
+        eps = 1e-12 / 2
+        self.common_fov = (-(self.step*image_shape-eps)/2, (self.step*image_shape-eps)/2) * 3
+
     def __load_pointcloud_tensor(self) -> torch.Tensor:
         template_point_cloud = np.loadtxt(self.config.io.point_cloud_path, delimiter=',')
         pointcloud = torch.as_tensor(template_point_cloud, dtype=self.dtype).to(self.device)
+        return pointcloud - pointcloud.mean(dim=0, keepdim=True)
 
     def __set_device(self):
         if self.config.disable_cuda:
