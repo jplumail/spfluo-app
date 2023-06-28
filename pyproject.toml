@@ -6,7 +6,6 @@ build-backend = "setuptools.build_meta"
 name = "spfluo"
 dependencies = [
   "numpy",
-  "cupy-wheel",
   "scipy",
   "scikit-image",
   "pandas",
@@ -14,14 +13,8 @@ dependencies = [
   "SimpleITK",
   "connected-components-3d",
   "albumentations",
-  "tensorboard",
-  "cucim",
-  "torch",
-  "torchvision",
-  "pynvml",
   "psutil",
   "matplotlib",
-  "napari[all] @ git+https://github.com/napari/napari.git@aa0330fcace8d5855fcd1e75c1fd4384b542bd4c",
 ]
 version = "0.0.1"
 authors = [
@@ -38,6 +31,27 @@ classifiers = [
 
 [project.optional-dependencies]
 figtree = ["pyfigtree"]
+gpu = [
+  "cupy-wheel",
+  "cucim",
+  "torch",
+  "torchvision",
+  "tensorboard",
+  "pynvml",
+]
+napari = [
+  "napari[all] @ git+https://github.com/napari/napari.git@aa0330fcace8d5855fcd1e75c1fd4384b542bd4c",
+]
 
 [project.urls]
 Repository = "https://github.com/jplumail/spfluo.git"
+
+[tool.ruff]
+select = [
+    "E", "F", # default
+    "I", # isort
+]
+
+[tool.ruff.isort]
+known-first-party = ["spfluo"]
+known-third-party = ["pyworflow", "pwfluo"]
