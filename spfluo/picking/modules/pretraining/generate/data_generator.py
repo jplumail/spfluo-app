@@ -176,7 +176,9 @@ class DataGenerator:
         num_particles = self.config.voxelisation.num_particles
         tilt_angles  = self.sample_tilt_angles(num_particles, tilt_strategy, margin=tilt_margin) # TO CHANGE
         other_angles = R.uniform(low=0, high=360, size=(num_particles, 2))
-        return np.vstack((other_angles[:, 0], tilt_angles, other_angles[:, 1])).T
+        angles = np.vstack((other_angles[:, 0], tilt_angles, other_angles[:, 1])).T
+        angles[R.uniform(size=(num_particles,)) > self.config.augmentation.rotation_proba] = [0, 0, 0]
+        return angles
     
     def generate_translations(self, max_translation: float) -> np.ndarray:
         num_particles = self.config.voxelisation.num_particles
@@ -194,7 +196,7 @@ class DataGenerator:
         factor = (b - a) * R.random_sample() + a
         pointcloud = F.shrink(self.template_pointcloud, factor)
         # 2. Rotate
-        pointcloud = F.rotate(pointcloud, rotation_angles, cfg.rotation_proba, self.device)
+        pointcloud = F.rotate(pointcloud, rotation_angles, self.device)
         # 3. Translate
         pointcloud = F.translate(pointcloud, translation, self.device)
         # 4. Make holes

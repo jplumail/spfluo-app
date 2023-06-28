@@ -69,7 +69,6 @@ def shrink(pointcloud: torch.Tensor, factor: float=1500.0) -> torch.Tensor:
 def rotate(
     pointcloud: torch.Tensor,
     rotation_angles: Tuple[float]=None,
-    p: float=0.5,
     device: torch.device=torch.device('cpu')
 ) -> torch.Tensor:
     """ Randomly rotate a pointcloud with a given probability. If no angles are provided, the
@@ -85,13 +84,11 @@ def rotate(
     Returns:
         torch.Tensor: * Rotated point cloud tensor, of shape (N, 3).
     """
-    if np.random.random_sample() < p:
-        if rotation_angles is None:
-            rotation_angles = np.random.uniform(low=0, high=360, size=3)
-        rot = Rotation.from_euler('zxz', rotation_angles, degrees=True)
-        rot_mat = torch.as_tensor(rot.as_matrix(), dtype=torch.float64).to(device)
-        return (rot_mat @ pointcloud.T).T
-    return pointcloud
+    if rotation_angles is None:
+        rotation_angles = np.random.uniform(low=0, high=360, size=3)
+    rot = Rotation.from_euler('ZXZ', rotation_angles, degrees=True)
+    rot_mat = torch.as_tensor(rot.as_matrix(), dtype=torch.float64).to(device)
+    return (rot_mat @ pointcloud.T).T
 
 
 # _______________________________________________________________________________________________ #
