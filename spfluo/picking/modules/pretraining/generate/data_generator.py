@@ -361,7 +361,8 @@ class DataGenerator:
             # add anisotropic blur
             sigma = self.config.sensor.anisotropic_blur_sigma
             mode  = self.config.sensor.anisotropic_blur_border_mode
-            particle = gaussian_filter(particle, sigma=sigma, mode=mode)
+            if any([s>0 for s in sigma]):
+                particle = gaussian_filter(particle, sigma=sigma, mode=mode)
             particles.append(particle)
             real_translations.append(translation)
             if output is not None:
