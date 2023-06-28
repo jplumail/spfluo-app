@@ -235,7 +235,7 @@ class DataGenerator:
         x_range = int(np.ceil((x_max - x_min) / step))
         y_range = int(np.ceil((y_max - y_min) / step))
         z_range = int(np.ceil((z_max - z_min) / step))
-        target_points = np.mgrid[x_min:x_max:step, y_min:y_max:step, z_min:z_max:step]
+        target_points = np.mgrid[x_min:x_max:x_range*1j, y_min:y_max:y_range*1j, z_min:z_max:z_range*1j]
         target_points = target_points.reshape(3, -1).T
         weights = np.ones(len(pointcloud))
         figtree_kwargs = {'bandwidth': cfg.bandwidth, 'epsilon': cfg.epsilon}
