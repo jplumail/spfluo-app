@@ -11,7 +11,7 @@ from scipy.stats import truncnorm
 from scipy.ndimage.filters import gaussian_filter
 import tifffile
 from . import functional as F
-#from .figtree.pyfigtree import figtree
+from pyfigtree import figtree
 from .config import DataGenerationConfig
 from .config import Outliers as OutliersConfig
 
@@ -199,39 +199,40 @@ class DataGenerator:
     # |                                    VOXELISATION                                       | #
     # +---------------------------------------------------------------------------------------+ #
 
-    def image_from_pointcloud(self, pointcloud: np.ndarray) -> np.ndarray:
-        t0 = time()
+    def image_from_pointcloud(self, pointcloud: np.ndarray, fov: Optional[Tuple[float]]=None) -> np.ndarray:
+        dtype = pointcloud.dtype
         cfg = self.config.voxelisation
-        x_min, x_max, y_min, y_max, z_min, z_max = F.get_FOV(pointcloud)
+        particle_fov = F.get_FOV(pointcloud)
+        if fov is None:
+            fov = particle_fov
+        else:
+            # check if particle_fov inside fov
+            x_min, x_max, y_min, y_max, z_min, z_max = fov
+            x_min_p, x_max_p, y_min_p, y_max_p, z_min_p, z_max_p = particle_fov
+            inside = (x_min < x_min_p) and (y_min < y_min_p) and (z_min < z_min_p) and (x_max > x_max_p) and (y_max > y_max_p) and (z_max > z_max_p)
+            if not inside:
+                raise ValueError("Particle not inside fov", fov, particle_fov)
+        x_min, x_max, y_min, y_max, z_min, z_max = fov
+        x_min, x_max, y_min, y_max, z_min, z_max = map(float, (x_min, x_max, y_min, y_max, z_min, z_max))
         step = float(self.step)
         x_range = int(np.ceil((x_max - x_min) / step))
         y_range = int(np.ceil((y_max - y_min) / step))
         z_range = int(np.ceil((z_max - z_min) / step))
-        target_points = torch.as_tensor(np.mgrid[x_min:x_max:step, y_min:y_max:step, z_min:z_max:step], device='cuda', dtype=torch.float16)
-        #target_points = target_points.reshape(3, -1).T
+        target_points = np.mgrid[x_min:x_max:step, y_min:y_max:step, z_min:z_max:step]
+        target_points = target_points.reshape(3, -1).T
         weights = np.ones(len(pointcloud))
         figtree_kwargs = {'bandwidth': cfg.bandwidth, 'epsilon': cfg.epsilon}
-        #densities = figtree(pointcloud, target_points, weights, **figtree_kwargs)
-        pointcloud = torch.as_tensor(pointcloud, device='cuda', dtype=torch.float16)
-        pointcloud = pointcloud[torch.randint(0, pointcloud.size(0), (pointcloud.size(0)//10,))]
-
-        densities = (
-            1.0
-            / (2.0 * torch.pi * cfg.bandwidth ** 2)
-            * torch.sum(
-                torch.exp(
-                    -((pointcloud[:,:,None,None,None] - target_points[None]) ** 2).sum(dim=1) / (2 * cfg.bandwidth ** 2)
-                ),
-                dim=0,
-            )
-        )
+        densities = figtree(pointcloud, target_points, weights, **figtree_kwargs)
         densities = densities.reshape((x_range, y_range, z_range))
-        densities = densities.permute(2, 1, 0)
+        densities = np.transpose(densities, (2,1,0))
         densities = (densities - densities.min()) / (densities.max() - densities.min())
+        
+        # point (0,0,0) in world coords is the center (the pointcloud is centered)
+        # when converted in pixel coords, we get :
         center = np.array([-z_min/step, -y_min/step, -x_min/step])
-        #print("Voxelisation", time()-t0)
-        densities = densities.cpu().numpy()
-        torch.cuda.empty_cache()
+        # function x -> (x - xmin) / step converts world coords to pixel coords
+        
+        densities = densities.astype(dtype)
         return densities, center
 
     # +---------------------------------------------------------------------------------------+ #

@@ -36,5 +36,8 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 
+[project.optional-dependencies]
+figtree = ["pyfigtree"]
+
 [project.urls]
 Repository = "https://github.com/jplumail/spfluo.git"
