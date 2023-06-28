@@ -178,9 +178,9 @@ class DataGenerator:
         other_angles = R.uniform(low=0, high=360, size=(num_particles, 2))
         return np.vstack((other_angles[:, 0], tilt_angles, other_angles[:, 1])).T
     
-    def generate_translations(self, max_translation_ratio: float) -> np.ndarray:
+    def generate_translations(self, max_translation: float) -> np.ndarray:
         num_particles = self.config.voxelisation.num_particles
-        return R.uniform(low=-max_translation_ratio, high=max_translation_ratio, size=(num_particles, 3))
+        return R.uniform(low=-max_translation, high=max_translation, size=(num_particles, 3))
 
 
     # +---------------------------------------------------------------------------------------+ #
@@ -241,14 +241,9 @@ class DataGenerator:
         densities = densities.reshape((x_range, y_range, z_range))
         densities = np.transpose(densities, (2,1,0))
         densities = (densities - densities.min()) / (densities.max() - densities.min())
-        
-        # point (0,0,0) in world coords is the center (the pointcloud is centered)
-        # when converted in pixel coords, we get :
-        center = np.array([-z_min/step, -y_min/step, -x_min/step])
-        # function x -> (x - xmin) / step converts world coords to pixel coords
-        
+                
         densities = densities.astype(dtype)
-        return densities, center
+        return densities
 
     # +---------------------------------------------------------------------------------------+ #
     # |                                   AUGMENT IMAGE                                       | #
@@ -345,7 +340,7 @@ class DataGenerator:
 
     def create_groundtruth(self, path: str):
         # center the pointcloud
-        gt, _ = self.image_from_pointcloud(self.template_pointcloud.cpu().numpy(), fov=self.common_fov)
+        gt = self.image_from_pointcloud(self.template_pointcloud.cpu().numpy(), fov=self.common_fov)
         tifffile.imwrite(path, gt)
 
     def create_particles(self, output: str=None, output_extension: str='npz'):
@@ -361,15 +356,17 @@ class DataGenerator:
             csvwriter.writerow(["name", "rot1", "rot2", "rot3", "t1", "t2", "t3"])
 
         for i, rotation_angles, translation in tqdm(zip(range(len(angles)), angles, translations), total=len(angles), desc="Creating particles..."):
-            particle, center = self.image_from_pointcloud(self.augment_pointcloud(rotation_angles=rotation_angles, translation=translation), fov=self.common_fov)
+            particle = self.image_from_pointcloud(self.augment_pointcloud(rotation_angles=rotation_angles, translation=translation), fov=self.common_fov)
+            translation /= self.step
+            translation = translation
             # add anisotropic blur
             sigma = self.config.sensor.anisotropic_blur_sigma
             mode  = self.config.sensor.anisotropic_blur_border_mode
             particle = gaussian_filter(particle, sigma=sigma, mode=mode)
             particles.append(particle)
-            real_translations.append(center)
+            real_translations.append(translation)
             if output is not None:
-                csvwriter.writerow([f"{i}.tiff", *rotation_angles, *center])
+                csvwriter.writerow([f"{i}.tiff", *rotation_angles, *translation])
                 tifffile.imwrite(output_dir / f"{i}.tiff", particle)
         
         real_translations = np.stack(real_translations)
@@ -389,12 +386,13 @@ class DataGenerator:
         views = np.array(list(map(self.get_view_from_angles, angles)))
         # 2. Augment, voxelize and put images inside one big image
         for center, rotation_angles, translation in tqdm(zip(centers, angles, translations), total=len(centers), desc="Creating particles..."):
-            particle, crop_center = self.image_from_pointcloud(self.augment_pointcloud(rotation_angles=rotation_angles, translation=translation))
+            particle = self.image_from_pointcloud(self.augment_pointcloud(rotation_angles=rotation_angles, translation=translation))
+            translation /= self.step
             depth, height, width = particle.shape
             z, y, x = center
             z_min, y_min, x_min = z - depth // 2, y - height // 2, x - width // 2
             z_max, y_max, x_max = z_min + depth, y_min + height, x_min + width
-            real_center = np.array([z_min, y_min, x_min], dtype=float) + crop_center
+            real_center = np.array([z_min, y_min, x_min], dtype=float) + translation
             real_centers.append(real_center)
             self.output_image[z_min:z_max, y_min:y_max, x_min:x_max] += particle
         real_centers = np.stack(real_centers, axis=0)

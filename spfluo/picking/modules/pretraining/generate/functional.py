@@ -101,7 +101,7 @@ def translate(
     pointcloud: torch.Tensor,
     translation: Tuple[float]=None,
     device: torch.device=torch.device('cpu')
-) -> torch.Tensor:
+) -> Tuple[torch.Tensor, torch.Tensor]:
     """ Randomly rotate a pointcloud with a given probability. If no angles are provided, the
         rotation is determined by uniformly sampling 3 Euler's angles.
 
@@ -118,9 +118,7 @@ def translate(
     if translation is None:
         return pointcloud
     t = torch.as_tensor(translation, dtype=pointcloud.dtype, device=pointcloud.device)
-    x_min, x_max, y_min, y_max, z_min, z_max = get_FOV(pointcloud)
-    range = max(x_max-x_min, y_max-y_min, z_max-z_min)
-    return pointcloud - t * range
+    return pointcloud - t
 
 
 # _______________________________________________________________________________________________ #
