@@ -42,6 +42,9 @@ gpu = [
 napari = [
   "napari[all] @ git+https://github.com/napari/napari.git@aa0330fcace8d5855fcd1e75c1fd4384b542bd4c",
 ]
+dev = [
+  "pytest",
+]
 
 [project.urls]
 Repository = "https://github.com/jplumail/spfluo.git"
