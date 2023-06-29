@@ -109,7 +109,7 @@ class ProtSPFluoPickingPredict(ProtFluoPicking):
         args += ["--checkpoint", f"{checkpoint_path}"]
         args += ["--batch_size", f"{self.batch_size.get()}"]
         args += ["--testdir", f"{self.test_dir}"]
-        args += ["--output_dir", "{self.output_dir}"]
+        args += ["--output_dir", f"{self.output_dir}"]
         args += ["--patch_size", f"{ps}"]
         args += ["--stride", f"{self.stride.get()}"]
         args += ["--extension", "tif"]
