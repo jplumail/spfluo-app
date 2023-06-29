@@ -1,4 +1,3 @@
-from .config import DataGenerationConfig
-from .data_generator import DataGenerator
+from .generate_data import generate_data
 
-__all__ = (DataGenerationConfig, DataGenerator)
+__all__ = (generate_data)

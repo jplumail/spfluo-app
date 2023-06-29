@@ -5,77 +5,8 @@ import numpy as np
 import tifffile
 from tqdm import tqdm
 from typing import List, Tuple
-from .generate import DataGenerator
-from .generate import config as cfg
 from ..training import make_U_mask
 from ..utils import load_array, load_annotations, center_to_corners, summary
-
-
-# +------------------------------------------------------------------------------------------+ #
-# |                                  GENERATE SYNTHETIC DATA                                 | #
-# +------------------------------------------------------------------------------------------+ #
-
-def init_base_config():
-    config = cfg.DataGenerationConfig()
-    outliers_pass1 = cfg.Outliers(
-        radius_range_xy=(25, 80),
-        radius_range_z=(20, 40),
-        nb_points_range=(1000, 3000),
-        nb_clusters_range=(100, 150),
-        intensity_range=(0.5, 0.7),
-    )
-    #outliers_pass2 = cfg.Outliers(
-    #    radius_range_xy=(150, 300),
-    #    radius_range_z=(20, 40),
-    #    nb_points_range=(500, 1000),
-    #    nb_clusters_range=(100, 150),
-    #    intensity_range=(0.5, 1.),
-    #)
-
-    # Tilt
-    outliers_pass2 = cfg.Outliers(
-        radius_range_xy=(150, 300),
-        radius_range_z=(20, 40),
-        nb_points_range=(500, 1000),
-        nb_clusters_range=(100, 200),
-        intensity_range=(0.5, 1.),
-    )
-
-
-    #config.outliers = (outliers_pass1, outliers_pass2) # no outlier
-    return config
-
-
-def generate_data(size: int, output_dir: str, pointcloud_path: str=None, extension: str='npz') -> None:
-    config = init_base_config()
-
-    # Small image
-    config.target_shape = (128, 512, 512)
-    config.voxelisation.num_particles = 150
-    config.voxelisation.max_particle_dim = 25
-
-    # Tilt config
-    config.voxelisation.tilt_margin = 0
-    config.voxelisation.tilt_strategy = 'uniform'
-    config.voxelisation.bandwidth = 15
-    config.voxelisation.cluster_range_xy = (10, 40)
-    config.voxelisation.cluster_range_z = (5, 20)
-    config.voxelisation.nb_particles_per_cluster_range = (1, 1) # no cluster
-    config.augmentation.intensity_mean_ratio = 0.0 # no hole
-    config.augmentation.intensity_std_ratio_range = (0., 0.) # no hole
-    config.augmentation.shrink_range = (1., 1.) # no shrink
-
-    # sensors
-    config.sensor.anisotropic_blur = False
-    config.sensor.poisson_noise = False
-    config.sensor.gaussian_noise = False
-
-    config.io.generated_dataset_size = size
-    config.io.output_dir = output_dir
-    config.io.extension = extension
-    if pointcloud_path is not None:
-        config.io.point_cloud_path = pointcloud_path
-    DataGenerator(config).generate_dataset()
 
 
 # +------------------------------------------------------------------------------------------+ #
@@ -416,6 +347,11 @@ def prepare(
     print('\nPreparing data for training ...\n')
     if size is not None:
         print('| Generating dataset ...')
+        try:
+            from .generate import generate_data
+        except ModuleNotFoundError as e:
+            raise ModuleNotFoundError(str(e)+"\n\nCannot generate synthetic data, you may need the pyfigtree module for that. \
+Try `pip install spfluo[figtree]` or `pip install pyfigtree`.")
         generate_data(size, rootdir, pointcloud_path, extension)
     # STEP 2: Train/Val/Test splits
     if train_test_split is not None and train_val_split is not None:
