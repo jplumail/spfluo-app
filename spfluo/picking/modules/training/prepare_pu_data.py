@@ -14,7 +14,7 @@ from typing import Tuple, List
 from tqdm import tqdm
 from cupyx.scipy import ndimage
 from cucim.skimage import exposure
-from cucim.skimage.measure import label, regionprops
+from skimage.measure import label, regionprops
 from sklearn.mixture import GaussianMixture
 import torch
 from torch.utils.data import Dataset, DataLoader, Sampler
@@ -32,9 +32,11 @@ def find_max_positive_ratio_slice(image: np.ndarray) -> np.ndarray:
 
 
 def remove_small_objects_by_area(mask: np.ndarray, area_min: int=50) -> np.ndarray:
-    new_mask = np.copy(mask)
-    for region in regionprops(label(new_mask), cache=True):
-        new_mask[region.slice] = region.area
+    new_mask = np.copy(mask).astype(int)
+    labels = label(new_mask)
+    areas = np.bincount(labels.flatten())
+    for region in regionprops(labels):
+        new_mask[region.slice] = areas[region.label]
     new_mask = new_mask >= area_min
     return new_mask
 
@@ -69,7 +71,7 @@ def make_U_mask(
     threshold = np.mean(classifier.means_)
     step2 = step1 > cp.array(threshold)
     # STEP 3: Remove Small Objects
-    step3 = remove_small_objects_by_area(step2, area_min=area_min)
+    step3 = cp.array(remove_small_objects_by_area(step2.get(), area_min=area_min)) # this step is faster on CPU
     # STEP 4: Erosion: make a little 3D cube and erode 1 time with it
     cube = ndimage.generate_binary_structure(rank=3, connectivity=3)
     step4 = ndimage.binary_erosion(step3, cube, iterations=1)
