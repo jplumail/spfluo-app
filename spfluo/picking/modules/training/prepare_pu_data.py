@@ -35,7 +35,7 @@ def remove_small_objects_by_area(mask: np.ndarray, area_min: int=50) -> np.ndarr
     new_mask = np.copy(mask)
     for region in regionprops(label(new_mask), cache=True):
         new_mask[region.slice] = region.area
-    new_mask = new_mask <= area_min
+    new_mask = new_mask >= area_min
     return new_mask
 
 
