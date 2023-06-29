@@ -9,7 +9,7 @@ from tqdm import tqdm
 from typing import Optional, Tuple, List
 from skimage.util import random_noise
 from scipy.stats import truncnorm
-from scipy.ndimage.filters import gaussian_filter
+from scipy.ndimage import gaussian_filter
 import tifffile
 from . import functional as F
 from pyfigtree import figtree
