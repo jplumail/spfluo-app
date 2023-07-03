@@ -25,6 +25,7 @@ def generated_particles(tmp_path_factory):
     config.sensor.anisotropic_blur_sigma = (5, 1, 1)
     config.augmentation.rotation_proba = 1
     config.augmentation.max_translation = 100
+    config.augmentation.shrink_range = (1., 1.)
     gen = DataGenerator(config)
 
     data_dir = tmp_path_factory.mktemp("data")
