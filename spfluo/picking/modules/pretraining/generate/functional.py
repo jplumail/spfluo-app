@@ -115,7 +115,7 @@ def translate(
     if translation is None:
         return pointcloud
     t = torch.as_tensor(translation, dtype=pointcloud.dtype, device=pointcloud.device)
-    return pointcloud - t
+    return pointcloud + t
 
 
 # _______________________________________________________________________________________________ #

@@ -74,7 +74,7 @@ def test_poses(groundtruth_array: np.ndarray, particles: Dict[str, Dict[str, np.
         H_center2 = np.eye(4)
         H_center2[:3, 3] = -(np.array(particle.shape)-1) / 2
         H_trans = np.eye(4)
-        H_trans[:3, 3] = -particles[k]["trans"]
+        H_trans[:3, 3] = particles[k]["trans"]
         H = H_trans @ H_center1 @ H_rot @ H_center2 # translation vers 0,0 -> rot -> translation vers centre -> translation
         invH = np.linalg.inv(H)
         transformed_gt = affine_transform(gt, invH, order=3)
