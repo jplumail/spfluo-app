@@ -1,6 +1,7 @@
 from typing import Any, Dict, Tuple
 import numpy as np
 from spfluo.picking.modules.pretraining.generate.data_generator import DataGenerationConfig, DataGenerator
+from spfluo.utils.transform import get_transform_matrix
 from scipy.ndimage import affine_transform, gaussian_filter
 from scipy.spatial.transform import Rotation
 from skimage.registration import phase_cross_correlation
@@ -66,18 +67,15 @@ def test_poses(groundtruth_array: np.ndarray, particles: Dict[str, Dict[str, np.
     gt = groundtruth_array
     for k in particles:
         particle = particles[k]["array"]
-        rot = Rotation.from_euler("ZXZ", particles[k]["rot"], degrees=True).as_matrix()
-        H_rot = np.eye(4)
-        H_rot[:3, :3] = rot
-        H_center1 = np.eye(4)
-        H_center1[:3, 3] = (np.array(particle.shape)-1) / 2
-        H_center2 = np.eye(4)
-        H_center2[:3, 3] = -(np.array(particle.shape)-1) / 2
-        H_trans = np.eye(4)
-        H_trans[:3, 3] = particles[k]["trans"]
-        H = H_trans @ H_center1 @ H_rot @ H_center2 # translation vers 0,0 -> rot -> translation vers centre -> translation
+
+        # H go from gt to particle (which is transformed)
+        H = get_transform_matrix(particle.shape, particles[k]["rot"], particles[k]["trans"], convention="ZXZ", degrees=True)
+        
+        # invert this because scipy's affine_transform works backward
         invH = np.linalg.inv(H)
-        transformed_gt = affine_transform(gt, invH, order=3)
+        transformed_gt = affine_transform(gt, invH, order=1)
+
+        # Apply the data model
         sigma = config.sensor.anisotropic_blur_sigma
         mode  = config.sensor.anisotropic_blur_border_mode
         transformed_gt_blurred = gaussian_filter(transformed_gt, sigma=sigma, mode=mode)
