@@ -10,19 +10,19 @@ import csv
 
 
 D = 50
-N = 10
+N = 20
 
 @pytest.fixture(scope="session")
-def generated_particles_dir(tmp_path_factory):
+def generated_particles(tmp_path_factory):
     config = DataGenerationConfig()
     config.augmentation.max_translation = 0.1
-    config.io.point_cloud_path = "/home/plumail/sample_centriole_point_cloud.csv"
+    config.io.point_cloud_path = "/home/plumail/Téléchargements/sample_centriole_point_cloud.csv"
     config.io.extension = "tiff"
     config.voxelisation.image_shape = D
-    config.voxelisation.max_particle_dim = 30
+    config.voxelisation.max_particle_dim = int(0.6*D)
     config.voxelisation.num_particles = N
     config.voxelisation.bandwidth = 17
-    config.sensor.anisotropic_blur_sigma = (0, 0, 0)
+    config.sensor.anisotropic_blur_sigma = (5, 1, 1)
     config.augmentation.rotation_proba = 1
     config.augmentation.max_translation = 100
     gen = DataGenerator(config)
@@ -31,25 +31,27 @@ def generated_particles_dir(tmp_path_factory):
     gt_path = data_dir / "gt.tiff"
     gen.create_groundtruth(gt_path)
     gen.create_particles(data_dir, output_extension="tiff")
-    return data_dir
+    return data_dir, config
+
 
 @pytest.fixture(scope="session")
-def groundtruth_array(generated_particles_dir: pathlib.Path):
-    return tifffile.imread(generated_particles_dir / "gt.tiff")
+def groundtruth_array(generated_particles):
+    return tifffile.imread(generated_particles[0] / "gt.tiff")
 
 @pytest.fixture(scope="session")
-def particles(generated_particles_dir: pathlib.Path):
-    content = csv.reader((generated_particles_dir / "poses.csv").read_text().split('\n'))
+def particles(generated_particles):
+    content = csv.reader((generated_particles[0] / "poses.csv").read_text().split('\n'))
     next(content) # skip header
     data = {}
     for row in content:
         if len(row) == 7:
             data[row[0]] = {
-                "array": tifffile.imread(generated_particles_dir / row[0]),
+                "array": tifffile.imread(generated_particles[0] / row[0]),
                 "rot": np.array(row[1:4], dtype=float),
                 "trans": np.array(row[4:7], dtype=float)
             }
     return data
+
 
 def test_generation(groundtruth_array, particles):
     assert len(particles.keys()) == N
