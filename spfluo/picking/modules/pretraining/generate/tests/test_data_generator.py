@@ -1,7 +1,7 @@
-import pathlib
+from typing import Any, Dict, Tuple
 import numpy as np
 from spfluo.picking.modules.pretraining.generate.data_generator import DataGenerationConfig, DataGenerator
-from scipy.ndimage import affine_transform
+from scipy.ndimage import affine_transform, gaussian_filter
 from scipy.spatial.transform import Rotation
 from skimage.registration import phase_cross_correlation
 import pytest
@@ -61,22 +61,29 @@ def test_generation(groundtruth_array, particles):
     assert groundtruth_array.shape == (D, D, D)
 
 
-# TODO: should test the opposite, transforming the GT into the particles to see if they match
-def test_poses(groundtruth_array, particles):
+def test_poses(groundtruth_array: np.ndarray, particles: Dict[str, Dict[str, np.ndarray]], generated_particles: Tuple[Any, DataGenerationConfig]):
+    _, config = generated_particles
     gt = groundtruth_array
     for k in particles:
+        particle = particles[k]["array"]
         rot = Rotation.from_euler("ZXZ", particles[k]["rot"], degrees=True).as_matrix()
         H_rot = np.eye(4)
         H_rot[:3, :3] = rot
         H_center1 = np.eye(4)
-        H_center1[:3, 3] = (np.array(particles[k]["array"].shape)-1) / 2
+        H_center1[:3, 3] = (np.array(particle.shape)-1) / 2
         H_center2 = np.eye(4)
-        H_center2[:3, 3] = -(np.array(particles[k]["array"].shape)-1) / 2
+        H_center2[:3, 3] = -(np.array(particle.shape)-1) / 2
         H_trans = np.eye(4)
         H_trans[:3, 3] = -particles[k]["trans"]
         H = H_trans @ H_center1 @ H_rot @ H_center2 # translation vers 0,0 -> rot -> translation vers centre -> translation
-        transformed_particle = affine_transform(particles[k]["array"], H, order=5)
+        invH = np.linalg.inv(H)
+        transformed_gt = affine_transform(gt, invH, order=3)
+        sigma = config.sensor.anisotropic_blur_sigma
+        mode  = config.sensor.anisotropic_blur_border_mode
+        transformed_gt_blurred = gaussian_filter(transformed_gt, sigma=sigma, mode=mode)
 
-        # Is the transformed particle aligned with groundtruth ?
-        (dz, dy, dx), _, _ = phase_cross_correlation(gt, transformed_particle, upsample_factor=10, disambiguate=True, normalization=None)
-        assert dy < 0.5 and dx < 0.5
+        # Is the transformed groundtruth aligned with particle ?
+        (dz, dy, dx), _, _ = phase_cross_correlation(particle, transformed_gt_blurred, upsample_factor=10, disambiguate=True, normalization=None)
+        assert dz <= 0.1
+        assert dy <= 0.1
+        assert dx <= 0.1
