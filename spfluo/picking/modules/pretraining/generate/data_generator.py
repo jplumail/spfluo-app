@@ -42,6 +42,8 @@ class DataGenerator:
         eps = 1e-12 / 2
         self.common_fov = (-(self.step*image_shape-eps)/2, (self.step*image_shape-eps)/2) * 3
 
+        self.create_psf()
+
     def __load_pointcloud_tensor(self) -> torch.Tensor:
         template_point_cloud = np.loadtxt(self.config.io.point_cloud_path, delimiter=',')
         pointcloud = torch.as_tensor(template_point_cloud, dtype=self.dtype).to(self.device)
@@ -311,27 +313,32 @@ class DataGenerator:
             self.add_poisson_noise()
     
     def create_psf(self):
-        step = float(self.step)
-        B = self.config.voxelisation.bandwidth # bandwidth in the pointcloud coordinate system
-        B = int(np.ceil(B / step)) # bandwidth in the image space
-        k = 10
-        shape = [2*k*B+1] * 3
-        psf = np.zeros(shape, dtype=float)
-        psf[k*B,k*B,k*B] = 1 # dirac
+        # commented out because GT is in the image space not int the pointcloud space 
+        #step = float(self.step)
+        #B = self.config.voxelisation.bandwidth # bandwidth in the pointcloud coordinate system
+        #B = int(np.ceil(B / step)) # bandwidth in the image space
+        #k = 10
+        #shape = [2*k*B+1] * 3
+        #psf = np.zeros(shape, dtype=float)
+        #psf[k*B,k*B,k*B] = 1 # dirac
         #psf = gaussian_filter(psf, sigma=B, mode='constant') # gaussian of std B
 
         # Anisotropic blur
         if self.config.sensor.anisotropic_blur:
-            sigma = self.config.sensor.anisotropic_blur_sigma
+            sigma = np.array(self.config.sensor.anisotropic_blur_sigma, dtype=int)
             mode  = self.config.sensor.anisotropic_blur_border_mode
+            k = 4 # +/- 4 sigmas is sufficient
+            shape = 2 * k * sigma + 1
+            psf = np.zeros(shape, dtype=float)
+            psf[tuple(k*sigma)] = 1 # dirac
             psf = gaussian_filter(psf, sigma=sigma, mode=mode)
 
-        # Save
-        output_path = os.path.join(self.config.io.output_dir, 'psf.tif')
-        psf = (psf - psf.min()) / (psf.max() - psf.min())
-        psf = psf / psf.sum()
-        tifffile.imwrite(output_path, (psf*255).astype(np.uint8))
-
+            # Save
+            psf = (psf - psf.min()) / (psf.max() - psf.min())
+            psf = psf / psf.sum()
+            self.psf = psf
+        else:
+            self.psf = None
 
 
 
@@ -339,7 +346,10 @@ class DataGenerator:
     # |                                      WRAPPERS                                         | #
     # +---------------------------------------------------------------------------------------+ #
 
-    def create_groundtruth(self, path: str):
+    def save_psf(self, path: str):
+        tifffile.imwrite(path, self.psf)
+
+    def save_groundtruth(self, path: str):
         # center the pointcloud
         gt = self.image_from_pointcloud(self.template_pointcloud.cpu().numpy(), fov=self.common_fov)
         tifffile.imwrite(path, gt)
@@ -364,7 +374,7 @@ class DataGenerator:
             sigma = self.config.sensor.anisotropic_blur_sigma
             mode  = self.config.sensor.anisotropic_blur_border_mode
             if any([s>0 for s in sigma]):
-                particle = gaussian_filter(particle, sigma=sigma, mode=mode)
+                particle = ndii.convolve(particle, self.psf, mode=mode)
             particles.append(particle)
             real_translations.append(translation)
             if output is not None:
