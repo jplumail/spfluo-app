@@ -22,18 +22,17 @@ def test_shapes_reconstruction_L2():
     assert den.shape == (D, H, W)
 
 
-# TODO Ne marche plus
 def test_parallel_reconstruction_L2():
-    batch_dims = (5,5,)
+    M = 5
     N, D, H, W = 100, 32, 32, 32
-    volumes = torch.randn(batch_dims+(N, D, H, W))
-    psf = torch.randn(batch_dims+(D, H, W))
-    poses = torch.randn(batch_dims+(N, 6))
-    lambda_ = torch.randn(batch_dims)
+    volumes = torch.randn((N, D, H, W))
+    psf = torch.randn((D, H, W))
+    poses = torch.randn((M, N, 6))
+    lambda_ = torch.randn((M,))
     recon, _ = reconstruction_L2(volumes, psf, poses, lambda_)
-    recon2 = torch.stack([torch.stack([reconstruction_L2(vv, pp, ppoo, ll)[0] for vv, pp, ppoo, ll in zip(v,p,po,l)]) for v, p, po, l in zip(volumes, psf, poses, lambda_)])
+    recon2 = torch.stack([reconstruction_L2(volumes, psf, poses[i], lambda_[i])[0] for i in range(M)])
 
-    assert recon.shape == batch_dims+(D, H, W)
+    assert recon.shape == (M, D, H, W)
     assert torch.isclose(recon, recon2).all()
 
 
