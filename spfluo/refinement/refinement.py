@@ -144,7 +144,7 @@ def convolution_matching_poses_grid(
     
     best_errors, best_indices = torch.min(errors, dim=1)
     best_poses = potential_poses[best_indices]
-    best_poses[:, 3:] = shifts[np.arange(N), best_indices]
+    best_poses[:, 3:] = -shifts[np.arange(N), best_indices]
     
     return best_poses, best_errors
 
@@ -202,7 +202,7 @@ def convolution_matching_poses_refined(
     
     errors, best_indices = torch.min(errors, dim=1)
     best_poses = potential_poses[np.arange(N), best_indices]
-    best_poses[:, 3:] = shifts[np.arange(N), best_indices]
+    best_poses[:, 3:] = -shifts[np.arange(N), best_indices]
     return best_poses, errors
 
 def find_L(precision):
