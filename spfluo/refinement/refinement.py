@@ -2,6 +2,7 @@
 
 from spfluo.utils import pad_to_size, fftn, dftregistrationND, discretize_sphere_uniformly, affine_transform
 from spfluo.utils.memory import split_batch_func
+from spfluo.utils.transform import get_transform_matrix
 
 from typing import Any, List, Optional, Tuple
 import math
@@ -10,10 +11,11 @@ import torch
 from scipy.spatial.transform import Rotation
 
 
-def affine_transform_wrapper(volumes, poses):
-    tensor_kwargs = {"device": volumes.device, "dtype": volumes.dtype}
-    matrices = torch.tensor(Rotation.from_euler("ZXZ", poses[:,:3].cpu().numpy(), degrees=True).as_matrix(), **tensor_kwargs)
-    return affine_transform(volumes, matrices)
+def affine_transform_wrapper(volumes, poses, inverse=False):
+    H = get_transform_matrix(volumes.shape[2:], poses[:,:3], poses[:,3:], convention="ZXZ", degrees=True)
+    if not inverse: # scipy's affine_transform do inverse transform by default
+        torch.linalg.inv(H, out=H)
+    return affine_transform(volumes, H)
 
 def reconstruction_L2(volumes: torch.Tensor, psf: torch.Tensor, poses: torch.Tensor, lambda_: torch.Tensor) -> torch.Tensor:
     """Reconstruct a particule from volumes and their poses. M reconstructions can be done at once.
@@ -62,11 +64,11 @@ def reconstruction_L2(volumes: torch.Tensor, psf: torch.Tensor, poses: torch.Ten
     ):
         size_batch = end - start
         y = volumes.unsqueeze(1).repeat(size_batch,1,1,1,1) # shape (size_batch, N, D, H, W)
-        y = affine_transform_wrapper(y.view(size_batch*N,D,H,W)[:,None], poses[start:end].view(size_batch*N,6))[:,0].view(size_batch,N,D,H,W)
+        y = affine_transform_wrapper(y.view(size_batch*N,D,H,W)[:,None], poses[start:end].view(size_batch*N,6), inverse=True)[:,0].view(size_batch,N,D,H,W)
         y = y.type(torch.complex64)
         
         h_ = psf.unsqueeze(0).repeat(N*size_batch,1,1,1).unsqueeze(1)
-        h_ = affine_transform_wrapper(h_, poses_psf[start:end].view(size_batch*N,6))[:,0].view(size_batch,N,d,h,w)
+        h_ = affine_transform_wrapper(h_, poses_psf[start:end].view(size_batch*N,6), inverse=True)[:,0].view(size_batch,N,d,h,w)
         H_ = pad_to_size(h_, y.size())
         H_ = H_.type(torch.complex64)
         del h_
