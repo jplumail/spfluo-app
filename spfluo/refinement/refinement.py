@@ -100,20 +100,20 @@ def convolution_matching_poses_grid(
     reference: torch.Tensor,
     volumes: torch.Tensor,
     psf: torch.Tensor,
-    potential_poses: torch.Tensor
+    poses_grid: torch.Tensor
 ) -> Tuple[torch.Tensor]:
     """Find the best pose from a list of poses for each volume
     Params:
         reference (torch.Tensor) : reference 3D image of shape (D, H, W)
         volumes (torch.Tensor) : volumes to match of shape (N, D, H, W)
         psf (torch.Tensor): 3D PSF of shape (D, H, W)
-        potential_poses (torch.Tensor): poses to test of shape (M, 6)
+        poses_grid (torch.Tensor): poses to test of shape (M, 6)
     Returns:
         best_poses (torch.Tensor): best poses for each volume of shape (N, 6)
         best_errors (torch.Tensor): dftRegistration error associated to each pose (N,)
     """
     # Shapes
-    M, _ = potential_poses.shape
+    M, d = poses_grid.shape
     N, D, H, W = volumes.shape
 
     # PSF
@@ -122,9 +122,9 @@ def convolution_matching_poses_grid(
     shifts = torch.empty((N,M,3))
     errors = torch.empty((N,M))
     for (start1, end1), (start2, end2) in split_batch_func(
-        "convolution_matching_poses_grid", reference, volumes, psf, potential_poses
+        "convolution_matching_poses_grid", reference, volumes, psf, poses_grid
     ):
-        potential_poses_minibatch = potential_poses[start2:end2]
+        potential_poses_minibatch = poses_grid[start2:end2]
 
         # Volumes to frequency space
         volumes_freq = torch.fft.fftn(volumes[start1:end1], dim=(1,2,3))
@@ -145,7 +145,7 @@ def convolution_matching_poses_grid(
         torch.cuda.empty_cache()
     
     best_errors, best_indices = torch.min(errors, dim=1)
-    best_poses = potential_poses[best_indices]
+    best_poses = poses_grid[best_indices]
     best_poses[:, 3:] = -shifts[np.arange(N), best_indices]
     
     return best_poses, best_errors
