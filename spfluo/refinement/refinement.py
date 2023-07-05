@@ -135,7 +135,7 @@ def convolution_matching_poses_grid(
         reference_minibatch = h * torch.fft.fftn(reference_minibatch, dim=(1,2,3))
 
         # Registration
-        err, sh = dftregistrationND(reference_minibatch[None], volumes_freq[:,None], nb_spatial_dims=3)
+        err, sh = dftregistrationND(reference_minibatch[None], volumes_freq[:,None], nb_spatial_dims=3, normalization=None, upsample_factor=10)
         sh = torch.stack(list(sh), dim=-1)
         
         errors[start1:end1, start2:end2] = err
@@ -193,7 +193,7 @@ def convolution_matching_poses_refined(
         reference_minibatch = h * torch.fft.fftn(reference_minibatch, dim=(2,3,4))
 
         # Registration
-        err, sh = dftregistrationND(reference_minibatch, volumes_freq[:,None], nb_spatial_dims=3)
+        err, sh = dftregistrationND(reference_minibatch, volumes_freq[:,None], nb_spatial_dims=3, normalization=None, upsample_factor=10)
         sh = torch.stack(list(sh), dim=-1)
 
         errors[start1:end1, start2:end2] = err
