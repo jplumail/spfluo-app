@@ -213,7 +213,7 @@ def find_L(precision):
 
 def create_poses_grid(M_axes, M_rot, symmetry=1, **tensor_kwargs):
     (theta, phi, psi), precision = discretize_sphere_uniformly(M_axes, M_rot, product=True, symmetry=symmetry, **tensor_kwargs)
-    list_angles = torch.stack([psi, phi, theta], dim=-1)
+    list_angles = torch.stack([theta, phi, psi], dim=-1)
     M = list_angles.shape[0]
     list_translation = torch.zeros((M,3), **tensor_kwargs)
     potential_poses = torch.cat([list_angles,list_translation], dim=1)
