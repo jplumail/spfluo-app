@@ -1,14 +1,15 @@
-from .get_poses import (
-    load_views,
-    load_patches,
-    normalize_patches,
-    iterative_suppression,
-)
-
 import argparse
-import numpy as np
 import csv
+
+import numpy as np
 import scipy.ndimage as ndi
+
+from .get_poses import (
+    iterative_suppression,
+    load_patches,
+    load_views,
+    normalize_patches,
+)
 
 
 def parse_args():

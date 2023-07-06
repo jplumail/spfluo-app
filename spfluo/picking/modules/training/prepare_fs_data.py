@@ -18,13 +18,14 @@ rootdir
 
 import os
 import pickle
-import numpy as np
 from typing import List, Tuple
-import torch
-from torch.utils.data import Dataset, DataLoader
-from .augment import get_augment_policy
-from ..utils import load_array
 
+import numpy as np
+import torch
+from torch.utils.data import DataLoader, Dataset
+
+from ..utils import load_array
+from .augment import get_augment_policy
 
 # +------------------------------------------------------------------------------------------+ #
 # |                                          DATASET                                         | #

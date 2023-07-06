@@ -26,23 +26,24 @@ and finally call the fit function accordingly.
 That's what picking.py and tilt.py do.
 """
 
+import functools
 import os
 import time
-import functools
-import numpy as np
-from tqdm import tqdm
-from dataclasses import dataclass
 from collections import OrderedDict
-from typing import List, Dict, Tuple
 from collections.abc import Iterable
+from dataclasses import dataclass
+from typing import Dict, List, Tuple
+
+import numpy as np
 import torch
 from torch import Tensor
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.tensorboard.summary import hparams
-from .networks import EfficientNet, Decoder
-from .losses import BinomialGE, MultiTaskLoss
+from tqdm import tqdm
 
+from .losses import BinomialGE, MultiTaskLoss
+from .networks import Decoder, EfficientNet
 
 # +------------------------------------------------------------------------------------------+ #
 # |                                    TRAINING COMPONENTS                                   | #

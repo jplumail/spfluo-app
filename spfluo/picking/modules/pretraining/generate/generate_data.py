@@ -1,7 +1,6 @@
 from .config import DataGenerationConfig, Outliers
 from .data_generator import DataGenerator
 
-
 # +------------------------------------------------------------------------------------------+ #
 # |                                  GENERATE SYNTHETIC DATA                                 | #
 # +------------------------------------------------------------------------------------------+ #

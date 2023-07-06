@@ -1,22 +1,23 @@
-import os
 import csv
-from pathlib import Path
-import torch
+import os
 import pickle
+from pathlib import Path
+from typing import List, Optional, Tuple
+
 import numpy as np
 import numpy.random as R
-from tqdm import tqdm
-from typing import Optional, Tuple, List
-from skimage.util import random_noise
-from scipy.stats import truncnorm
-from scipy.ndimage import gaussian_filter
+import scipy.ndimage as ndii
 import tifffile
-from . import functional as F
+import torch
 from pyfigtree import figtree
+from scipy.ndimage import gaussian_filter
+from scipy.stats import truncnorm
+from skimage.util import random_noise
+from tqdm import tqdm
+
+from . import functional as F
 from .config import DataGenerationConfig
 from .config import Outliers as OutliersConfig
-
-import scipy.ndimage as ndii
 
 
 class DataGenerator:

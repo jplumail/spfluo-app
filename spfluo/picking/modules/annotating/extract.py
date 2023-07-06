@@ -1,14 +1,15 @@
-from typing import Optional, Tuple
-from ..utils import load_annotations, load_array
-
-import sys
 import json
 import os
 import shutil
+import sys
 from glob import glob
+from typing import Optional, Tuple
+
 import numpy as np
 import tifffile
 from scipy.ndimage import zoom
+
+from ..utils import load_annotations, load_array
 
 
 def read_center_and_size(file_path):

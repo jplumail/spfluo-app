@@ -1,6 +1,6 @@
-from ..viewers import show_points
-
 import argparse
+
+from ..viewers import show_points
 
 
 def main():

@@ -1,22 +1,22 @@
-from utils import create_psf, get_random_3d_vector
-from utils.loading import load_array, load_pointcloud
-from segmentation.create_centriole import simu_cylinder_rev, get_radius
-
+import os
 from abc import abstractmethod
 from copy import deepcopy
-import os
+from time import time
 from typing import Tuple, Union
+
+import numpy as np
 import pandas as pd
+import torch
+from PIL import Image
+from pyfigtree import figtree
 from scipy.spatial import ConvexHull
 from scipy.spatial.qhull import QhullError
-import numpy as np
-import torch
-from torch.nn import functional as F
-from torch.distributions.multivariate_normal import MultivariateNormal
 from scipy.spatial.transform import Rotation
-from pyfigtree import figtree
-from time import time
-from PIL import Image
+from segmentation.create_centriole import get_radius, simu_cylinder_rev
+from torch.distributions.multivariate_normal import MultivariateNormal
+from torch.nn import functional as F
+from utils import create_psf, get_random_3d_vector
+from utils.loading import load_array, load_pointcloud
 
 
 class SamplingStrategy:

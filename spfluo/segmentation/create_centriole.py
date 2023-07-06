@@ -1,9 +1,8 @@
-import numpy as np
-from scipy.interpolate import UnivariateSpline
-from matplotlib.widgets import Slider
-
-
 from time import time
+
+import numpy as np
+from matplotlib.widgets import Slider
+from scipy.interpolate import UnivariateSpline
 
 
 def get_rotation_mat(angle):

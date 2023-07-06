@@ -1,13 +1,14 @@
-import os
 import csv
+import os
 import shutil
+from typing import List, Tuple
+
 import numpy as np
 import tifffile
 from tqdm import tqdm
-from typing import List, Tuple
-from ..training import make_U_mask
-from ..utils import load_array, load_annotations, center_to_corners, summary
 
+from ..training import make_U_mask
+from ..utils import center_to_corners, load_annotations, load_array, summary
 
 # +------------------------------------------------------------------------------------------+ #
 # |                                        MAKE U MASKS                                      | #

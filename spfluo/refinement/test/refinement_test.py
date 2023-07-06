@@ -1,17 +1,17 @@
 # from spfluo.utils.loading import loadmat
+import os
+
+import numpy as np
+import torch
+
 from spfluo.refinement import (
-    convolution_matching_poses_refined,
     convolution_matching_poses_grid,
-    reconstruction_L2,
+    convolution_matching_poses_refined,
     find_angles_grid,
+    reconstruction_L2,
     refine,
 )
-
-import os
-import torch
-import numpy as np
 from spfluo.utils.volume import are_volumes_aligned
-
 
 ##########################
 # Test reconstruction_L2 #

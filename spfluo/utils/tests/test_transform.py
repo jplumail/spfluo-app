@@ -1,6 +1,6 @@
-from spfluo.utils.transform import get_transform_matrix
-
 import numpy as np
+
+from spfluo.utils.transform import get_transform_matrix
 
 
 def test_get_transform_matrix_simple():

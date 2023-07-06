@@ -1,10 +1,12 @@
 import os
+from typing import Dict, Tuple
+
 import numpy as np
-from typing import Tuple, Dict
-from .core import Data, Losses, F1Score, Logger, make_model, fit
+
+from ..utils import summary
+from .core import Data, F1Score, Logger, Losses, fit, make_model
 from .prepare_fs_data import make_dataloaders as make_fs_dataloaders
 from .prepare_pu_data import make_dataloaders as make_pu_dataloaders
-from ..utils import summary
 
 
 def make_data(

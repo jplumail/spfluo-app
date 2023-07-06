@@ -6,16 +6,17 @@
 
 import os
 import pickle
-import numpy as np
-from typing import List, Tuple, Dict
-import torch
-from torch.utils.data import Dataset, DataLoader
-from .augment import get_augment_policy
-from .prepare_fs_data import get_patch_paths
-from .core import Data, Losses, Accuracy, Logger, make_model, fit
-from .unsupervised_pretraining import unsupervised_pretraining
-from ..utils import load_annotations, load_array, summary
+from typing import Dict, List, Tuple
 
+import numpy as np
+import torch
+from torch.utils.data import DataLoader, Dataset
+
+from ..utils import load_annotations, load_array, summary
+from .augment import get_augment_policy
+from .core import Accuracy, Data, Logger, Losses, fit, make_model
+from .prepare_fs_data import get_patch_paths
+from .unsupervised_pretraining import unsupervised_pretraining
 
 # +------------------------------------------------------------------------------------------+ #
 # |                                          DATASET                                         | #

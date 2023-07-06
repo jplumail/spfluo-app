@@ -1,20 +1,21 @@
 """Some functions from this file were translated from a Matlab project made by Denis Fortun"""
 
-from spfluo.utils import (
-    pad_to_size,
-    fftn,
-    dftregistrationND,
-    discretize_sphere_uniformly,
-    affine_transform,
-)
-from spfluo.utils.memory import split_batch_func
-from spfluo.utils.transform import get_transform_matrix
-
-from typing import List, Optional, Tuple
 import math
+from typing import List, Optional, Tuple
+
 import numpy as np
 import torch
 from scipy.spatial.transform import Rotation
+
+from spfluo.utils import (
+    affine_transform,
+    dftregistrationND,
+    discretize_sphere_uniformly,
+    fftn,
+    pad_to_size,
+)
+from spfluo.utils.memory import split_batch_func
+from spfluo.utils.transform import get_transform_matrix
 
 
 def affine_transform_wrapper(volumes, poses, inverse=False):

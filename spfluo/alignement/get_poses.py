@@ -1,13 +1,13 @@
-from utils import inverse_affine_transform, pad_to_size, reconstruction_L2
-from utils.loading import load_annotations, load_array
-
 import os
 import pickle
 from time import time
+
 import numpy as np
+import torch
 from scipy import ndimage as ndii
 from scipy.signal import correlate
-import torch
+from utils import inverse_affine_transform, pad_to_size, reconstruction_L2
+from utils.loading import load_annotations, load_array
 
 
 def load_views(views_path):

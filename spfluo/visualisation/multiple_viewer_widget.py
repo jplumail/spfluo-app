@@ -15,7 +15,15 @@ current dims point (`viewer.dims.point`).
 from copy import deepcopy
 from typing import Tuple
 
+import napari
 import numpy as np
+from napari.components.layerlist import Extent
+from napari.components.viewer_model import ViewerModel
+from napari.layers import Image, Labels, Layer, Points, Vectors
+from napari.qt import QtViewer
+from napari.utils.action_manager import action_manager
+from napari.utils.events.event import WarningEmitter
+from napari.utils.notifications import show_info
 from packaging.version import parse as parse_version
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
@@ -27,15 +35,6 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 from superqt.utils import qthrottled
-
-import napari
-from napari.components.layerlist import Extent
-from napari.components.viewer_model import ViewerModel
-from napari.layers import Image, Labels, Layer, Vectors, Points
-from napari.qt import QtViewer
-from napari.utils.action_manager import action_manager
-from napari.utils.events.event import WarningEmitter
-from napari.utils.notifications import show_info
 
 NAPARI_GE_4_16 = parse_version(napari.__version__) > parse_version("0.4.16")
 

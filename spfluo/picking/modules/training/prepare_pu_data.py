@@ -7,19 +7,20 @@ It is organised as follows:
 
 import os
 import pickle
-import numpy as np
+from typing import List, Tuple
+
 import cupy as cp
-from typing import Tuple, List
-from tqdm import tqdm
-from cupyx.scipy import ndimage
+import numpy as np
+import torch
 from cucim.skimage import exposure
+from cupyx.scipy import ndimage
 from skimage.measure import label, regionprops
 from sklearn.mixture import GaussianMixture
-import torch
-from torch.utils.data import Dataset, DataLoader, Sampler
-from .augment import get_augment_policy
-from ..utils import load_array, load_annotations
+from torch.utils.data import DataLoader, Dataset, Sampler
+from tqdm import tqdm
 
+from ..utils import load_annotations, load_array
+from .augment import get_augment_policy
 
 # +------------------------------------------------------------------------------------------+ #
 # |                    PREPROCESSING: POSITIVE & UNLABELLED MASKS CREATION                   | #

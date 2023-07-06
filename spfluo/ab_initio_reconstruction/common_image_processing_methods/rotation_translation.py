@@ -1,9 +1,8 @@
-import numpy as np
 import cupy as cp
+import numpy as np
+from cupyx.scipy.ndimage import affine_transform as affine_transform_cupy
 from scipy.ndimage.interpolation import affine_transform
 from scipy.spatial.transform import Rotation as R
-from cupyx.scipy.ndimage import affine_transform as affine_transform_cupy
-
 
 from spfluo.utils import affine_transform as affine_transform_pytorch
 

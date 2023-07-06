@@ -1,10 +1,11 @@
-import torch
 import numpy as np
-import spfluo.utils
-from spfluo.utils import dftregistrationND
+import torch
+from scipy.ndimage import fourier_shift
 from skimage import data, util
 from skimage.registration import phase_cross_correlation
-from scipy.ndimage import fourier_shift
+
+import spfluo.utils
+from spfluo.utils import dftregistrationND
 
 
 def dftregistration(

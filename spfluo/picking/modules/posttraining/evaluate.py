@@ -1,13 +1,14 @@
 import os
 import pickle
+from typing import Dict, List, Tuple
+
 import imageio
 import numpy as np
-from typing import Tuple, List, Dict
 from skimage import img_as_ubyte
 from sklearn.metrics import classification_report, confusion_matrix
-from .postprocess import compute_volume, compute_iou_3d
-from ..utils import load_array, load_annotations, center_to_corners, summary
 
+from ..utils import center_to_corners, load_annotations, load_array, summary
+from .postprocess import compute_iou_3d, compute_volume
 
 # +------------------------------------------------------------------------------------------+ #
 # |                                       LABEL VOLUMES                                      | #

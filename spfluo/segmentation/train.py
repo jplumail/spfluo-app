@@ -1,28 +1,26 @@
 import copy
 import os
 
+import numpy as np
 import pandas as pd
-from .unet_3d import UNet3D
+import torch
+import torch.multiprocessing
+from torch.optim import Adam
+from torch.utils.data import default_collate
+from torch.utils.tensorboard import SummaryWriter
+from torchvision.utils import make_grid
+from tqdm.auto import tqdm
+
 from .data import (
+    Generator_variableSize,
     GeneratorDataset,
     HardCopyDataset,
     MultiEpochsDataLoader,
-    Generator_variableSize,
-    unbatch_dict,
     infos_to_dataframe,
+    unbatch_dict,
 )
 from .losses import iaawnLossDenis
-
-import torch
-from torch.utils.tensorboard import SummaryWriter
-from torch.utils.data import default_collate
-from torch.optim import Adam
-from torchvision.utils import make_grid
-import numpy as np
-from tqdm.auto import tqdm
-
-import torch.multiprocessing
-
+from .unet_3d import UNet3D
 
 if __name__ == "__main__":
     torch.multiprocessing.set_sharing_strategy("file_system")

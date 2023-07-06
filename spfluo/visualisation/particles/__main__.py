@@ -1,7 +1,7 @@
-from ..viewers import show_particles
-
 import argparse
 import os
+
+from ..viewers import show_particles
 
 
 def main():

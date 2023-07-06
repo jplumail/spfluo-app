@@ -1,14 +1,16 @@
+import os
 import time
 
-import SimpleITK as sitk
-from numpy import pi
-import os
-from tqdm import tqdm
-import numpy as np
-from scipy.ndimage import fourier_shift
-import cupy as cp
-from cupyx.scipy.ndimage import label as label_cupy, fourier_shift as fourier_shift_cupy
 import cc3d
+import cupy as cp
+import numpy as np
+import SimpleITK as sitk
+from cupyx.scipy.ndimage import fourier_shift as fourier_shift_cupy
+from cupyx.scipy.ndimage import label as label_cupy
+from numpy import pi
+from scipy.ndimage import fourier_shift
+from tqdm import tqdm
+
 from ..manage_files.read_save_files import read_image, save
 
 
@@ -161,10 +163,9 @@ def translate_to_have_one_connected_component(
 
 
 if __name__ == "__main__":
-    from skimage.registration import phase_cross_correlation
-
     #
     from skimage.metrics import structural_similarity as ssim
+    from skimage.registration import phase_cross_correlation
 
     pth = "/home/eloy/Documents/article_reconstruction_micro_fluo/TCI23"
     im_to_register = ["AMPA_5p_lambda1e-3"]

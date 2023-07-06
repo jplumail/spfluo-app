@@ -1,13 +1,14 @@
-from spfluo.visualisation import add_orthoviewer_widget, init_qt
-
-from typing import List
-import napari
-from napari.layers import Points
-from napari.experimental import link_layers, unlink_layers
-import numpy as np
-from aicsimageio.aics_image import AICSImage
-import pandas as pd
 import tempfile
+from typing import List
+
+import napari
+import numpy as np
+import pandas as pd
+from aicsimageio.aics_image import AICSImage
+from napari.experimental import link_layers, unlink_layers
+from napari.layers import Points
+
+from spfluo.visualisation import add_orthoviewer_widget, init_qt
 
 
 def show_points(im_path: str, csv_path: str):

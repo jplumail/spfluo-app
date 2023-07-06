@@ -6,7 +6,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn as nn
 from torch.autograd import Variable
-from torch.nn import MSELoss, SmoothL1Loss, L1Loss
+from torch.nn import L1Loss, MSELoss, SmoothL1Loss
 
 
 def expand_as_one_hot(input, C, ignore_index=None):

@@ -1,8 +1,9 @@
 import os
 import random
+from typing import Dict, Tuple
+
 import imageio
 import numpy as np
-from typing import Tuple, Dict
 import torch
 
 

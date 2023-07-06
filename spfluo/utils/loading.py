@@ -1,16 +1,17 @@
 import os
 import pickle
 import random
+from typing import Dict, Tuple
+
 import imageio
 import numpy as np
-from typing import Tuple, Dict
 import tifffile
 import torch
 
 try:
-    from cupyx.scipy import ndimage
     import cupy as cp
     from cupy._core import ndarray
+    from cupyx.scipy import ndimage
 
     use_cupy = True
 except ImportError:

@@ -1,11 +1,12 @@
+import argparse
+import pickle
+
 from spfluo.ab_initio_reconstruction.manage_files.read_save_files import (
     read_images_in_folder,
     save,
 )
-from .averaging import rotate_average
 
-import pickle
-import argparse
+from .averaging import rotate_average
 
 
 def args_parser():

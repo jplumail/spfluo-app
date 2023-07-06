@@ -1,35 +1,37 @@
+import os
+
+import cupy as cp
+import numpy as np
+import torch
+from cucim.skimage.registration import (
+    phase_cross_correlation as phase_cross_correlation_gpu,
+)
+from cupyx.scipy.ndimage import fourier_shift as fourier_shift_gpu
+from numpy import fft
+from scipy.ndimage.fourier import fourier_shift
+from skimage.registration import phase_cross_correlation
+
 from spfluo.utils import (
     dftregistrationND as phase_cross_correlation_gpu_pytorch,
+)
+from spfluo.utils import (
     fourier_shift as fourier_shift_gpu_pytorch,
+)
+
+from ..common_image_processing_methods.others import crop_center
+from ..common_image_processing_methods.registration import (
+    registration_exhaustive_search,
+    shift_registration_exhaustive_search,
+    translate_to_have_one_connected_component,
 )
 from ..common_image_processing_methods.rotation_translation import (
     rotation,
     rotation_gpu,
     rotation_gpu_pytorch,
 )
-from ..common_image_processing_methods.registration import (
-    registration_exhaustive_search,
-    shift_registration_exhaustive_search,
-)
-from ..common_image_processing_methods.others import crop_center
-from ..common_image_processing_methods.registration import (
-    translate_to_have_one_connected_component,
-)
 
 # from ..common_image_processing_methods.barycenter import center_barycenter
 from ..manage_files.read_save_files import save
-
-import os
-import numpy as np
-import cupy as cp
-from numpy import fft
-import torch
-from skimage.registration import phase_cross_correlation
-from cucim.skimage.registration import (
-    phase_cross_correlation as phase_cross_correlation_gpu,
-)
-from scipy.ndimage.fourier import fourier_shift
-from cupyx.scipy.ndimage import fourier_shift as fourier_shift_gpu
 
 
 class Fourier_pixel_representation:
@@ -335,9 +337,9 @@ class Fourier_pixel_representation:
 
 
 if __name__ == "__main__":
-    from scipy import ndimage, misc
     import matplotlib.pyplot as plt
     import numpy.fft
+    from scipy import misc, ndimage
 
     fig, (ax1, ax2) = plt.subplots(1, 2)
     plt.gray()  # show the filtered result in grayscale

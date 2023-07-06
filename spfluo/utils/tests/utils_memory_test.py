@@ -1,6 +1,6 @@
-from spfluo.utils.memory import split_batch
-
 import numpy as np
+
+from spfluo.utils.memory import split_batch
 
 
 def test_split_batch():

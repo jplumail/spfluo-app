@@ -1,7 +1,8 @@
-from ._array import array_api_compat, Array, cpu_only_compatibility
-
 from typing import Tuple
+
 from scipy.spatial.transform import Rotation
+
+from ._array import Array, array_api_compat, cpu_only_compatibility
 
 
 @cpu_only_compatibility

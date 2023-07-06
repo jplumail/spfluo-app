@@ -1,7 +1,7 @@
-from .annotate import annotate
-
 import argparse
 import os
+
+from .annotate import annotate
 
 
 def parse_args() -> argparse.Namespace:

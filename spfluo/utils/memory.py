@@ -1,14 +1,14 @@
 from __future__ import annotations
+
 import itertools
 import math
-
-import torch
-import numpy as np
 from typing import Generator, Tuple
+
+import numpy as np
+import psutil
+import torch
 from pynvml.smi import nvidia_smi
 from torch import cuda
-import psutil
-
 
 NVSMI = None
 

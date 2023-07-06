@@ -1,12 +1,11 @@
-import numpy as np
-import skimage.transform as skt
-import scipy.ndimage.interpolation as sci
-import cv2
-from scipy.ndimage import gaussian_filter
-from scipy.ndimage import map_coordinates
-
 # import SimpleITK as sitk
 from warnings import warn
+
+import cv2
+import numpy as np
+import scipy.ndimage.interpolation as sci
+import skimage.transform as skt
+from scipy.ndimage import gaussian_filter, map_coordinates
 
 """
 vol: [H, W, D(, C)]

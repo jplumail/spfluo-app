@@ -3,12 +3,12 @@
     and gpu.
 """
 
-import torch
-import numpy as np
-from scipy.stats import multivariate_normal
-from scipy.spatial.transform import Rotation
 from typing import Tuple, Union
 
+import numpy as np
+import torch
+from scipy.spatial.transform import Rotation
+from scipy.stats import multivariate_normal
 
 # _______________________________________________________________________________________________ #
 

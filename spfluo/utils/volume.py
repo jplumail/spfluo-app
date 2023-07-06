@@ -1,12 +1,13 @@
-from .memory import split_batch_func
-
 from typing import Tuple
+
 import numpy as np
+import scipy.ndimage as ndii
 import torch
 import torch.nn.functional as F
-import scipy.ndimage as ndii
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from skimage.registration import phase_cross_correlation
+
+from .memory import split_batch_func
 
 
 def affine_transform(

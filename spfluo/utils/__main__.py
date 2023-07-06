@@ -1,7 +1,7 @@
-from .loading import isotropic_resample, resize, resample
-
 import argparse
 import os
+
+from .loading import isotropic_resample, resample, resize
 
 
 def parse_args() -> argparse.ArgumentParser:

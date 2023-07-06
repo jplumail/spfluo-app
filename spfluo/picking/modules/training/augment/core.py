@@ -1,7 +1,8 @@
-from typing import Tuple, Callable
-import albumentations as A
-from . import volumentations as V
+from typing import Callable, Tuple
 
+import albumentations as A
+
+from . import volumentations as V
 
 # +------------------------------------------------------------------------------------------+ #
 # |                                      AUGMENTATION API                                    | #

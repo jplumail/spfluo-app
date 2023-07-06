@@ -4,14 +4,15 @@
 
 import os
 import pickle
+from typing import Dict, List, Tuple
+
 import numpy as np
-from tqdm import tqdm
-from typing import Tuple, List, Dict
 from scipy.ndimage import center_of_mass
 from skimage.exposure import equalize_adapthist
 from skimage.filters import threshold_otsu
-from ..utils import load_array, center_to_corners, summary
+from tqdm import tqdm
 
+from ..utils import center_to_corners, load_array, summary
 
 # +------------------------------------------------------------------------------------------+ #
 #                                           Volume                                           | #

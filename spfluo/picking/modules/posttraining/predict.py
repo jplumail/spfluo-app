@@ -1,13 +1,14 @@
 import os
 import pickle
+from typing import Dict, List, Tuple
+
 import numpy as np
-from tqdm import tqdm
-from typing import Tuple, Dict, List
 import torch
+from tqdm import tqdm
+
 from ..training import EfficientNet, make_U_mask
 from ..training.prepare_fs_data import get_patch_paths
 from ..utils import load_array, summary
-
 
 # +------------------------------------------------------------------------------------------+ #
 # |                                          HELPERS                                         | #

@@ -3,10 +3,11 @@ Code from the 3D UNet implementation:
 https://github.com/wolny/pytorch-3dunet/
 """
 import importlib
+from functools import partial
+
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
-from functools import partial
 
 
 def number_of_features_per_level(init_channel_number, num_levels):

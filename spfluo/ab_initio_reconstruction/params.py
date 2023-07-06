@@ -1,4 +1,5 @@
 import numpy as np
+
 from .volume_representation.gaussian_mixture_representation.GMM_grid_evaluation import (
     make_grid,
     nd_gaussian,

@@ -1,25 +1,27 @@
 import csv
-from glob import glob
 import os
 import shutil
+from glob import glob
 
 from .modules.annotating.extract import create_annotation_image
 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"  # Disable tensorflow INFO and WARNING
 import argparse
 import pickle
-import numpy as np
 from typing import Sequence
+
+import numpy as np
+
 from .modules.annotating import extract_annotations
-from .modules.pretraining import prepare, crop
-from .modules.training import train_picking, train_tilt
 from .modules.posttraining import (
-    predict_picking,
-    postprocess,
     evaluate_picking,
-    predict_tilt,
     evaluate_tilt,
+    postprocess,
+    predict_picking,
+    predict_tilt,
 )
+from .modules.pretraining import crop, prepare
+from .modules.training import train_picking, train_tilt
 from .modules.utils import load_annotations, seed_all, send_mail
 
 

@@ -1,11 +1,12 @@
-from spfluo.visualisation import add_orthoviewer_widget, init_qt
+import csv
+import os
 
 import napari
+import numpy as np
 from napari.layers import Points
 from napari.utils.events import Event
-import numpy as np
-import os
-import csv
+
+from spfluo.visualisation import add_orthoviewer_widget, init_qt
 
 
 def annotate(im_path, output_path, size=10):

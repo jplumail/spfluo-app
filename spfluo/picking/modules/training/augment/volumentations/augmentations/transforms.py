@@ -1,7 +1,9 @@
-import cv2
 import random
+
+import cv2
 import numpy as np
-from ..core.transforms_interface import Transform, DualTransform
+
+from ..core.transforms_interface import DualTransform, Transform
 from . import functionals as F
 
 

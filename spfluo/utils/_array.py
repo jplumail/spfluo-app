@@ -1,7 +1,6 @@
 from typing import TypeVar
+
 import array_api_compat
-
-
 from cupy import ndarray as cupy_array
 from numpy import ndarray as numpy_array
 from torch import Tensor as torch_array

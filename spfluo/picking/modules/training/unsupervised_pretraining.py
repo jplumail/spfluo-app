@@ -2,11 +2,13 @@
 
 import os
 import pickle
-from tqdm import tqdm
+
 import torch
 from torch import Tensor
 from torch.utils.data import DataLoader
-from .core import Model, Data
+from tqdm import tqdm
+
+from .core import Data, Model
 
 
 def step(x: Tensor, model: Model, training: bool) -> float:
