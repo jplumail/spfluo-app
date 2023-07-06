@@ -1,18 +1,15 @@
+import argparse
 import csv
 import os
+import pickle
 import shutil
 from glob import glob
-
-from .modules.annotating.extract import create_annotation_image
-
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"  # Disable tensorflow INFO and WARNING
-import argparse
-import pickle
 from typing import Sequence
 
 import numpy as np
 
 from .modules.annotating import extract_annotations
+from .modules.annotating.extract import create_annotation_image
 from .modules.posttraining import (
     evaluate_picking,
     evaluate_tilt,
@@ -23,6 +20,8 @@ from .modules.posttraining import (
 from .modules.pretraining import crop, prepare
 from .modules.training import train_picking, train_tilt
 from .modules.utils import load_annotations, seed_all, send_mail
+
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"  # Disable tensorflow INFO and WARNING
 
 
 def parse_args() -> argparse.Namespace:
