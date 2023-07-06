@@ -120,7 +120,7 @@ def make_grid(size, nb_dim, mi=-1, ma=1):
     transpose_idx = list(range(1, nb_dim + 1))
     transpose_idx.append(0)
     grid = np.mgrid[slices].transpose(*transpose_idx)
-    if mi != None and ma != None:
+    if mi is not None and ma is not None:
         grid_step = (ma - mi) / (size - 1)
         grid = grid_step * (grid - size + 1) + ma
     return grid

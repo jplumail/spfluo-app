@@ -170,7 +170,7 @@ def conversion_cartesian_polar(x, y, z, degree=False):
     else:
         theta = None
     if degree:
-        if theta != None:
+        if theta is not None:
             theta = 180 * theta / np.pi
         phi = 180 * phi / np.pi
     return rho, theta, phi
