@@ -232,8 +232,8 @@ class DataGenerator:
         # 3. Translate
         pointcloud = F.translate(pointcloud, translation, self.device)
         # 4. Make holes
-        a, b = cfg.intensity_std_ratio_range
-        std_ratio = (b - a) * R.random_sample() + a
+        # a, b = cfg.intensity_std_ratio_range
+        # std_ratio = (b - a) * R.random_sample() + a
         # pointcloud = F.non_uniform_density(
         #    pointcloud,
         #    cfg.intensity_nb_holes_min,

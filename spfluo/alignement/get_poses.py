@@ -427,7 +427,7 @@ def get_first_euler_angle_side(side_particles, top_particles, psf, lambda_=1e-2)
     recon, den = reconstruction_L2(
         particles, psf, poses_expanded, lambda_[None].repeat(M)
     )
-    dt = [0 for _ in range(7)]
+    # dt = [0 for _ in range(7)]
     t4 = time()
 
     MSE = torch.empty((recon.size(0),))

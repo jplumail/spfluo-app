@@ -42,7 +42,7 @@ def gradient_descent_importance_sampling_known_axes(
     recorded_energies = []
     nb_views = len(views)
     recorded_shifts = [[] for _ in range(nb_views)]
-    views_fft = [np.fft.fftn(v) for v in views]
+    # views_fft = [np.fft.fftn(v) for v in views]
     while itr < params_learning_alg.N_iter_max and (
         not stopping_criteria(recorded_energies, params_learning_alg.eps)
     ):

@@ -8,13 +8,13 @@ from .data_generator import DataGenerator
 
 def init_base_config():
     config = DataGenerationConfig()
-    outliers_pass1 = Outliers(
-        radius_range_xy=(25, 80),
-        radius_range_z=(20, 40),
-        nb_points_range=(1000, 3000),
-        nb_clusters_range=(100, 150),
-        intensity_range=(0.5, 0.7),
-    )
+    # outliers_pass1 = Outliers(
+    #    radius_range_xy=(25, 80),
+    #    radius_range_z=(20, 40),
+    #    nb_points_range=(1000, 3000),
+    #    nb_clusters_range=(100, 150),
+    #    intensity_range=(0.5, 0.7),
+    # )
     # outliers_pass2 = cfg.Outliers(
     #    radius_range_xy=(150, 300),
     #    radius_range_z=(20, 40),
@@ -24,13 +24,13 @@ def init_base_config():
     # )
 
     # Tilt
-    outliers_pass2 = Outliers(
-        radius_range_xy=(150, 300),
-        radius_range_z=(20, 40),
-        nb_points_range=(500, 1000),
-        nb_clusters_range=(100, 200),
-        intensity_range=(0.5, 1.0),
-    )
+    # outliers_pass2 = Outliers(
+    #    radius_range_xy=(150, 300),
+    #    radius_range_z=(20, 40),
+    #    nb_points_range=(500, 1000),
+    #    nb_clusters_range=(100, 200),
+    #    intensity_range=(0.5, 1.0),
+    # )
 
     # config.outliers = (outliers_pass1, outliers_pass2) # no outlier
     return config
