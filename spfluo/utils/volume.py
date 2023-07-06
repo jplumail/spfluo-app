@@ -699,12 +699,15 @@ def line_intersect_surface(self, line, surface):
     plane_basis = np.array([surface[1] - surface[0], surface[2] - surface[0]])
     plane_basis_position = surface[0]
     plane_orthonormal_basis = plane_basis / np.linalg.norm(plane_basis, axis=1)[:, None]
-    projector = lambda x: np.array(
-        [
-            np.dot(plane_orthonormal_basis[0], x - plane_basis_position),
-            np.dot(plane_orthonormal_basis[1], x - plane_basis_position),
-        ]
-    )
+
+    def projector(x):
+        return np.array(
+            [
+                np.dot(plane_orthonormal_basis[0], x - plane_basis_position),
+                np.dot(plane_orthonormal_basis[1], x - plane_basis_position),
+            ]
+        )
+
     projected_line = (
         projector(line[1] + 10 * line[0]) - projector(line[1]),
         projector(line[1]),

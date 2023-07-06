@@ -49,9 +49,12 @@ def show_points(im_path: str, csv_path: str):
 
 def show_particles(im_paths: List[str]):
     viewer = napari.Viewer()
-    indexer = lambda p: pd.Series(
-        [im_paths.index(p), 0, 0, 0], index=["C", "S", "T", "Z"]
-    ).astype(int)
+
+    def indexer(p):
+        return pd.Series(
+            [im_paths.index(p), 0, 0, 0], index=["C", "S", "T", "Z"]
+        ).astype(int)
+
     with tempfile.NamedTemporaryFile(suffix=".tif") as f:
         AICSImage(im_paths, indexer=indexer, single_file_dims=("Z", "Y", "X")).save(
             f.name

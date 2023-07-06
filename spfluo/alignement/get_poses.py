@@ -369,7 +369,10 @@ def iterative_suppression(patches, n):
 def get_first_euler_angle_side(side_particles, top_particles, psf, lambda_=1e-2):
     device = side_particles.device
     dtype = side_particles.dtype
-    as_tensor = lambda x: torch.as_tensor(x, device=device, dtype=dtype)
+
+    def as_tensor(x):
+        return torch.as_tensor(x, device=device, dtype=dtype)
+
     t0 = time()
     side_param, _, _ = iterative_alignment(side_particles.sum(dim=1).cpu().numpy())
     t1 = time()

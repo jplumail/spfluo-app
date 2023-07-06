@@ -508,7 +508,10 @@ class Shrink(_AbstractAugment):
         self.update_info(info)
         if self.factor != 1:
             m = true_pointcloud.mean(dim=0)
-            shrink = lambda x: m + (x - m) / self.factor
+
+            def shrink(x):
+                return m + (x - m) / self.factor
+
             pointcloud = shrink(pointcloud)
             true_pointcloud = shrink(true_pointcloud)
         return pointcloud, true_pointcloud, info

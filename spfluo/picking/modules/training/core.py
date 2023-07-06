@@ -389,11 +389,10 @@ def make_model(
     # 8. Stochastic Weights Averaging (optional)
     model.swa = swa
     if model.swa:
-        ema_avg = (
-            lambda averaged_model_parameter, model_parameter, num_averaged: 0.1
-            * averaged_model_parameter
-            + 0.9 * model_parameter
-        )
+
+        def ema_avg(averaged_model_parameter, model_parameter, num_averaged):
+            return 0.1 * averaged_model_parameter + 0.9 * model_parameter
+
         ema_model = torch.optim.swa_utils.AveragedModel(model.network, avg_fn=ema_avg)
         model.swa_network = ema_model
         model.swa_scheduler = torch.optim.swa_utils.SWALR(

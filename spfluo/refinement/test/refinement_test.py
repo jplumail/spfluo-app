@@ -98,7 +98,8 @@ def test_shapes_convolution_matching_poses_grid():
 
 # TODO faire les tests matlab
 def test_matlab_convolution_matching_poses_refined():
-    as_tensor = lambda x: torch.as_tensor(x, dtype=torch.float64, device="cuda")
+    def as_tensor(x):
+        return torch.as_tensor(x, dtype=torch.float64, device="cuda")
 
     # Load Matlab data
     data_path = os.path.join(os.path.dirname(__file__), "data", "convolution_matching")
