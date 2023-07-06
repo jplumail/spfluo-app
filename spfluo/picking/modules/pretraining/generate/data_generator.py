@@ -176,7 +176,7 @@ class DataGenerator:
 
     def generate_angles(self, tilt_strategy: str, tilt_margin: int) -> np.ndarray:
         num_particles = self.config.voxelisation.num_particles
-        tilt_angles  = self.sample_tilt_angles(num_particles, tilt_strategy, margin=tilt_margin) # TO CHANGE
+        tilt_angles = R.uniform(low=0, high=180, size=(num_particles,))
         other_angles = R.uniform(low=0, high=360, size=(num_particles, 2))
         angles = np.vstack((other_angles[:, 0], tilt_angles, other_angles[:, 1])).T
         angles[R.uniform(size=(num_particles,)) > self.config.augmentation.rotation_proba] = [0, 0, 0]
