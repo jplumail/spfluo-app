@@ -533,7 +533,7 @@ def gd_importance_sampling_3d(
 
     shutil.copyfile(
         os.path.join(sub_dir, f"recons_epoch_{itr}.tif"),
-        os.path.join(sub_dir, f"final_recons.tif"),
+        os.path.join(sub_dir, "final_recons.tif"),
     )
     pbar.close()
     write_array_csv(np.array(ssims), f"{output_dir}/ssims.csv")
