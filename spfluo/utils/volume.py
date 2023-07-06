@@ -8,6 +8,7 @@ import torch.nn.functional as F
 from scipy.spatial.transform import Rotation
 import scipy.ndimage as ndii
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from skimage.registration import phase_cross_correlation
 
 
 def affine_transform(input: torch.Tensor, matrix: torch.Tensor, offset=0.0, output_shape=None, output=None, order=1, mode='zeros', cval=0.0, prefilter=True) -> torch.Tensor:
@@ -595,3 +596,7 @@ def create_psf(shape, cov, **kwargs):
     coords = torch.stack(torch.meshgrid([torch.arange(0,shape[i], **kwargs) for i in range(len(shape))], indexing='ij'), dim=-1)
     psf = torch.exp(-0.5*(coords[...,None,:]-center) @ torch.linalg.inv(cov) @ (coords[...,:,None] - center[:,None])) / torch.linalg.det(2*torch.pi*cov) ** 0.5
     return psf[...,0,0]
+
+def are_volumes_aligned(vol1, vol2, atol=0.1):
+    (dz, dy, dx), _, _ = phase_cross_correlation(vol1, vol2, upsample_factor=10, disambiguate=True, normalization=None)
+    return dz <= atol and dy <= atol and dx <= atol

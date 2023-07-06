@@ -82,7 +82,4 @@ def test_poses(psf_array: np.ndarray, groundtruth_array: np.ndarray, particles: 
         transformed_gt_blurred = convolve(transformed_gt, psf_array, mode='constant', cval=0.)
 
         # Is the transformed groundtruth aligned with particle ?
-        (dz, dy, dx), _, _ = phase_cross_correlation(particle, transformed_gt_blurred, upsample_factor=10, disambiguate=True, normalization=None)
-        assert dz <= 0.1
-        assert dy <= 0.1
-        assert dx <= 0.1
+        assert are_volumes_aligned(particle, transformed_gt_blurred)
