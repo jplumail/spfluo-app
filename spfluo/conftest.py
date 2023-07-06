@@ -1,18 +1,84 @@
 # Make the generated data available to all spfluo subpackages
+import csv
 from functools import partial
+from pathlib import Path
 from typing import Any, Dict, Tuple
 
+import numpy as np
+import pytest
+import tifffile
 import torch
-from spfluo.picking.modules.pretraining.generate.tests.test_data_generator import (
-    generated_data,
-    psf_array,
-    groundtruth_array,
-    particles,
-    generated_particles_dir,
+
+from spfluo.picking.modules.pretraining.generate.data_generator import (
+    DataGenerationConfig,
+    DataGenerator,
 )
 
-import pytest
-import numpy as np
+D = 50
+N = 10
+anisotropy = (1.0, 1.0, 1.0)
+data_dir = Path(__file__).parent / "data"
+
+
+@pytest.fixture(scope="session")
+def generated_particles_dir():
+    if not data_dir.exists():
+        np.random.seed(123)
+        config = DataGenerationConfig()
+        config.augmentation.max_translation = 0
+        config.io.point_cloud_path = (
+            "/home/plumail/Téléchargements/sample_centriole_point_cloud.csv"
+        )
+        config.io.extension = "tiff"
+        config.voxelisation.image_shape = D
+        config.voxelisation.max_particle_dim = int(0.6 * D)
+        config.voxelisation.num_particles = N
+        config.voxelisation.bandwidth = 17
+        config.sensor.anisotropic_blur_sigma = anisotropy
+        config.augmentation.rotation_proba = 1
+        config.augmentation.shrink_range = (1.0, 1.0)
+        gen = DataGenerator(config)
+        data_dir.mkdir()
+        gt_path = data_dir / "gt.tiff"
+        gen.save_psf(data_dir / "psf.tiff")
+        gen.save_groundtruth(gt_path)
+        gen.create_particles(data_dir, output_extension="tiff")
+
+    return data_dir
+
+
+@pytest.fixture(scope="session")
+def psf_array(generated_particles_dir):
+    return tifffile.imread(generated_particles_dir / "psf.tiff")
+
+
+@pytest.fixture(scope="session")
+def groundtruth_array(generated_particles_dir):
+    return tifffile.imread(generated_particles_dir / "gt.tiff")
+
+
+@pytest.fixture(scope="session")
+def particles(generated_particles_dir):
+    content = csv.reader(
+        (generated_particles_dir / "poses.csv").read_text().split("\n")
+    )
+    next(content)  # skip header
+    data = {}
+    for row in content:
+        if len(row) == 7:
+            data[row[0]] = {
+                "array": tifffile.imread(generated_particles_dir / row[0]),
+                "rot": np.array(row[1:4], dtype=float),
+                "trans": np.array(row[4:7], dtype=float),
+            }
+    return data
+
+
+@pytest.fixture(scope="session")
+def generated_data(
+    psf_array, groundtruth_array, particles
+) -> Tuple[np.ndarray, np.ndarray, Dict[str, np.ndarray]]:
+    return psf_array, groundtruth_array, particles
 
 
 @pytest.fixture(scope="session")
