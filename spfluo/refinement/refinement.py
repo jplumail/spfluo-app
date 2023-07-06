@@ -12,7 +12,7 @@ from scipy.spatial.transform import Rotation
 
 
 def affine_transform_wrapper(volumes, poses, inverse=False):
-    H = get_transform_matrix(volumes.shape[2:], poses[:,:3], poses[:,3:], convention="ZXZ", degrees=True)
+    H = get_transform_matrix(volumes.shape[2:], poses[:,:3], poses[:,3:], convention="XZX", degrees=True)
     if not inverse: # scipy's affine_transform do inverse transform by default
         torch.linalg.inv(H, out=H)
     return affine_transform(volumes, H)

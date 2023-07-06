@@ -80,7 +80,7 @@ def test_poses(psf_array: np.ndarray, groundtruth_array: np.ndarray, particles: 
         particle = particles[k]["array"]
 
         # H go from gt to particle (which is transformed)
-        H = get_transform_matrix(particle.shape, particles[k]["rot"], particles[k]["trans"], convention="ZXZ", degrees=True)
+        H = get_transform_matrix(particle.shape, particles[k]["rot"], particles[k]["trans"], degrees=True)
         
         # invert this because scipy's affine_transform works backward
         invH = np.linalg.inv(H)
