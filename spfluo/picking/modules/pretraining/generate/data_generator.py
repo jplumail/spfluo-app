@@ -328,13 +328,14 @@ class DataGenerator:
             sigma = np.array(self.config.sensor.anisotropic_blur_sigma, dtype=int)
             mode  = self.config.sensor.anisotropic_blur_border_mode
             k = 4 # +/- 4 sigmas is sufficient
-            shape = 2 * k * sigma + 1
+            shape = np.ceil(2 * k * sigma + 1).astype(int)
             psf = np.zeros(shape, dtype=float)
-            psf[tuple(k*sigma)] = 1 # dirac
+            psf[tuple(np.floor(k*sigma).astype(int))] = 1 # dirac
             psf = gaussian_filter(psf, sigma=sigma, mode=mode)
 
             # Save
-            psf = (psf - psf.min()) / (psf.max() - psf.min())
+            if psf.max() > psf.min():
+                psf = (psf - psf.min()) / (psf.max() - psf.min())
             psf = psf / psf.sum()
             self.psf = psf
         else:
