@@ -124,28 +124,3 @@ def make_grid(size, nb_dim, mi=-1, ma=1):
         grid_step = (ma - mi) / (size - 1)
         grid = grid_step * (grid - size + 1) + ma
     return grid
-
-
-if __name__ == "__main__":
-    #
-    grid = make_grid(50, 3)
-    pcs = read_csv(
-        f"/home/eloy/Documents/SimulateNPCs/simulated_npcN_Nup107_5A9Q_x16_deformmag_1_seed_None_13-sept.-2022.csv",
-        first_col=0,
-    )
-    nb_particules = int(pcs[-1][-1])
-    pcs_lists = []
-    sig = 0.07
-    cov = sig**2 * np.eye(3)
-    npc_im_fold = "npc_ims"
-    make_dir(npc_im_fold)
-    for i in range(nb_particules):
-        idxs_particule = np.where(pcs[:, -1] == i)
-        pc = pcs[idxs_particule, :3]
-        pc = pc / 70
-        pc = pc.squeeze()
-        npc_im, _ = gaussian_mixture(
-            grid, np.array([1] * len(pc)), pc, [cov] * len(pc), 3, 3
-        )
-        save(f"{npc_im_fold}/npc_im_{i}.tif", npc_im)
-        # print('max pc', np.min(pc))

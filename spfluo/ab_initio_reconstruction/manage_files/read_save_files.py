@@ -80,13 +80,3 @@ def save_figure(fold, save_name):
     make_dir(fold)
     plt.savefig(f"{fold}/{save_name}")
     print(f"figure saved at location {fold}, with name {save_name}")
-
-
-if __name__ == "__main__":
-    from manage_files.paths import *
-
-    pth = f"{PATH_REAL_DATA}/Data_marine/selected_data/preprocessed_resize_ratio_2/c1"
-    read_images_in_folder(pth)
-
-    # a = np.random.random((6000, 30))
-    # write_array_csv(a, './yy.csv')

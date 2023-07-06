@@ -548,7 +548,3 @@ def test_distance_poses():
 
     assert torch.isclose(angle, torch.tensor(180.0))
     assert torch.isclose(t, torch.tensor(2.0) ** 0.5)
-
-
-if __name__ == "__main__":
-    test_batch_dftregistration()
