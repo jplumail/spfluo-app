@@ -1,14 +1,12 @@
 import os
 import pickle
-import csv
 import numpy as np
 from tqdm import tqdm
 from typing import Tuple, Dict, List
 import torch
-from ..pretraining.prepare import crop
 from ..training import EfficientNet, make_U_mask
 from ..training.prepare_fs_data import get_patch_paths
-from ..utils import load_array, load_annotations, summary
+from ..utils import load_array, summary
 
 
 # +------------------------------------------------------------------------------------------+ #

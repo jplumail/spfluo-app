@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.interpolate import UnivariateSpline
-from matplotlib.widgets import Slider, Button
+from matplotlib.widgets import Slider
 
 
 from time import time

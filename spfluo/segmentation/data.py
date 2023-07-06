@@ -5,7 +5,6 @@ from segmentation.create_centriole import simu_cylinder_rev, get_radius
 from abc import abstractmethod
 from copy import deepcopy
 import os
-from re import S
 from typing import Tuple, Union
 import pandas as pd
 from scipy.spatial import ConvexHull

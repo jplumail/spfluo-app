@@ -6,7 +6,6 @@ import numpy as np
 from typing import Tuple, Dict
 import tifffile
 import torch
-from tqdm.auto import tqdm
 
 try:
     from cupyx.scipy import ndimage

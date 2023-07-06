@@ -3,9 +3,6 @@ from utils.loading import load_annotations, load_array
 
 import os
 import pickle
-import glob
-import argparse
-import csv
 from time import time
 import numpy as np
 from scipy import ndimage as ndii
@@ -197,9 +194,6 @@ def fill_params(params, tree, R, ty, tx):
             tx * np.cos(R_rad) - ty * np.sin(R_rad) - tx_,
         )
         # params[tree[2]] = ((R+r_)%360,  ty+ty_, tx+tx_)
-
-
-import matplotlib.pyplot as plt
 
 
 def iterative_alignment(particles, epsilon=1e-2, max_iter=20):

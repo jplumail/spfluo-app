@@ -3,10 +3,6 @@ from .learning_algorithms.gradient_descent_importance_sampling import (
     gd_importance_sampling_3d,
 )
 from .volume_representation.pixel_representation import Fourier_pixel_representation
-from .volume_representation.gaussian_mixture_representation.GMM_grid_evaluation import (
-    make_grid,
-    nd_gaussian,
-)
 from .common_image_processing_methods.rotation_translation import (
     discretize_sphere_uniformly,
 )

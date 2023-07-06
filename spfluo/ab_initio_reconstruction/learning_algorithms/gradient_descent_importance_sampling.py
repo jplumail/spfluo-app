@@ -7,7 +7,7 @@ from ..common_image_processing_methods.others import normalize
 from ..volume_representation.gaussian_mixture_representation.GMM_grid_evaluation import (
     one_d_gaussian,
 )
-from ..manage_files.read_save_files import write_array_csv, make_dir, read_image, save
+from ..manage_files.read_save_files import write_array_csv, make_dir, save
 
 import os
 from tqdm.auto import tqdm

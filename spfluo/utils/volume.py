@@ -1,11 +1,9 @@
 from .memory import split_batch_func
 
-import math
-from typing import Tuple, Union
+from typing import Tuple
 import numpy as np
 import torch
 import torch.nn.functional as F
-from scipy.spatial.transform import Rotation
 import scipy.ndimage as ndii
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from skimage.registration import phase_cross_correlation

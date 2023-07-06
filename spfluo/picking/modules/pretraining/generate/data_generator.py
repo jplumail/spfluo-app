@@ -18,8 +18,6 @@ from .config import Outliers as OutliersConfig
 
 import scipy.ndimage as ndii
 
-from time import time
-
 
 class DataGenerator:
     # +---------------------------------------------------------------------------------------+ #

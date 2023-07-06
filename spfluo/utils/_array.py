@@ -1,4 +1,4 @@
-from typing import Tuple, TypeVar
+from typing import TypeVar
 import array_api_compat
 
 

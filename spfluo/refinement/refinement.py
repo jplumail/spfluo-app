@@ -10,7 +10,7 @@ from spfluo.utils import (
 from spfluo.utils.memory import split_batch_func
 from spfluo.utils.transform import get_transform_matrix
 
-from typing import Any, List, Optional, Tuple
+from typing import List, Optional, Tuple
 import math
 import numpy as np
 import torch

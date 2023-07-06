@@ -20,7 +20,6 @@ from torch.optim import Adam
 from torchvision.utils import make_grid
 import numpy as np
 from tqdm.auto import tqdm
-import time
 
 import torch.multiprocessing
 

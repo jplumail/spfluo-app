@@ -7,7 +7,6 @@ It is organised as follows:
 
 import os
 import pickle
-from re import A
 import numpy as np
 import cupy as cp
 from typing import Tuple, List

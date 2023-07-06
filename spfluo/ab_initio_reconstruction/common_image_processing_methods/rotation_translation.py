@@ -3,9 +3,7 @@ import cupy as cp
 from scipy.ndimage.interpolation import affine_transform
 from scipy.spatial.transform import Rotation as R
 from cupyx.scipy.ndimage import affine_transform as affine_transform_cupy
-import numbers
 
-import torch
 
 from spfluo.utils import affine_transform as affine_transform_pytorch
 

@@ -13,7 +13,6 @@ current dims point (`viewer.dims.point`).
 """
 
 from copy import deepcopy
-import os
 from typing import Tuple
 
 import numpy as np
@@ -24,7 +23,6 @@ from qtpy.QtWidgets import (
     QDoubleSpinBox,
     QPushButton,
     QSplitter,
-    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -36,7 +34,7 @@ from napari.components.viewer_model import ViewerModel
 from napari.layers import Image, Labels, Layer, Vectors, Points
 from napari.qt import QtViewer
 from napari.utils.action_manager import action_manager
-from napari.utils.events.event import WarningEmitter, Event
+from napari.utils.events.event import WarningEmitter
 from napari.utils.notifications import show_info
 
 NAPARI_GE_4_16 = parse_version(napari.__version__) > parse_version("0.4.16")

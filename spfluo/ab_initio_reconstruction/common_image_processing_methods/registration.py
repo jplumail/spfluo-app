@@ -4,7 +4,6 @@ import SimpleITK as sitk
 from numpy import pi
 import os
 from tqdm import tqdm
-from skimage import io
 import numpy as np
 from scipy.ndimage import fourier_shift
 import cupy as cp
@@ -166,7 +165,6 @@ if __name__ == "__main__":
 
     #
     from skimage.metrics import structural_similarity as ssim
-    from common_image_processing_methods.others import normalize
 
     pth = "/home/eloy/Documents/article_reconstruction_micro_fluo/TCI23"
     im_to_register = ["AMPA_5p_lambda1e-3"]
