@@ -1,4 +1,4 @@
-from .config import DataGenerationConfig, Outliers
+from .config import DataGenerationConfig
 from .data_generator import DataGenerator
 
 # +------------------------------------------------------------------------------------------+ #

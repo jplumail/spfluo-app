@@ -1,5 +1,4 @@
 import os
-import time
 
 import cc3d
 import cupy as cp
