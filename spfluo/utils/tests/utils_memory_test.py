@@ -1,4 +1,4 @@
-from utils.memory import split_batch
+from spfluo.utils.memory import split_batch
 
 import numpy as np
 
