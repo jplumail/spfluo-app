@@ -1,6 +1,7 @@
 # from spfluo.utils.loading import loadmat
 
 import torch
+from typing import Tuple
 
 from spfluo.refinement import (
     convolution_matching_poses_grid,
