@@ -1,6 +1,7 @@
 import numpy as np
 import torch
-from scipy.ndimage import fourier_shift
+from scipy.ndimage import affine_transform, fourier_shift
+from scipy.spatial.transform import Rotation as R
 from skimage import data, util
 from skimage.registration import phase_cross_correlation
 
@@ -408,9 +409,6 @@ def test_upsample_cuda_dftregistration():
 ####################################################
 # Test affine_transform against the scipy function #
 ####################################################
-
-from scipy.ndimage import affine_transform
-from scipy.spatial.transform import Rotation as R
 
 
 def affine_transform_gpu(vol, mat, offset=0.0, output_shape=None, device="cpu"):
