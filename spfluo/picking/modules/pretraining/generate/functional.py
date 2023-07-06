@@ -86,7 +86,7 @@ def rotate(
     """
     if rotation_angles is None:
         rotation_angles = np.random.uniform(low=0, high=360, size=3)
-    rot = Rotation.from_euler('ZXZ', rotation_angles, degrees=True)
+    rot = Rotation.from_euler('XZX', rotation_angles, degrees=True)
     rot_mat = torch.as_tensor(rot.as_matrix(), dtype=torch.float64).to(device)
     return (rot_mat @ pointcloud.T).T
 
