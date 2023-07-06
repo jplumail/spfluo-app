@@ -3,6 +3,7 @@ from typing import Any, Dict, Tuple
 import numpy as np
 from spfluo.picking.modules.pretraining.generate.data_generator import DataGenerationConfig, DataGenerator
 from spfluo.utils.transform import get_transform_matrix
+from spfluo.utils.volume import are_volumes_aligned
 from scipy.ndimage import affine_transform, convolve
 from scipy.spatial.transform import Rotation
 from skimage.registration import phase_cross_correlation
