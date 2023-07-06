@@ -4,6 +4,7 @@ from spfluo.refinement import convolution_matching_poses_refined, convolution_ma
 import os
 import torch
 import numpy as np
+from spfluo.utils.volume import are_volumes_aligned
 
 
 ##########################
@@ -34,6 +35,14 @@ def test_parallel_reconstruction_L2():
 
     assert recon.shape == (M, D, H, W)
     assert torch.isclose(recon, recon2).all()
+
+
+def test_reconstruction_L2_simple(generated_data_pytorch: Tuple[torch.Tensor,...]):
+    volumes, groundtruth_poses, psf, groundtruth = generated_data_pytorch
+    lbda = volumes.new_tensor(1e-5)
+    reconstruction, _ = reconstruction_L2(volumes, psf, groundtruth_poses, lbda)
+
+    assert are_volumes_aligned(reconstruction.cpu().numpy(), groundtruth.cpu().numpy(), atol=1)
 
 
 #############################

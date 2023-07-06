@@ -71,7 +71,9 @@ def test_generation(psf_array, groundtruth_array, particles):
     assert len(particles.keys()) == N
     for k in particles:
         assert particles[k]["array"].shape == (D, D, D)
+        assert particles[k]["array"].dtype == psf_array.dtype
     assert groundtruth_array.shape == (D, D, D)
+    assert psf_array.dtype == groundtruth_array.dtype
 
 
 def test_poses(psf_array: np.ndarray, groundtruth_array: np.ndarray, particles: Dict[str, Dict[str, np.ndarray]]):
