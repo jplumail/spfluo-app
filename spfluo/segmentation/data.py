@@ -1088,13 +1088,13 @@ class LoadPointcloud(_AbstractTransform):
 
 
 class CreatePointcloud(_AbstractAugment):
-    def __init__(self, a, b, c, r, l, s, angle, N, device=None, dtype=None):
+    def __init__(self, a, b, c, r, L, s, angle, N, device=None, dtype=None):
         super().__init__()
         self.a = Parameter(a)
         self.b = Parameter(b)
         self.c = Parameter(c)
         self.r = Parameter(r)
-        self.l = Parameter(l)
+        self.l = Parameter(L)
         self.s = Parameter(s)
         self.angle = Parameter(angle)
         self.N = N

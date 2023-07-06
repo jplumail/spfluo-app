@@ -46,8 +46,8 @@ class Trainset(Dataset):
     def get_target(self, path: str) -> int:
         filename = os.path.basename(path)
         if self.extension == "npz":
-            l = filename.split("_")
-            image_name, patch_index = "_".join(l[:-1]), l[-1]
+            y = filename.split("_")
+            image_name, patch_index = "_".join(y[:-1]), y[-1]
         else:
             temp = filename.split("_")
             image_name, patch_index = "_".join(temp[:-1]), temp[-1]

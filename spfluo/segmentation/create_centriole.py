@@ -16,42 +16,42 @@ def get_rotation_mat(angle):
     )
 
 
-def simu_cylinder_surface_random(a, b, l, N):
+def simu_cylinder_surface_random(a, b, L, N):
     angle = np.linspace(0, 2 * np.pi, num=N, endpoint=False)
     x = a * np.cos(angle)
     y = b * np.sin(angle)
-    z = l * np.random.random(size=(N,))
-    # z = l * np.linspace(0, 1, num=N)
+    z = L * np.random.random(size=(N,))
+    # z = L * np.linspace(0, 1, num=N)
     return np.stack([x, y, z], axis=1)
 
 
-def simu_triplet_random(r, l, s, nbPts):
+def simu_triplet_random(r, L, s, nbPts):
     n12 = nbPts // 3
     n3 = nbPts - 2 * n12
-    V1 = simu_cylinder_surface_random(r, r, l, n12)
-    V2 = simu_cylinder_surface_random(r, r, l, n12)
-    V3 = simu_cylinder_surface_random(r, r, l, n3)
+    V1 = simu_cylinder_surface_random(r, r, L, n12)
+    V2 = simu_cylinder_surface_random(r, r, L, n12)
+    V3 = simu_cylinder_surface_random(r, r, L, n3)
     V2[:, 0] += s
     V3[:, 0] += 2 * s
     return np.concatenate([V1, V2, V3], axis=0)
 
 
-def simu_cylinder_rev(radius, r, l, s, nbPts, angle, triplet=1):
+def simu_cylinder_rev(radius, r, L, s, nbPts, angle, triplet=1):
     Cn = 9
 
     angle = angle - 180
     # t0 = time()
     # Radius variation profile
-    x0 = np.linspace(0, l, num=len(radius))
+    x0 = np.linspace(0, L, num=len(radius))
     y0 = radius
     radius_profile_spl = UnivariateSpline(x0, y0, s=1)
     # t1 = time()
 
     samplingThetaCn = 2 * np.pi / Cn
     if triplet == 1:
-        Vi0 = simu_triplet_random(r, l, s, nbPts)
+        Vi0 = simu_triplet_random(r, L, s, nbPts)
     else:
-        Vi0 = simu_cylinder_surface_random(r * 1, r * 0.2, l, nbPts)
+        Vi0 = simu_cylinder_surface_random(r * 1, r * 0.2, L, nbPts)
 
     # t2 = time()
 
@@ -93,12 +93,12 @@ if __name__ == "__main__":
     c = 103.253  # realistic range: [103.253,105]
 
     r = 15  # r diameter of the microtubules of the triplets
-    l = 600  # l Length of the barrel
+    L = 600  # l Length of the barrel
     s = 15  # s Length between microtubules of the triplet
     nbPts = 1000
     angle = 110  # angle of the triplets
 
-    V = simu_cylinder_rev(get_radius(x, a, b, c), r, l, s, nbPts, angle)
+    V = simu_cylinder_rev(get_radius(x, a, b, c), r, L, s, nbPts, angle)
 
     import matplotlib.pyplot as plt
 
@@ -146,7 +146,7 @@ if __name__ == "__main__":
         label="l",
         valmin=10,
         valmax=1000,
-        valinit=l,
+        valinit=L,
     )
 
     s_slider = Slider(

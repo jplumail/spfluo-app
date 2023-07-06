@@ -341,8 +341,8 @@ class iaawnMetric(nn.Module):
         self.iaawnLoss = iaawnLoss(normalization="sigmoid", alpha=1)
 
     def forward(self, input, target, epsilon=1e-6):
-        l = self.iaawnLoss(input, target, epsilon=epsilon)
-        return (-l + 1) / 2
+        loss = self.iaawnLoss(input, target, epsilon=epsilon)
+        return (-loss + 1) / 2
 
 
 class iaawnLossDenis(nn.Module):

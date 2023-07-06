@@ -337,10 +337,10 @@ def iterative_alignment(particles, epsilon=1e-2, max_iter=20):
 def iterative_suppression(patches, n):
     N = patches.shape[0]
     assert n <= N
-    I = int(np.ceil(np.log2(N / n)))
+    n_iter = int(np.ceil(np.log2(N / n)))
     mask_keep = np.ones((N), dtype=bool)
     good_patches = patches.copy()
-    for i in range(I):
+    for i in range(n_iter):
         params, avrg_particle, variance_map = iterative_alignment(good_patches)
         std = np.array(
             [
@@ -351,7 +351,7 @@ def iterative_suppression(patches, n):
                 for i in range(good_patches.shape[0])
             ]
         )
-        if i < I - 1:  # not last iteration
+        if i < n_iter - 1:  # not last iteration
             mask_keep[mask_keep] = std <= np.median(
                 std
             )  # we keep half of the particles

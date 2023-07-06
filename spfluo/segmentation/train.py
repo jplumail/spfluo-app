@@ -200,12 +200,12 @@ if __name__ == "__main__":
                     optimizer.zero_grad()
                     im, mask = im.to("cuda"), mask.to("cuda")
                     mask_out = unet(im)[:, 0]
-                    l = loss(mask_out, mask)
-                    l.backward()
+                    loss = loss(mask_out, mask)
+                    loss.backward()
                     optimizer.step()
 
-                    losses.append(copy.deepcopy(l.detach().item()))
-                    del im, mask, _, l, mask_out
+                    losses.append(copy.deepcopy(loss.detach().item()))
+                    del im, mask, _, loss, mask_out
                 dice_mean = np.mean(losses)
                 writer.add_scalar("train loss", dice_mean, i)
                 metrics["train"].append(dice_mean)
