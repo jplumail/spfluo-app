@@ -1065,10 +1065,7 @@ class AddPoissonNoise(_AbstractAugment):
         vals = 2 ** torch.ceil(torch.log2(vals))
 
         # Generating noise for each unique value in image.
-        try:
-            img = torch.poisson(img * vals) / vals
-        except:
-            print(img.min(), vals.min())
+        img = torch.poisson(img * vals) / vals
 
         return img, mask, info
 
