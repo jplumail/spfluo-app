@@ -1,5 +1,11 @@
-#from spfluo.utils.loading import loadmat
-from spfluo.refinement import convolution_matching_poses_refined, convolution_matching_poses_grid, reconstruction_L2, find_angles_grid, refine
+# from spfluo.utils.loading import loadmat
+from spfluo.refinement import (
+    convolution_matching_poses_refined,
+    convolution_matching_poses_grid,
+    reconstruction_L2,
+    find_angles_grid,
+    refine,
+)
 
 import os
 import torch
@@ -11,14 +17,15 @@ from spfluo.utils.volume import are_volumes_aligned
 # Test reconstruction_L2 #
 ##########################
 
+
 def test_shapes_reconstruction_L2():
     N, D, H, W = 100, 32, 32, 32
     volumes = torch.randn((N, D, H, W))
     psf = torch.randn((D, H, W))
     poses = torch.randn((N, 6))
-    lambda_ = torch.tensor(1.)
+    lambda_ = torch.tensor(1.0)
     recon, den = reconstruction_L2(volumes, psf, poses, lambda_)
-    
+
     assert recon.shape == (D, H, W)
     assert den.shape == (D, H, W)
 
@@ -31,26 +38,31 @@ def test_parallel_reconstruction_L2():
     poses = torch.randn((M, N, 6))
     lambda_ = torch.randn((M,))
     recon, _ = reconstruction_L2(volumes, psf, poses, lambda_)
-    recon2 = torch.stack([reconstruction_L2(volumes, psf, poses[i], lambda_[i])[0] for i in range(M)])
+    recon2 = torch.stack(
+        [reconstruction_L2(volumes, psf, poses[i], lambda_[i])[0] for i in range(M)]
+    )
 
     assert recon.shape == (M, D, H, W)
     assert torch.isclose(recon, recon2).all()
 
 
-def test_reconstruction_L2_simple(generated_data_pytorch: Tuple[torch.Tensor,...]):
+def test_reconstruction_L2_simple(generated_data_pytorch: Tuple[torch.Tensor, ...]):
     volumes, groundtruth_poses, psf, groundtruth = generated_data_pytorch
     lbda = volumes.new_tensor(1e-5)
     reconstruction, _ = reconstruction_L2(volumes, psf, groundtruth_poses, lbda)
 
-    assert are_volumes_aligned(reconstruction.cpu().numpy(), groundtruth.cpu().numpy(), atol=1)
+    assert are_volumes_aligned(
+        reconstruction.cpu().numpy(), groundtruth.cpu().numpy(), atol=1
+    )
 
 
 #############################
 # Test convolution_matching #
 #############################
 
+
 def test_memory_convolution_matching_poses_grid():
-    device = 'cuda'
+    device = "cuda"
     D = 32
     for N in [1, 10]:
         N = int(N)
@@ -60,7 +72,9 @@ def test_memory_convolution_matching_poses_grid():
         psf = torch.randn((D, D, D), device=device)
         potential_poses = torch.randn((M, 6), device=device)
 
-        best_poses, errors = convolution_matching_poses_grid(reference, volumes, psf, potential_poses)
+        best_poses, errors = convolution_matching_poses_grid(
+            reference, volumes, psf, potential_poses
+        )
 
         assert best_poses.shape == (N, 6)
         assert errors.shape == (N,)
@@ -74,7 +88,9 @@ def test_shapes_convolution_matching_poses_grid():
     psf = torch.randn((D, H, W))
     potential_poses = torch.randn((M, d))
 
-    best_poses, errors = convolution_matching_poses_grid(reference, volumes, psf, potential_poses)
+    best_poses, errors = convolution_matching_poses_grid(
+        reference, volumes, psf, potential_poses
+    )
 
     assert best_poses.shape == (N, d)
     assert errors.shape == (N,)
@@ -82,16 +98,24 @@ def test_shapes_convolution_matching_poses_grid():
 
 # TODO faire les tests matlab
 def test_matlab_convolution_matching_poses_refined():
-    as_tensor = lambda x: torch.as_tensor(x, dtype=torch.float64, device='cuda')
+    as_tensor = lambda x: torch.as_tensor(x, dtype=torch.float64, device="cuda")
 
     # Load Matlab data
     data_path = os.path.join(os.path.dirname(__file__), "data", "convolution_matching")
-    potential_poses_ = loadmat(os.path.join(data_path,"bigListPoses.mat"))["bigListPoses"]
-    volumes = np.stack(loadmat(os.path.join(data_path,"inVols.mat"))["inVols"][:,0]).transpose(0,3,2,1)
-    best_poses_matlab = loadmat(os.path.join(data_path,"posesNew.mat"))["posesNew"][:,[0,1,2,5,3,4]]
+    potential_poses_ = loadmat(os.path.join(data_path, "bigListPoses.mat"))[
+        "bigListPoses"
+    ]
+    volumes = np.stack(
+        loadmat(os.path.join(data_path, "inVols.mat"))["inVols"][:, 0]
+    ).transpose(0, 3, 2, 1)
+    best_poses_matlab = loadmat(os.path.join(data_path, "posesNew.mat"))["posesNew"][
+        :, [0, 1, 2, 5, 3, 4]
+    ]
     best_poses_matlab[:, 3:] *= -1
-    psf = loadmat(os.path.join(data_path,"psf.mat"))["psf"].transpose(2,1,0)
-    reference = loadmat(os.path.join(data_path,"recon.mat"))["recon1"].transpose(2,1,0)
+    psf = loadmat(os.path.join(data_path, "psf.mat"))["psf"].transpose(2, 1, 0)
+    reference = loadmat(os.path.join(data_path, "recon.mat"))["recon1"].transpose(
+        2, 1, 0
+    )
 
     potential_poses_, volumes, best_poses_matlab, psf, reference = map(
         as_tensor, [potential_poses_, volumes, best_poses_matlab, psf, reference]
@@ -101,7 +125,9 @@ def test_matlab_convolution_matching_poses_refined():
     potential_poses = as_tensor(torch.zeros((N, M, 6)))
     potential_poses[:, :, :3] = potential_poses_
 
-    best_poses, _ = convolution_matching_poses_refined(reference, volumes, psf, potential_poses)
+    best_poses, _ = convolution_matching_poses_refined(
+        reference, volumes, psf, potential_poses
+    )
 
     eps = 1e-2
     assert ((best_poses - best_poses_matlab) < eps).all()
@@ -115,7 +141,9 @@ def test_shapes_convolution_matching_poses_refined():
     psf = torch.randn((D, H, W))
     potential_poses = torch.randn((N, M, d))
 
-    best_poses, errors = convolution_matching_poses_refined(reference, volumes, psf, potential_poses)
+    best_poses, errors = convolution_matching_poses_refined(
+        reference, volumes, psf, potential_poses
+    )
 
     assert best_poses.shape == (N, d)
     assert errors.shape == (N,)
@@ -125,9 +153,12 @@ def test_shapes_convolution_matching_poses_refined():
 # Test find_angle #
 ###################
 
+
 def test_shapes_find_angles_grid():
-    if torch.cuda.is_available(): device = 'cuda'
-    else: device = 'cpu'
+    if torch.cuda.is_available():
+        device = "cuda"
+    else:
+        device = "cpu"
 
     N, D, H, W = 150, 32, 32, 32
     reconstruction = torch.randn((D, H, W), device=device)
@@ -135,24 +166,28 @@ def test_shapes_find_angles_grid():
     psf = torch.randn((D, H, W), device=device)
 
     best_poses, errors = find_angles_grid(reconstruction, patches, psf, precision=10)
-    
+
     assert best_poses.shape == (N, 6)
     assert errors.shape == (N,)
+
 
 ###############
 # Test refine #
 ###############
 
+
 def test_refine_shapes():
-    if torch.cuda.is_available(): device = 'cuda'
-    else: device = 'cpu'
+    if torch.cuda.is_available():
+        device = "cuda"
+    else:
+        device = "cpu"
     N, D, H, W = 150, 32, 32, 32
     patches = torch.randn((N, D, H, W), device=device)
     psf = torch.randn((D, H, W), device=device)
     guessed_poses = torch.randn((N, 6))
 
     S = 1
-    steps = [(12*12,12)] + [(S*S,S)] * 4
+    steps = [(12 * 12, 12)] + [(S * S, S)] * 4
     ranges = [0, 40, 20, 10, 5]
     recon, poses = refine(patches, psf, guessed_poses, steps, ranges)
 

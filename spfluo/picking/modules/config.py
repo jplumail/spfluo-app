@@ -6,10 +6,11 @@ from typing import Tuple
 # |                                           I/O                                            | #
 # +------------------------------------------------------------------------------------------+ #
 
+
 @dataclass
 class IO:
 
-    """ Input/Output params.
+    """Input/Output params.
 
     Args:
 
@@ -22,8 +23,8 @@ class IO:
         generated_dataset_size (int): How many pairs (image, mask) to generate.
     """
 
-    point_cloud_path:       str = "/data1/stage_Luc/inputs/sample_centriole_point_cloud.csv"
-    output_dir:             str = '/data1/stage_Luc/tilt/'
+    point_cloud_path: str = "/data1/stage_Luc/inputs/sample_centriole_point_cloud.csv"
+    output_dir: str = "/data1/stage_Luc/tilt/"
     generated_dataset_size: int = 25
 
 
@@ -31,10 +32,11 @@ class IO:
 # |                                      Voxelisation                                        | #
 # +------------------------------------------------------------------------------------------+ #
 
+
 @dataclass
 class Voxelisation:
 
-    """ Params controling the transformation from pointcloud to voxel grid.
+    """Params controling the transformation from pointcloud to voxel grid.
 
     Args:
 
@@ -68,24 +70,26 @@ class Voxelisation:
                              {law}_{special_case} where law can be one of 'gaussian' or 'uniform'
                              and special_case can be top_side_only.
     """
-    num_particles:                         int = 150
-    max_particle_dim:                      int = 25
-    bandwidth:                             int = 10
-    epsilon:                               int = 1e-3
-    cluster_range_xy:               Tuple[int] = (100, 480)
-    cluster_range_z:                Tuple[int] = (5, 35)
+
+    num_particles: int = 150
+    max_particle_dim: int = 25
+    bandwidth: int = 10
+    epsilon: int = 1e-3
+    cluster_range_xy: Tuple[int] = (100, 480)
+    cluster_range_z: Tuple[int] = (5, 35)
     nb_particles_per_cluster_range: Tuple[int] = (45, 55)
-    tilt_strategy:                         str = 'uniform'
+    tilt_strategy: str = "uniform"
 
 
 # +------------------------------------------------------------------------------------------+ #
 # |                                      Augmentation                                        | #
 # +------------------------------------------------------------------------------------------+ #
 
+
 @dataclass
 class Augmentation:
 
-    """ Params to control each generated particle augmentation.
+    """Params to control each generated particle augmentation.
 
     Args:
 
@@ -120,22 +124,23 @@ class Augmentation:
                               the 3 directions follow a uniform distribution from -180 to 180.
     """
 
-    shrink_range:         Tuple[int] = (0.8, 1.2)
-    intensity_nb_holes_min:      int = 1
-    intensity_nb_holes_max:      int = 8
-    intensity_mean_ratio:      float = 0.3
+    shrink_range: Tuple[int] = (0.8, 1.2)
+    intensity_nb_holes_min: int = 1
+    intensity_nb_holes_max: int = 8
+    intensity_mean_ratio: float = 0.3
     intensity_std_ratio_range: float = (0.15, 0.25)
-    rotation_proba:            float = 1.0
+    rotation_proba: float = 1.0
 
 
 # +------------------------------------------------------------------------------------------+ #
 # |                                        Outliers                                          | #
 # +------------------------------------------------------------------------------------------+ #
 
+
 @dataclass
 class Outliers:
 
-    """ Params controling outliers generation.
+    """Params controling outliers generation.
 
     Args:
 
@@ -153,20 +158,22 @@ class Outliers:
         intensity_range (Tuple[int]): Each outlier point inside a cluster will have an intensity
                                       in intensity_range.
     """
-    radius_range_xy:   Tuple[int] = (25, 200)
-    radius_range_z:    Tuple[int] = (20,  40)
-    nb_points_range:   Tuple[int] = (200, 800)
+
+    radius_range_xy: Tuple[int] = (25, 200)
+    radius_range_z: Tuple[int] = (20, 40)
+    nb_points_range: Tuple[int] = (200, 800)
     nb_clusters_range: Tuple[int] = (100, 200)
-    intensity_range:   Tuple[int] = (0.5, 1)
+    intensity_range: Tuple[int] = (0.5, 1)
 
 
 # +------------------------------------------------------------------------------------------+ #
 # |                                         Sensor                                           | #
 # +------------------------------------------------------------------------------------------+ #
 
+
 @dataclass
 class Sensor:
-    """ Params to control sensor faults: blur and noises.
+    """Params to control sensor faults: blur and noises.
 
     Args:
 
@@ -201,23 +208,25 @@ class Sensor:
                               and poisson are True, Poisson noise will be added after the
                               gaussian noise.
     """
-    anisotropic_blur:             bool = True
+
+    anisotropic_blur: bool = True
     anisotropic_blur_sigma: Tuple[int] = (5, 1, 1)
-    anisotropic_blur_border_mode:  str = 'constant'
-    gaussian_noise:               bool = True
-    gaussian_noise_mean:         float = 0.5
-    gaussian_noise_target_snr_db:  int = 15
-    poisson_noise:                bool = True
+    anisotropic_blur_border_mode: str = "constant"
+    gaussian_noise: bool = True
+    gaussian_noise_mean: float = 0.5
+    gaussian_noise_target_snr_db: int = 15
+    poisson_noise: bool = True
 
 
 # +------------------------------------------------------------------------------------------+ #
 # |                                         Wrapper                                          | #
 # +------------------------------------------------------------------------------------------+ #
 
+
 @dataclass
 class DataGenerationConfig:
 
-    """ This wraps all the parameters to generate pseudo random data defined abose.
+    """This wraps all the parameters to generate pseudo random data defined abose.
 
     This config class will be used to instanciate a DataGenerator class which will use
     functional.py to perform its generation task.
@@ -242,10 +251,11 @@ class DataGenerationConfig:
     to  mimic artifacts, and a second pass with less dense but bigger outliers clusters to mimic
     light halo.
     """
-    disable_cuda:         bool = True
-    target_shape:   Tuple[int] = (128, 1024, 1024)
-    io:                     IO = field(default_factory=IO)
+
+    disable_cuda: bool = True
+    target_shape: Tuple[int] = (128, 1024, 1024)
+    io: IO = field(default_factory=IO)
     voxelisation: Voxelisation = field(default_factory=Voxelisation)
     augmentation: Augmentation = field(default_factory=Augmentation)
-    outliers:  Tuple[Outliers] = field(default_factory=tuple)
-    sensor:             Sensor = field(default_factory=Sensor)
+    outliers: Tuple[Outliers] = field(default_factory=tuple)
+    sensor: Sensor = field(default_factory=Sensor)

@@ -30,11 +30,16 @@ from ..utils import load_array
 # |                                          DATASET                                         | #
 # +------------------------------------------------------------------------------------------+ #
 
-def get_patch_paths(rootdir: str, num_pos_samples: int=None, shuffle: bool=False) -> List[str]:
+
+def get_patch_paths(
+    rootdir: str, num_pos_samples: int = None, shuffle: bool = False
+) -> List[str]:
     all_paths = []
-    for subdir in ['positive', 'negative']:
+    for subdir in ["positive", "negative"]:
         datadir = os.path.join(rootdir, subdir)
-        paths = sorted(list(map(lambda x: os.path.join(datadir, x), os.listdir(datadir))))
+        paths = sorted(
+            list(map(lambda x: os.path.join(datadir, x), os.listdir(datadir)))
+        )
         if shuffle:
             np.random.shuffle(paths)
         all_paths.extend(paths[:num_pos_samples])
@@ -44,16 +49,21 @@ def get_patch_paths(rootdir: str, num_pos_samples: int=None, shuffle: bool=False
 
 
 class Trainset(Dataset):
-
-    def __init__(self, paths: List[str], dim: int, augment: float, size: int=None,
-                 training: bool=True) -> None:
+    def __init__(
+        self,
+        paths: List[str],
+        dim: int,
+        augment: float,
+        size: int = None,
+        training: bool = True,
+    ) -> None:
         super().__init__()
-        self.paths    = paths
-        self.dim      = dim
+        self.paths = paths
+        self.dim = dim
         patch_size = load_array(self.paths[0]).shape
-        self.augment  = get_augment_policy(patch_size, p=augment, dim=dim)
+        self.augment = get_augment_policy(patch_size, p=augment, dim=dim)
         self.training = training
-        self.size     = size
+        self.size = size
 
     @staticmethod
     def get_target(path: str) -> int:
@@ -66,7 +76,7 @@ class Trainset(Dataset):
             image = image.sum(axis=0)
             image = (image - image.min()) / (image.max() - image.min())
         if self.training:
-            image = self.augment(image=image)['image']
+            image = self.augment(image=image)["image"]
         image = (image - image.min()) / (image.max() - image.min())
         image = np.expand_dims(image, axis=0)  # add channel dim at the beginning
         return torch.from_numpy(image.astype(np.float32))
@@ -85,6 +95,7 @@ class Trainset(Dataset):
 # |                                       EXTERNAL CALL                                      | #
 # +------------------------------------------------------------------------------------------+ #
 
+
 def make_dataloaders(
     rootdir: str,
     output_dir: str,
@@ -97,17 +108,17 @@ def make_dataloaders(
     dim: int,
 ) -> Tuple[DataLoader]:
     # train data
-    datadir     = os.path.join(rootdir, 'train', 'cropped')
+    datadir = os.path.join(rootdir, "train", "cropped")
     train_paths = get_patch_paths(datadir, num_pos_samples, shuffle)
-    with open(os.path.join(output_dir, 'selected_particles.pickle'), 'wb') as file:
+    with open(os.path.join(output_dir, "selected_particles.pickle"), "wb") as file:
         pickle.dump(train_paths, file)
     size = batch_size * epoch_size if epoch_size is not None else None
-    train_set   = Trainset(train_paths, dim, augment, size, training=True)
+    train_set = Trainset(train_paths, dim, augment, size, training=True)
     # val data
-    datadir   = os.path.join(rootdir, 'val', 'cropped')
+    datadir = os.path.join(rootdir, "val", "cropped")
     val_paths = get_patch_paths(datadir)  # num_pos_samples=None, shuffle=False
-    val_set   = Trainset(val_paths, dim, augment, training=False)
-    loader_kwargs = {'batch_size': batch_size, 'num_workers': num_workers}
+    val_set = Trainset(val_paths, dim, augment, training=False)
+    loader_kwargs = {"batch_size": batch_size, "num_workers": num_workers}
     train_loader = DataLoader(train_set, **loader_kwargs, shuffle=True)
-    val_loader   = DataLoader(val_set, **loader_kwargs, shuffle=False)
+    val_loader = DataLoader(val_set, **loader_kwargs, shuffle=False)
     return train_loader, val_loader

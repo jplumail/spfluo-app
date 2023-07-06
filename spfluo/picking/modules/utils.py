@@ -6,8 +6,8 @@ from typing import Tuple, Dict
 import torch
 
 
-def seed_all(seed_numpy: bool=True) -> None:
-    """ For reproductibility.
+def seed_all(seed_numpy: bool = True) -> None:
+    """For reproductibility.
 
     But, if we shuffle annotations between runs, we want each shuffling to be unique.
     Hence the option to choose if numpy must be seeded.
@@ -20,7 +20,7 @@ def seed_all(seed_numpy: bool=True) -> None:
 
 
 def load_array(path: str) -> np.ndarray:
-    """ Takes a complete path to a file and return the corresponding numpy array.
+    """Takes a complete path to a file and return the corresponding numpy array.
 
     Args:
         path (str): Path to the file to read. It MUST contains the extension as this will
@@ -30,9 +30,9 @@ def load_array(path: str) -> np.ndarray:
         np.ndarray: The array stored in the file described by 'path'.
     """
     extension = os.path.splitext(path)[-1]
-    if extension == '.npz':
-        return np.load(path)['image']
-    elif extension in ['.tif', '.tiff']:
+    if extension == ".npz":
+        return np.load(path)["image"]
+    elif extension in [".tif", ".tiff"]:
         image = np.stack(imageio.mimread(path, memtest=False)).astype(np.int16)
         # Some tiff images are heavily imbalanced: their data type is int16 but very few voxels
         # are actually > 255. If this is the case, the image in truncated and casted to uint8.
@@ -40,12 +40,12 @@ def load_array(path: str) -> np.ndarray:
             image[image > 255] = 255
             image = image.astype(np.uint8)
         return image
-    error_msg = f'Found extension {extension}. Extension must be one of npz or tif.'
+    error_msg = f"Found extension {extension}. Extension must be one of npz or tif."
     raise NotImplementedError(error_msg)
 
 
 def load_annotations(csv_path: str) -> np.ndarray:
-    """ Csv containing coordinates of objects center.
+    """Csv containing coordinates of objects center.
 
     Args:
         csv_path (str): Path of the file to read.
@@ -57,13 +57,14 @@ def load_annotations(csv_path: str) -> np.ndarray:
         lines = f.readlines()
     data = []
     for line in lines:
-        line_data = line.split(',')
+        line_data = line.split(",")
         line_data[2:] = list(map(float, line_data[2:]))
         data.append(line_data)
     return np.array(data, dtype=object)
 
+
 def load_angles(csv_path: str) -> np.ndarray:
-    """ Csv containing angles of particles.
+    """Csv containing angles of particles.
 
     Args:
         csv_path (str): Path of the file to read.
@@ -75,7 +76,7 @@ def load_angles(csv_path: str) -> np.ndarray:
         lines = f.readlines()
     data = []
     for line in lines:
-        line_data = line.split(',')
+        line_data = line.split(",")
         line_data[2:] = list(map(float, line_data[2:]))
         data.append(line_data)
     return np.array(data, dtype=object)
@@ -93,29 +94,31 @@ def center_to_corners(center: Tuple[int], size: Tuple[int]) -> Tuple[int]:
     return x_min, y_min, z_min, x_max, y_max, z_max
 
 
-def summary(kwargs: Dict, title: str, output: str=None, return_table: bool=False) -> None:
+def summary(
+    kwargs: Dict, title: str, output: str = None, return_table: bool = False
+) -> None:
     # 1. Get key max length
     key_length = max([len(k) for k in kwargs.keys()])
     # 2. Get total length
     length = max([key_length + len(str(v)) for k, v in kwargs.items()]) + 4
     # 3. Define table delimiter and title
-    hbar = '+' + length * '-' + '+' + '\n'
-    pad_left  = (length - len(title)) // 2
+    hbar = "+" + length * "-" + "+" + "\n"
+    pad_left = (length - len(title)) // 2
     pad_right = length - len(title) - pad_left
-    title = '|' + pad_left * ' ' + title + pad_right * ' ' + '|' + '\n'
+    title = "|" + pad_left * " " + title + pad_right * " " + "|" + "\n"
     # 4. Create table string
-    table = '\n' + hbar + title + hbar
+    table = "\n" + hbar + title + hbar
     # 5. Add lines to table
     for k, v in kwargs.items():
-        line = k + (key_length - len(k)) * '.' + ': ' + str(v)
-        line = '| ' + line + (length - 1 - len(line)) * ' ' + '|' + '\n'
+        line = k + (key_length - len(k)) * "." + ": " + str(v)
+        line = "| " + line + (length - 1 - len(line)) * " " + "|" + "\n"
         table += line
     table += hbar
     # 6. Print table
     print(table)
     # 7. Save table to txt file (optional)
     if output is not None:
-        with open(output, 'w') as file:
+        with open(output, "w") as file:
             file.write(table)
     # 8. Return table (optional)
     if return_table:
@@ -125,9 +128,10 @@ def summary(kwargs: Dict, title: str, output: str=None, return_table: bool=False
 def send_mail(subject: str, body: str) -> None:
     import smtplib
     import ssl
-    port     = 465  # SSL
+
+    port = 465  # SSL
     password = "hackitifyouwantidontcare"
-    sender_email   = "icuberemotedev@gmail.com"
+    sender_email = "icuberemotedev@gmail.com"
     receiver_email = "vedrenneluc@gmail.com"
     message = f"""\
     {subject}

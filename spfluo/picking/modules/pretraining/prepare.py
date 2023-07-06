@@ -13,20 +13,26 @@ from ..utils import load_array, load_annotations, center_to_corners, summary
 # |                                        MAKE U MASKS                                      | #
 # +------------------------------------------------------------------------------------------+ #
 
-def make_U_masks(rootdir: str, extension: str='npz') -> None:
-    """ While U masks can be made on the fly during training, it is possible to generate all
-    of them upstream. This can save time when running multiples training on the same data. """
-    print(f'Current directory: {rootdir}')
+
+def make_U_masks(rootdir: str, extension: str = "npz") -> None:
+    """While U masks can be made on the fly during training, it is possible to generate all
+    of them upstream. This can save time when running multiples training on the same data.
+    """
+    print(f"Current directory: {rootdir}")
     # 1. Load images
-    images_names = sorted(list(filter(lambda x: x.endswith(extension), os.listdir(rootdir))))
+    images_names = sorted(
+        list(filter(lambda x: x.endswith(extension), os.listdir(rootdir)))
+    )
     images_paths = sorted(list(map(lambda x: os.path.join(rootdir, x), images_names)))
-    images = [load_array(path) for path in tqdm(images_paths, desc='Load images')]
+    images = [load_array(path) for path in tqdm(images_paths, desc="Load images")]
     # 2. Make U masks
-    U_masks = [make_U_mask(image) for image in tqdm(images, desc='Create masks')]
+    U_masks = [make_U_mask(image) for image in tqdm(images, desc="Create masks")]
     # 3. Save U masks
-    output_dir = os.path.join(rootdir, 'U_masks')
+    output_dir = os.path.join(rootdir, "U_masks")
     os.makedirs(output_dir, exist_ok=True)
-    for name, u_mask in tqdm(zip(images_names, U_masks), total=len(U_masks), desc='Save masks'):
+    for name, u_mask in tqdm(
+        zip(images_names, U_masks), total=len(U_masks), desc="Save masks"
+    ):
         np.savez(os.path.join(output_dir, name), u_mask=u_mask)
 
 
@@ -35,6 +41,7 @@ def make_U_masks(rootdir: str, extension: str='npz') -> None:
 # +------------------------------------------------------------------------------------------+ #
 
 DEFAULT_NEGATIVE_CENTERS = 8
+
 
 def generate_random_negative_centers(
     positive_centers: np.ndarray,
@@ -49,10 +56,10 @@ def generate_random_negative_centers(
     while len(negative_centers) <= num_negative_centers:
         current_centers = np.vstack((negative_centers, positive_centers))
         border = np.array(crop_size) // 2
-        low, high   = border, np.array(shape) - border
-        new_center  = np.random.randint(low, high=high)
+        low, high = border, np.array(shape) - border
+        new_center = np.random.randint(low, high=high)
         center_tile = np.repeat(new_center[np.newaxis, :], len(current_centers), axis=0)
-        distances   = np.linalg.norm(center_tile - current_centers.astype(float), axis=1)
+        distances = np.linalg.norm(center_tile - current_centers.astype(float), axis=1)
         if distances.min() > max(crop_size):
             negative_centers = np.vstack((negative_centers, new_center))
     return negative_centers[1:]
@@ -68,7 +75,7 @@ def random_shift_center(
     for s, c, m, M in zip(crop_size, center, margin, max_size):
         inner_range = s // 2 - M // 2 - m
         shift_max = min(inner_range, M - c - s // 2)
-        shift_min = max(- inner_range, - c + s // 2)
+        shift_min = max(-inner_range, -c + s // 2)
         if shift_min >= shift_max:
             random_shifts.append(0)
         else:
@@ -78,9 +85,7 @@ def random_shift_center(
 
 
 def reframe_corners_if_needed(
-    corners: Tuple[int],
-    crop_size: Tuple[int],
-    max_size: Tuple[int]
+    corners: Tuple[int], crop_size: Tuple[int], max_size: Tuple[int]
 ) -> Tuple[int]:
     d, h, w = crop_size
     D, H, W = max_size
@@ -108,17 +113,23 @@ def crop_one_particle(
     return image[z_min:z_max, y_min:y_max, x_min:x_max]
 
 
-def save(image: np.ndarray, image_name: str, crop_index: str, output_dir: str, extension: str='npz') -> None:
+def save(
+    image: np.ndarray,
+    image_name: str,
+    crop_index: str,
+    output_dir: str,
+    extension: str = "npz",
+) -> None:
     image_prefix = os.path.splitext(image_name)[0]
-    name   = f"{image_prefix}_{crop_index}"
+    name = f"{image_prefix}_{crop_index}"
     output = os.path.join(output_dir, name)
-    if extension == 'npz':
-        np.savez(output+'.npz', image=image)
-    elif extension == 'tiff' or extension == 'tif':
+    if extension == "npz":
+        np.savez(output + ".npz", image=image)
+    elif extension == "tiff" or extension == "tif":
         image = image.astype(float)
         image = (image - image.min()) / (image.max() - image.min())
         image = (image * 255).astype(np.uint8)
-        tifffile.imwrite(output+'.tiff', image)
+        tifffile.imwrite(output + ".tiff", image)
 
 
 def crop(
@@ -126,12 +137,12 @@ def crop(
     output_dir: str,
     crop_size: Tuple[int],
     margin: Tuple[int],
-    pos_ratio: float=1.,
-    positive_only: bool=False,
-    extension: str='npz',
-    csv_name: str='train_coordinates',
+    pos_ratio: float = 1.0,
+    positive_only: bool = False,
+    extension: str = "npz",
+    csv_name: str = "train_coordinates",
 ) -> None:
-    """ Crop around particles and save cropped images with respect to a given ratio of positive
+    """Crop around particles and save cropped images with respect to a given ratio of positive
     samples.
 
     Args:
@@ -153,10 +164,14 @@ def crop(
     negative_dir = os.path.join(rootdir, output_dir, "negative")
     os.makedirs(positive_dir, exist_ok=True)
     os.makedirs(negative_dir, exist_ok=True)
-    images_list = sorted(list(filter(lambda x: x.endswith(extension), os.listdir(rootdir))))
-    annotations = load_annotations(os.path.join(rootdir, f'{csv_name}.csv'))
-    print(f'Current directory: {rootdir}')
-    print(f'Found {len(images_list)} images with {len(annotations)} particles annotated.')
+    images_list = sorted(
+        list(filter(lambda x: x.endswith(extension), os.listdir(rootdir)))
+    )
+    annotations = load_annotations(os.path.join(rootdir, f"{csv_name}.csv"))
+    print(f"Current directory: {rootdir}")
+    print(
+        f"Found {len(images_list)} images with {len(annotations)} particles annotated."
+    )
     if len(annotations) > 0:
         for image_name in tqdm(images_list):
             image = load_array(os.path.join(rootdir, image_name))
@@ -165,7 +180,9 @@ def crop(
             centers = np.rint(centers).astype(int)
             for crop_index, center in zip(indices, centers):
                 crop_args = [image, center, crop_size, image.shape, margin]
-                cropped_image = crop_one_particle(*crop_args, random_shift=False) # was True
+                cropped_image = crop_one_particle(
+                    *crop_args, random_shift=False
+                )  # was True
                 save(cropped_image, image_name, crop_index, positive_dir, extension)
             if not positive_only:
                 args = [centers, crop_size, image.shape, pos_ratio]
@@ -180,8 +197,11 @@ def crop(
 # |                              TRAIN/VAL/TEST SPLITS AND PATHS                             | #
 # +------------------------------------------------------------------------------------------+ #
 
-def train_test_split(rootdir: str, images: List[str], image_format: str='npz', split: float=0.8) -> None:
-    """ Creates train/ and test/ rootdir's subfolders and put into them splitted images
+
+def train_test_split(
+    rootdir: str, images: List[str], image_format: str = "npz", split: float = 0.8
+) -> None:
+    """Creates train/ and test/ rootdir's subfolders and put into them splitted images
         and annotations.
 
     Args:
@@ -191,34 +211,36 @@ def train_test_split(rootdir: str, images: List[str], image_format: str='npz', s
     """
     train_length = int(split * len(images))
     train_images, test_images = images[:train_length], images[train_length:]
-    train_dir, test_dir = os.path.join(rootdir, 'train'), os.path.join(rootdir, 'test')
+    train_dir, test_dir = os.path.join(rootdir, "train"), os.path.join(rootdir, "test")
     os.makedirs(train_dir, exist_ok=True)
-    os.makedirs(test_dir,  exist_ok=True)
+    os.makedirs(test_dir, exist_ok=True)
     for image in train_images:
         shutil.copyfile(os.path.join(rootdir, image), os.path.join(train_dir, image))
     for image in test_images:
         shutil.copyfile(os.path.join(rootdir, image), os.path.join(test_dir, image))
-    annotations = load_annotations(os.path.join(rootdir, 'coordinates.csv'))
+    annotations = load_annotations(os.path.join(rootdir, "coordinates.csv"))
     train_annotations = []
     for image in train_images:
         train_annotations.extend(annotations[annotations[:, 0] == image])
     train_annotations = np.array(train_annotations, dtype=object)
-    csv_path = os.path.join(train_dir, 'train_coordinates.csv')
+    csv_path = os.path.join(train_dir, "train_coordinates.csv")
     with open(csv_path, "w", newline="") as f:
         csv.writer(f).writerows(train_annotations)
     test_annotations = []
     for image in test_images:
         test_annotations.extend(annotations[annotations[:, 0] == image])
     test_annotations = np.array(test_annotations, dtype=object)
-    csv_path = os.path.join(test_dir, 'test_coordinates.csv')
+    csv_path = os.path.join(test_dir, "test_coordinates.csv")
     with open(csv_path, "w", newline="") as f:
         csv.writer(f).writerows(test_annotations)
-    
+
     return train_images
 
 
-def train_val_split(traindir: str, images: List[str], image_format: str='npz', split: float=0.8) -> None:
-    """ After a train/test split has occured, an other train/val split is required inside the
+def train_val_split(
+    traindir: str, images: List[str], image_format: str = "npz", split: float = 0.8
+) -> None:
+    """After a train/test split has occured, an other train/val split is required inside the
     train subfolder. This could be done on the fly during training but hard separating the files
     seems cleaner and force a constant validation set regardless of the training config.
 
@@ -231,29 +253,31 @@ def train_val_split(traindir: str, images: List[str], image_format: str='npz', s
     train_length = int(split * len(images))
     train_images, val_images = images[:train_length], images[train_length:]
     parent_dir = os.path.dirname(os.path.abspath(traindir))
-    val_dir = os.path.join(parent_dir, 'val')
+    val_dir = os.path.join(parent_dir, "val")
     os.makedirs(val_dir, exist_ok=True)
     for image in val_images:
         os.replace(os.path.join(traindir, image), os.path.join(val_dir, image))
-    annotations = load_annotations(os.path.join(traindir, 'train_coordinates.csv'))
+    annotations = load_annotations(os.path.join(traindir, "train_coordinates.csv"))
     train_annotations = []
     for image in train_images:
         train_annotations.extend(annotations[annotations[:, 0] == image])
     train_annotations = np.array(train_annotations, dtype=object)
-    csv_path = os.path.join(traindir, 'train_coordinates.csv')
+    csv_path = os.path.join(traindir, "train_coordinates.csv")
     with open(csv_path, "w", newline="") as f:
         csv.writer(f).writerows(train_annotations)
     val_annotations = []
     for image in val_images:
         val_annotations.extend(annotations[annotations[:, 0] == image])
     val_annotations = np.array(val_annotations, dtype=object)
-    csv_path = os.path.join(val_dir, 'val_coordinates.csv')
+    csv_path = os.path.join(val_dir, "val_coordinates.csv")
     with open(csv_path, "w", newline="") as f:
         csv.writer(f).writerows(val_annotations)
 
 
-def train_val_split2(traindir: str, images: List[str], image_format: str='npz', split: float=0.8) -> None:
-    """ After a train/test split has occured, an other train/val split is required inside the
+def train_val_split2(
+    traindir: str, images: List[str], image_format: str = "npz", split: float = 0.8
+) -> None:
+    """After a train/test split has occured, an other train/val split is required inside the
     train subfolder. This could be done on the fly during training but hard separating the files
     seems cleaner and force a constant validation set regardless of the training config.
 
@@ -264,20 +288,20 @@ def train_val_split2(traindir: str, images: List[str], image_format: str='npz', 
         split (float, optional): Proportion of images to keep for training. Defaults to 0.8.
     """
     parent_dir = os.path.dirname(os.path.abspath(traindir))
-    val_dir = os.path.join(parent_dir, 'val')
+    val_dir = os.path.join(parent_dir, "val")
     os.makedirs(val_dir, exist_ok=True)
     for image in images:
         shutil.copyfile(os.path.join(traindir, image), os.path.join(val_dir, image))
-    annotations = load_annotations(os.path.join(traindir, 'train_coordinates.csv'))
+    annotations = load_annotations(os.path.join(traindir, "train_coordinates.csv"))
     train_length = int(split * len(annotations))
     train_annotations = annotations[:train_length]
     val_annotations = annotations[train_length:]
     train_annotations = np.array(train_annotations, dtype=object)
-    csv_path = os.path.join(traindir, 'train_coordinates.csv')
+    csv_path = os.path.join(traindir, "train_coordinates.csv")
     with open(csv_path, "w", newline="") as f:
         csv.writer(f).writerows(train_annotations)
     val_annotations = np.array(val_annotations, dtype=object)
-    csv_path = os.path.join(val_dir, 'val_coordinates.csv')
+    csv_path = os.path.join(val_dir, "val_coordinates.csv")
     with open(csv_path, "w", newline="") as f:
         csv.writer(f).writerows(val_annotations)
 
@@ -287,33 +311,38 @@ def train_val_test_splits(
     images_names: List[str],
     train_test_ratio: float,
     train_val_ratio: float,
-    image_format: str='npz',
+    image_format: str = "npz",
 ) -> None:
-    train_images = train_test_split(rootdir, images_names, image_format, train_test_ratio)
-    #train_val_split(os.path.join(rootdir, 'train'), train_images, image_format, train_val_ratio)
-    train_val_split2(os.path.join(rootdir, 'train'), train_images, image_format, train_val_ratio)
+    train_images = train_test_split(
+        rootdir, images_names, image_format, train_test_ratio
+    )
+    # train_val_split(os.path.join(rootdir, 'train'), train_images, image_format, train_val_ratio)
+    train_val_split2(
+        os.path.join(rootdir, "train"), train_images, image_format, train_val_ratio
+    )
 
 
 # +------------------------------------------------------------------------------------------+ #
 # |                                       EXTERNAL CALL                                      | #
 # +------------------------------------------------------------------------------------------+ #
 
+
 def prepare(
     rootdir: str,
     extension: str,
-    pointcloud_path: str=None,
-    size: int=None,
-    make_u_masks: bool=False,
-    train_test_split: float=None,
-    train_val_split: float=None,
-    crop_output_dir: str=None,
-    crop_size: Tuple[int, ...]=None,
-    margin: Tuple[int, ...]=0,
-    pos_ratio: float=1,
-    positive_only: bool=False,
-    downscale: float=1.
+    pointcloud_path: str = None,
+    size: int = None,
+    make_u_masks: bool = False,
+    train_test_split: float = None,
+    train_val_split: float = None,
+    crop_output_dir: str = None,
+    crop_size: Tuple[int, ...] = None,
+    margin: Tuple[int, ...] = 0,
+    pos_ratio: float = 1,
+    positive_only: bool = False,
+    downscale: float = 1.0,
 ) -> None:
-    """ Being given a path to a directory, prepare the image for training by doing any
+    """Being given a path to a directory, prepare the image for training by doing any
     combinations of the following operations:
     1. generate synthetic data
     2. make u masks
@@ -342,40 +371,47 @@ def prepare(
         positive_only (bool, optional): Crop only positive. Defaults to False.
         downscale (float, optional): Downscale factor. Default to 1 (no downscale)
     """
-    summary(locals(), 'DATA PREPARATION')
+    summary(locals(), "DATA PREPARATION")
     # STEP 1: Data generation
-    print('\nPreparing data for training ...\n')
+    print("\nPreparing data for training ...\n")
     if size is not None:
-        print('| Generating dataset ...')
+        print("| Generating dataset ...")
         try:
             from .generate import generate_data
         except ModuleNotFoundError as e:
-            raise ModuleNotFoundError(str(e)+"\n\nCannot generate synthetic data, you may need the pyfigtree module for that. \
-Try `pip install spfluo[figtree]` or `pip install pyfigtree`.")
+            raise ModuleNotFoundError(
+                str(e)
+                + "\n\nCannot generate synthetic data, you may need the pyfigtree module for that. \
+Try `pip install spfluo[figtree]` or `pip install pyfigtree`."
+            )
         generate_data(size, rootdir, pointcloud_path, extension)
     # STEP 2: Train/Val/Test splits
     if train_test_split is not None and train_val_split is not None:
-        images_names = list(filter(lambda x: x.endswith(extension), os.listdir(rootdir)))
-        #images_names = [str(i)+'.'+extension for i in range(size)]
-        print('| Splitting data into train, val, and test subsets ...')
-        train_val_test_splits(rootdir, images_names, train_test_split, train_val_split, extension)
+        images_names = list(
+            filter(lambda x: x.endswith(extension), os.listdir(rootdir))
+        )
+        # images_names = [str(i)+'.'+extension for i in range(size)]
+        print("| Splitting data into train, val, and test subsets ...")
+        train_val_test_splits(
+            rootdir, images_names, train_test_split, train_val_split, extension
+        )
     # STEP 3: Make U masks
     if make_u_masks:
-        print('| Creating U masks ...')
-        make_U_masks(os.path.join(rootdir, 'train'), extension)
-        make_U_masks(os.path.join(rootdir,   'val'), extension)
+        print("| Creating U masks ...")
+        make_U_masks(os.path.join(rootdir, "train"), extension)
+        make_U_masks(os.path.join(rootdir, "val"), extension)
     # STEP 4: Make crops
     if crop_output_dir is not None:
-        print('| Generating crops inside images ...')
+        print("| Generating crops inside images ...")
         crop_kwargs = {
-            'crop_size': tuple(np.rint(np.array(crop_size)/downscale).astype(int)),
-            'margin': margin,
-            'pos_ratio': pos_ratio,
-            'positive_only': positive_only,
-            'extension': extension,
+            "crop_size": tuple(np.rint(np.array(crop_size) / downscale).astype(int)),
+            "margin": margin,
+            "pos_ratio": pos_ratio,
+            "positive_only": positive_only,
+            "extension": extension,
         }
-        for d in ['train', 'val', 'test']:
-            crop_kwargs['csv_name'] = d+'_coordinates'
+        for d in ["train", "val", "test"]:
+            crop_kwargs["csv_name"] = d + "_coordinates"
             subdir = os.path.join(rootdir, d)
             if os.path.exists(subdir):
                 crop(subdir, crop_output_dir, **crop_kwargs)

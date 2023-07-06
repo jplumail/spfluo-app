@@ -1,13 +1,18 @@
 from spfluo.ab_initio_reconstruction import AbInitioReconstruction
-from spfluo.ab_initio_reconstruction.manage_files.read_save_files import read_image, read_images_in_folder
-from spfluo.ab_initio_reconstruction.common_image_processing_methods.others import crop_center
+from spfluo.ab_initio_reconstruction.manage_files.read_save_files import (
+    read_image,
+    read_images_in_folder,
+)
+from spfluo.ab_initio_reconstruction.common_image_processing_methods.others import (
+    crop_center,
+)
 
 import argparse
 import numpy as np
 
 
 def parse_args():
-    parser = argparse.ArgumentParser('Ab initio reconstruction')
+    parser = argparse.ArgumentParser("Ab initio reconstruction")
     parser = argparse.ArgumentParser()
 
     # Input files
@@ -19,8 +24,8 @@ def parse_args():
     parser.add_argument("--M_rot", type=int, default=360)
     parser.add_argument("--dec_prop", type=float, default=1.2)
     parser.add_argument("--init_unif_prop", nargs=2, type=float, default=(1, 1))
-    parser.add_argument("--coeff_kernel_axes", type=float, default=50.)
-    parser.add_argument("--coeff_kernel_rot", type=float, default=5.)
+    parser.add_argument("--coeff_kernel_axes", type=float, default=50.0)
+    parser.add_argument("--coeff_kernel_rot", type=float, default=5.0)
     parser.add_argument("--eps", type=float, default=0)
     parser.add_argument("--lr", type=float, default=0.1)
     parser.add_argument("--N_axes", type=int, default=25)
@@ -32,7 +37,7 @@ def parse_args():
     parser.add_argument("--N_iter_with_unif_distr", type=int, default=None)
     parser.add_argument("--epochs_of_suppression", type=int, default=None)
     parser.add_argument("--proportion_of_views_suppressed", type=float, default=None)
-    parser.add_argument("--convention", type=str, default='zxz')
+    parser.add_argument("--convention", type=str, default="zxz")
     parser.add_argument("--dtype", type=type, default=np.float64)
     parser.add_argument("--reg_coeff", type=float, default=0)
     parser.add_argument("--beta_sampling", type=float, default=0)
@@ -61,5 +66,5 @@ def main(args):
     reconstruction.fit(particles, psf=psf, gpu=args.gpu, output_dir=args.output_dir)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main(parse_args())

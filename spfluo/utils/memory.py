@@ -34,11 +34,11 @@ def nvidia_free_memory() -> int:
     # Only works on one GPU as of now.
     gpu = query["gpu"][0]["fb_memory_usage"]
 
-    if gpu["unit"] == 'MiB':
+    if gpu["unit"] == "MiB":
         unit = 2**20
     else:
         unit = None
-    
+
     free = gpu["free"]
 
     assert unit is not None
@@ -87,7 +87,6 @@ def free_memory_cpu():
     return psutil.virtual_memory().available
 
 
-
 def maximum_batch(total_memory, func: str, *func_args):
     if func == "convolution_matching_poses_grid":
         reference, volumes, _, potential_poses = func_args
@@ -96,17 +95,30 @@ def maximum_batch(total_memory, func: str, *func_args):
         M, _ = potential_poses.size()
         shape = (N, M)
         dtype_bytes = torch.finfo(reference.dtype).bits / 8
-        total_batch = total_memory*4*(32**3)*128*100 / (12000*(2**20)*dtype_bytes*H*W*D)
+        total_batch = (
+            total_memory
+            * 4
+            * (32**3)
+            * 128
+            * 100
+            / (12000 * (2**20) * dtype_bytes * H * W * D)
+        )
         max_batch_ = math.floor(total_batch**0.5)
-        if max_batch_ > N and max_batch_ > M: max_batch = (None, None)
+        if max_batch_ > N and max_batch_ > M:
+            max_batch = (None, None)
         elif max_batch_ > N:
-            if (mbatch:=math.floor(total_batch/N)) > M: max_batch = (None, None)
-            else: max_batch = (None, mbatch)
+            if (mbatch := math.floor(total_batch / N)) > M:
+                max_batch = (None, None)
+            else:
+                max_batch = (None, mbatch)
         elif max_batch_ > M:
-            if (nbatch:=math.floor(total_batch/M)) > N: max_batch = (None, None)
-            else: max_batch = (nbatch, None)
-        else: max_batch = (max_batch_, max_batch_)
-    
+            if (nbatch := math.floor(total_batch / M)) > N:
+                max_batch = (None, None)
+            else:
+                max_batch = (nbatch, None)
+        else:
+            max_batch = (max_batch_, max_batch_)
+
     if func == "convolution_matching_poses_refined":
         reference, volumes, _, potential_poses = func_args
         D, H, W = reference.shape[:3]
@@ -114,35 +126,55 @@ def maximum_batch(total_memory, func: str, *func_args):
         _, M, _ = potential_poses.size()
         shape = (N, M)
         dtype_bytes = torch.finfo(reference.dtype).bits / 8
-        total_batch = total_memory*4*(32**3)*128*100 / (12000*(2**20)*dtype_bytes*H*W*D)
+        total_batch = (
+            total_memory
+            * 4
+            * (32**3)
+            * 128
+            * 100
+            / (12000 * (2**20) * dtype_bytes * H * W * D)
+        )
         max_batch_ = math.floor(total_batch**0.5)
-        if max_batch_ > N and max_batch_ > M: max_batch = (None, None)
+        if max_batch_ > N and max_batch_ > M:
+            max_batch = (None, None)
         elif max_batch_ > N:
-            if (mbatch:=math.floor(total_batch/N)) > M: max_batch = (None, None)
-            else: max_batch = (None, mbatch)
+            if (mbatch := math.floor(total_batch / N)) > M:
+                max_batch = (None, None)
+            else:
+                max_batch = (None, mbatch)
         elif max_batch_ > M:
-            if (nbatch:=math.floor(total_batch/M)) > N: max_batch = (None, None)
-            else: max_batch = (nbatch, None)
-        else: max_batch = (max_batch_, max_batch_)
-    
+            if (nbatch := math.floor(total_batch / M)) > N:
+                max_batch = (None, None)
+            else:
+                max_batch = (nbatch, None)
+        else:
+            max_batch = (max_batch_, max_batch_)
+
     if func == "reconstruction_L2":
         volumes, psf, poses, lambda_ = func_args
         D, H, W = volumes.size()[-3:]
         M, N, _ = poses.size()
         dtype_bytes = torch.finfo(poses.dtype).bits / 8
-        total_batch = total_memory * 4*(128**3)*5*8 / (5000*(2**20)*dtype_bytes*N*H*W*D)
+        total_batch = (
+            total_memory
+            * 4
+            * (128**3)
+            * 5
+            * 8
+            / (5000 * (2**20) * dtype_bytes * N * H * W * D)
+        )
         max_batch = (math.floor(total_batch),)
         shape = (M,)
-    
+
     if func == "affine_transform":
         volumes, transforms = func_args
         N, C, D, H, W = volumes.size()
         dtype_bytes = torch.finfo(volumes.dtype).bits / 8
         size_tensor = dtype_bytes * C * D * H * W
-        size_allocated = size_tensor * 8 * 2 # empirical result
+        size_allocated = size_tensor * 8 * 2  # empirical result
         max_batch = (math.floor(total_memory / size_allocated),)
         shape = (N,)
-    
+
     if func == "fftn":
         x, spatial_dims = func_args
         batch_dims = np.ones((x.ndim,), dtype=bool)
@@ -152,13 +184,15 @@ def maximum_batch(total_memory, func: str, *func_args):
         spatial_size = sizes[list(spatial_dims)]
         dtype_bytes = torch.finfo(x.dtype).bits / 8
         size_tensor = dtype_bytes * spatial_size.prod()
-        if x.is_complex(): mul_factor = 2
-        else: mul_factor = 6
+        if x.is_complex():
+            mul_factor = 2
+        else:
+            mul_factor = 6
         size_allocated = size_tensor * mul_factor
         total_batch = total_memory / size_allocated
 
         if len(batch_dims) > 0:
-            max_batch_ = math.floor(total_batch ** (1/len(batch_dims)))
+            max_batch_ = math.floor(total_batch ** (1 / len(batch_dims)))
             max_batch = tuple([max_batch_ for _ in range(len(batch_dims))])
         else:
             max_batch = (total_batch,)
@@ -168,10 +202,9 @@ def maximum_batch(total_memory, func: str, *func_args):
         else:
             shape = None
 
+    # if 0 in max_batch:
+    # raise MemoryError(f"Total memory of {total_memory/2**20} MB is too small for func {func} with arguments of shapes: "+', '.join([repr(s.size()) for s in func_args]))
 
-    #if 0 in max_batch:
-        #raise MemoryError(f"Total memory of {total_memory/2**20} MB is too small for func {func} with arguments of shapes: "+', '.join([repr(s.size()) for s in func_args]))
-    
     return max_batch, shape
 
 
@@ -183,14 +216,18 @@ def split_batch_func(func, *func_args, total_memory=None):
 
 
 def split_batch(
-    max_batch: Tuple[int|None], shape: Tuple[int], total_memory: int | None = None, offset: Tuple[int] = None
+    max_batch: Tuple[int | None],
+    shape: Tuple[int],
+    total_memory: int | None = None,
+    offset: Tuple[int] = None,
 ) -> Generator[int | Tuple[int], None, None]:
-    #max_batch = maximum_batch(memory, total_memory)
-
+    # max_batch = maximum_batch(memory, total_memory)
 
     if type(max_batch) is tuple:
         assert len(max_batch) == len(shape)
-        max_batch = np.array([mb if mb is not None else shape[i] for i, mb in enumerate(max_batch)])
+        max_batch = np.array(
+            [mb if mb is not None else shape[i] for i, mb in enumerate(max_batch)]
+        )
     else:
         max_batch = np.array([max_batch], dtype=int)
 
@@ -216,17 +253,24 @@ def split_batch(
         dims = remain_shape.nonzero()[0]
         if type(shape) is int:
             shape = np.array([shape])
-        for i in range(1, len(dims)+1):
+        for i in range(1, len(dims) + 1):
             for combination in itertools.combinations(dims, i):
                 combination = np.asarray(combination)
                 new_shape = rectangle.copy()
-                new_shape[combination] = np.asarray(shape)[combination] - rectangle[combination]
+                new_shape[combination] = (
+                    np.asarray(shape)[combination] - rectangle[combination]
+                )
                 new_offset = offset.copy()
                 new_offset[combination] += rectangle[combination]
-                for o in split_batch(tuple(np.minimum(max_batch, new_shape)), tuple(new_shape), None, new_offset):
+                for o in split_batch(
+                    tuple(np.minimum(max_batch, new_shape)),
+                    tuple(new_shape),
+                    None,
+                    new_offset,
+                ):
                     yield o
 
 
-if __name__ == '__main__':
-    for o in split_batch((8,None,10), (100,120,17)):
+if __name__ == "__main__":
+    for o in split_batch((8, None, 10), (100, 120, 17)):
         print(o)

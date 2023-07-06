@@ -14,9 +14,10 @@ from scipy.ndimage import zoom
 def read_center_and_size(file_path):
     with open(file_path) as f:
         data = json.load(f)
-    center = data['markups'][0]['center']
-    size = data['markups'][0]['size']
+    center = data["markups"][0]["center"]
+    size = data["markups"][0]["size"]
     return center, size
+
 
 def read_rois(list_paths):
     centers, sizes = [], []
@@ -27,12 +28,13 @@ def read_rois(list_paths):
     roi_sizes = np.amax(np.ceil(np.stack(sizes)), axis=1)
     return centers, roi_sizes
 
+
 def create_annotation_image(
     rootdir: str,
     annotations_path: str,
     patch_size: Tuple[int],
     color: Tuple[int],
-    extension: str
+    extension: str,
 ) -> None:
     """
     Annotate images from a root directory with centers of bounding boxes stored in a CSV file.
@@ -54,7 +56,7 @@ def create_annotation_image(
         color = np.array(color).astype(im.dtype)
 
         # Draw a cube for each ROI
-        centers = annotations[annotations[:, 0]==os.path.basename(im_path), 2:]
+        centers = annotations[annotations[:, 0] == os.path.basename(im_path), 2:]
         for center in centers:
             z, y, x = np.rint(np.array(center, dtype=float)).astype(int)
             x1, x2 = x - patch_size[2] // 2, x + patch_size[2] // 2
@@ -64,15 +66,16 @@ def create_annotation_image(
             im[z1:z2, y2, x1:x2] = color
             im[z1:z2, y1:y2, x1] = color
             im[z1:z2, y1:y2, x2] = color
-        
+
         tifffile.imwrite(im_path, im)
+
 
 def extract_annotations(
     slicer3d_dir: str,
     rootdir: str,
     outputdir: str,
     patch_size: Optional[int] = None,
-    downscale: float = 1.
+    downscale: float = 1.0,
 ):
     os.makedirs(rootdir, exist_ok=True)
     coordinates = []
@@ -83,11 +86,15 @@ def extract_annotations(
         im_dir = os.path.join(slicer3d_dir, d)
 
         # Copy image
-        im_path = glob(os.path.join(im_dir, "*.tif")) + glob(os.path.join(im_dir, "*.tiff"))
+        im_path = glob(os.path.join(im_dir, "*.tif")) + glob(
+            os.path.join(im_dir, "*.tiff")
+        )
         if len(im_path) > 1:
             print("Too many TIF in a directory", file=sys.stderr)
         if len(im_path) > 0:
-            print(f"Current directory: {os.path.join(slicer3d_dir, d)}", file=sys.stdout)
+            print(
+                f"Current directory: {os.path.join(slicer3d_dir, d)}", file=sys.stdout
+            )
             im_path = im_path[0]
             im_name = os.path.basename(im_path)
             im_outputpath = os.path.join(rootdir, im_name)
@@ -96,7 +103,7 @@ def extract_annotations(
             if downscale > 1:
                 print(f"Downscaling with factor {downscale}...", file=sys.stdout)
                 im = load_array(im_outputpath)
-                im = zoom(im, 1/downscale)
+                im = zoom(im, 1 / downscale)
                 tifffile.imwrite(im_outputpath, im)
 
             # Process annotations
@@ -105,13 +112,21 @@ def extract_annotations(
                 print(f"Found {len(ann_paths)}, processing...", file=sys.stdout)
                 centers, roi_sizes = read_rois(ann_paths)
                 if downscale > 1:
-                    centers = [[c/downscale for c in center] for center in centers]
-                    roi_sizes = [s/downscale for s in roi_sizes]
+                    centers = [[c / downscale for c in center] for center in centers]
+                    roi_sizes = [s / downscale for s in roi_sizes]
                 list_img_paths.append(im_path)
                 list_centers.append(centers)
                 list_roi_sizes.append(roi_sizes)
                 for i, center in enumerate(centers):
-                    coordinates.append([im_name, str(i), str(float(center[2])), str(float(center[1])), str(float(center[0]))])
+                    coordinates.append(
+                        [
+                            im_name,
+                            str(i),
+                            str(float(center[2])),
+                            str(float(center[1])),
+                            str(float(center[0])),
+                        ]
+                    )
 
     # Infer patch size if not provided
     if patch_size is None:
@@ -123,8 +138,11 @@ def extract_annotations(
             ps = max(ps)
 
     # Save annotations
-    print(f"Saving annotations at {os.path.join(rootdir, 'coordinates.csv')}", file=sys.stdout)
-    with open(os.path.join(rootdir, 'coordinates.csv'), 'w') as f:
+    print(
+        f"Saving annotations at {os.path.join(rootdir, 'coordinates.csv')}",
+        file=sys.stdout,
+    )
+    with open(os.path.join(rootdir, "coordinates.csv"), "w") as f:
         for coord in coordinates:
-            f.write(','.join(coord))
-            f.write('\n')
+            f.write(",".join(coord))
+            f.write("\n")

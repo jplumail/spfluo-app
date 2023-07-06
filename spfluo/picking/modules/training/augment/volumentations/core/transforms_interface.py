@@ -5,7 +5,6 @@ VERBOSE = False
 
 
 class Transform:
-
     def __init__(self, always_apply=False, p=0.5):
         assert 0 <= p <= 1
         self.p = p
@@ -15,7 +14,7 @@ class Transform:
         if force_apply or self.always_apply or random.random() < self.p:
             params = self.get_params(**data)
             if VERBOSE:
-                print('RUN', self.__class__.__name__, params)
+                print("RUN", self.__class__.__name__, params)
             for k, v in data.items():
                 if k in targets[0]:
                     data[k] = self.apply(v, **params)
@@ -34,12 +33,11 @@ class Transform:
 
 
 class DualTransform(Transform):
-
     def __call__(self, force_apply, targets, **data):
         if force_apply or self.always_apply or random.random() < self.p:
             params = self.get_params(**data)
             if VERBOSE:
-                print('RUN', self.__class__.__name__, params)
+                print("RUN", self.__class__.__name__, params)
 
             for k, v in data.items():
                 if k in targets[0]:

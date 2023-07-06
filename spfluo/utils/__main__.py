@@ -4,16 +4,23 @@ import argparse
 import os
 import glob
 
+
 def parse_args() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     parser.add_argument("-f", "--function", type=str)
 
     # common args
-    parser.add_argument("-i", "--input", type=str, help="The image(s) to process", nargs='+')
-    parser.add_argument("-o", "--output", type=str, help="The path to the output image/directory")
+    parser.add_argument(
+        "-i", "--input", type=str, help="The image(s) to process", nargs="+"
+    )
+    parser.add_argument(
+        "-o", "--output", type=str, help="The path to the output image/directory"
+    )
 
     # isotropic_resample args
-    parser.add_argument("--spacing", type=float, nargs='+', help="Voxel size (ZYX)", default=None)
+    parser.add_argument(
+        "--spacing", type=float, nargs="+", help="Voxel size (ZYX)", default=None
+    )
 
     # resize args
     parser.add_argument("--size", type=int)
@@ -40,5 +47,6 @@ def main(parser: argparse.ArgumentParser) -> None:
     if args.function == "resample":
         resample(image_paths, output_path, factor=args.factor)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main(parse_args())

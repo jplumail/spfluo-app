@@ -11,9 +11,14 @@ def test_split_batch():
 
     for t, batch in zip(tables, batches):
         for idx in split_batch(batch, t.shape):
-            if type(idx) is tuple: idx = [idx]
-            slices = [slice(i,j) for i,j in idx]
+            if type(idx) is tuple:
+                idx = [idx]
+            slices = [slice(i, j) for i, j in idx]
             t[tuple(slices)] += 1
-            assert all([(j-i) <= b if b is not None else True for (i,j), b in zip(idx,batch)])
+            assert all(
+                [
+                    (j - i) <= b if b is not None else True
+                    for (i, j), b in zip(idx, batch)
+                ]
+            )
         assert (t == 1).all()
-    

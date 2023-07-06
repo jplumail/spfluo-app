@@ -35,24 +35,30 @@ def half_epoch(dataloader: DataLoader, model: Model, training=True) -> Model:
 
 def full_epoch(data: Data, model: Model) -> Model:
     model, train_loss = half_epoch(data.train_loader, model, training=True)
-    model, val_loss   = half_epoch(data.val_loader,   model, training=False)
+    model, val_loss = half_epoch(data.val_loader, model, training=False)
     if model.scheduler is not None:
         model.scheduler.step()
     return model, train_loss, val_loss
 
 
-def unsupervised_pretraining(data: Data, model: Model, num_epochs: int, output_dir: str) -> Model:
+def unsupervised_pretraining(
+    data: Data, model: Model, num_epochs: int, output_dir: str
+) -> Model:
     train_losses, val_losses = [], []
     with tqdm(total=num_epochs) as pbar:
         for i in range(num_epochs):
-            pbar.set_description(f'EPOCH [{i+1}/{num_epochs}]')
+            pbar.set_description(f"EPOCH [{i+1}/{num_epochs}]")
             model, train_loss, val_loss = full_epoch(data, model)
             train_losses.append(train_loss)
             val_losses.append(val_loss)
-            pbar.set_postfix({'train loss': train_loss, 'val_loss': val_loss})
+            pbar.set_postfix({"train loss": train_loss, "val_loss": val_loss})
             pbar.update()
-    with open(os.path.join(output_dir, 'unsupervised_pretraining_train_losses.pickle'), 'wb') as f:
+    with open(
+        os.path.join(output_dir, "unsupervised_pretraining_train_losses.pickle"), "wb"
+    ) as f:
         pickle.dump(train_losses, f)
-    with open(os.path.join(output_dir, 'unsupervised_pretraining_val_losses.pickle'), 'wb') as f:
+    with open(
+        os.path.join(output_dir, "unsupervised_pretraining_val_losses.pickle"), "wb"
+    ) as f:
         pickle.dump(val_losses, f)
     return model

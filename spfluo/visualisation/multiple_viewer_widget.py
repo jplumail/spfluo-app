@@ -90,9 +90,7 @@ def center_cross_on_mouse(
 
     if not getattr(viewer_model, "mouse_over_canvas", True):
         # There is no way for napari 0.4.15 to check if mouse is over sending canvas.
-        show_info(
-            "Mouse is not over the canvas. You may need to click on the canvas."
-        )
+        show_info("Mouse is not over the canvas. You may need to click on the canvas.")
         return
 
     viewer_model.dims.current_step = tuple(
@@ -108,13 +106,13 @@ def center_cross_on_mouse(
 
 
 action_manager.register_action(
-    name='napari:move_point',
+    name="napari:move_point",
     command=center_cross_on_mouse,
-    description='Move dims point to mouse position',
+    description="Move dims point to mouse position",
     keymapprovider=ViewerModel,
 )
 
-action_manager.bind_shortcut('napari:move_point', 'C')
+action_manager.bind_shortcut("napari:move_point", "C")
 
 
 class own_partial:
@@ -188,17 +186,11 @@ class CrossWidget(QCheckBox):
         Ignores the the cross layer itself in calculating the extent.
         """
         if NAPARI_GE_4_16:
-            layers = [
-                layer
-                for layer in self.viewer.layers
-                if layer is not self.layer
-            ]
+            layers = [layer for layer in self.viewer.layers if layer is not self.layer]
             self._extent = self.viewer.layers.get_extent(layers)
         else:
             extent_list = [
-                layer.extent
-                for layer in self.viewer.layers
-                if layer is not self.layer
+                layer.extent for layer in self.viewer.layers if layer is not self.layer
             ]
             self._extent = Extent(
                 data=None,
@@ -231,9 +223,7 @@ class CrossWidget(QCheckBox):
             if (upper - lower) / self._extent.step[i] == 1:
                 continue
             point1 = list(point)
-            point1[i] = (lower + self._extent.step[i] / 2) / self._extent.step[
-                i
-            ]
+            point1[i] = (lower + self._extent.step[i] / 2) / self._extent.step[i]
             point2 = [0 for _ in point]
             point2[i] = (upper - lower) / self._extent.step[i]
             vec.append((point1, point2))
@@ -341,12 +331,8 @@ class MultipleViewerWidget(QSplitter):
 
     def _layer_added(self, event):
         """add layer to additional viewers and connect all required events"""
-        self.viewer_model1.layers.insert(
-            event.index, copy_layer(event.value, "model1")
-        )
-        self.viewer_model2.layers.insert(
-            event.index, copy_layer(event.value, "model2")
-        )
+        self.viewer_model1.layers.insert(event.index, copy_layer(event.value, "model1"))
+        self.viewer_model2.layers.insert(event.index, copy_layer(event.value, "model2"))
         for name in get_property_names(event.value):
             getattr(event.value.events, name).connect(
                 own_partial(self._property_sync, name)
@@ -354,12 +340,12 @@ class MultipleViewerWidget(QSplitter):
 
         if isinstance(event.value, Labels) or isinstance(event.value, Points):
             event.value.events.set_data.connect(self._set_data_refresh)
-            self.viewer_model1.layers[
-                event.value.name
-            ].events.set_data.connect(self._set_data_refresh)
-            self.viewer_model2.layers[
-                event.value.name
-            ].events.set_data.connect(self._set_data_refresh)
+            self.viewer_model1.layers[event.value.name].events.set_data.connect(
+                self._set_data_refresh
+            )
+            self.viewer_model2.layers[event.value.name].events.set_data.connect(
+                self._set_data_refresh
+            )
         if event.value.name != ".cross":
             self.viewer_model1.layers[event.value.name].events.data.connect(
                 self._sync_data
@@ -416,9 +402,7 @@ class MultipleViewerWidget(QSplitter):
     def _layer_moved(self, event):
         """update order of layers"""
         dest_index = (
-            event.new_index
-            if event.new_index < event.index
-            else event.new_index + 1
+            event.new_index if event.new_index < event.index else event.new_index + 1
         )
         self.viewer_model1.layers.move(event.index, dest_index)
         self.viewer_model2.layers.move(event.index, dest_index)
@@ -442,13 +426,18 @@ class MultipleViewerWidget(QSplitter):
         finally:
             self._block = False
 
+
 def init_qt():
     from qtpy import QtCore, QtWidgets
+
     QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_ShareOpenGLContexts)
     # above two lines are needed to allow to undock the widget with
     # additional viewers
 
-def add_orthoviewer_widget(view: napari.Viewer) -> Tuple[napari.Viewer, MultipleViewerWidget, CrossWidget]:
+
+def add_orthoviewer_widget(
+    view: napari.Viewer,
+) -> Tuple[napari.Viewer, MultipleViewerWidget, CrossWidget]:
     dock_widget = MultipleViewerWidget(view)
     cross = CrossWidget(view)
 
