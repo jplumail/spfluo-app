@@ -58,7 +58,6 @@ select = [
 
 [tool.ruff.isort]
 known-first-party = ["spfluo"]
-known-third-party = ["pyworflow", "pwfluo"]
 
 [tool.ruff.per-file-ignores]
 "spfluo/picking/*" = ["E501"]
