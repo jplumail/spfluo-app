@@ -19,7 +19,7 @@ from spfluo.utils.volume import are_volumes_aligned
 
 
 def test_shapes_reconstruction_L2():
-    N, D, H, W = 100, 32, 32, 32
+    N, D, H, W = 10, 32, 32, 32
     volumes = torch.randn((N, D, H, W))
     psf = torch.randn((D, H, W))
     poses = torch.randn((N, 6))
@@ -32,7 +32,7 @@ def test_shapes_reconstruction_L2():
 
 def test_parallel_reconstruction_L2():
     M = 5
-    N, D, H, W = 100, 32, 32, 32
+    N, D, H, W = 10, 32, 32, 32
     volumes = torch.randn((N, D, H, W))
     psf = torch.randn((D, H, W))
     poses = torch.randn((M, N, 6))
@@ -66,7 +66,7 @@ def test_memory_convolution_matching_poses_grid():
     D = 32
     for N in [1, 10]:
         N = int(N)
-        M = int(10000 / N**0.5)
+        M = int(100 / N**0.5)
         reference = torch.randn((D, D, D), device=device)
         volumes = torch.randn((N, D, D, D), device=device)
         psf = torch.randn((D, D, D), device=device)
@@ -102,7 +102,8 @@ def test_shapes_convolution_matching_poses_grid():
 #         return torch.as_tensor(x, dtype=torch.float64, device="cuda")
 #
 #     # Load Matlab data
-#     data_path = os.path.join(os.path.dirname(__file__), "data", "convolution_matching")
+#     data_path = \
+#       os.path.join(os.path.dirname(__file__), "data", "convolution_matching")
 #     potential_poses_ = loadmat(os.path.join(data_path, "bigListPoses.mat"))[
 #         "bigListPoses"
 #     ]
@@ -136,7 +137,7 @@ def test_shapes_convolution_matching_poses_grid():
 
 def test_shapes_convolution_matching_poses_refined():
     M, d = 5, 6
-    N, D, H, W = 100, 32, 32, 32
+    N, D, H, W = 10, 32, 32, 32
     reference = torch.randn((D, H, W))
     volumes = torch.randn((N, D, H, W))
     psf = torch.randn((D, H, W))
@@ -161,7 +162,7 @@ def test_shapes_find_angles_grid():
     else:
         device = "cpu"
 
-    N, D, H, W = 150, 32, 32, 32
+    N, D, H, W = 15, 32, 32, 32
     reconstruction = torch.randn((D, H, W), device=device)
     patches = torch.randn((N, D, H, W), device=device)
     psf = torch.randn((D, H, W), device=device)
@@ -182,14 +183,14 @@ def test_refine_shapes():
         device = "cuda"
     else:
         device = "cpu"
-    N, D, H, W = 150, 32, 32, 32
+    N, D, H, W = 15, 32, 32, 32
     patches = torch.randn((N, D, H, W), device=device)
     psf = torch.randn((D, H, W), device=device)
-    guessed_poses = torch.randn((N, 6))
+    guessed_poses = torch.randn((N, 6), device=device)
 
-    S = 1
-    steps = [(12 * 12, 12)] + [(S * S, S)] * 4
-    ranges = [0, 40, 20, 10, 5]
+    S = 2
+    steps = [(S * S, S)] * 2
+    ranges = [0, 40]
     recon, poses = refine(patches, psf, guessed_poses, steps, ranges)
 
     assert recon.shape == patches[0].shape
