@@ -17,18 +17,18 @@ from spfluo.picking.modules.pretraining.generate.data_generator import (
 D = 50
 N = 10
 anisotropy = (1.0, 1.0, 1.0)
-data_dir = Path(__file__).parent / "data"
+data_dir = Path(__file__).parent.parent / "data"
+pointcloud_path = data_dir / "sample_centriole_point_cloud.csv"
 
 
 @pytest.fixture(scope="session")
 def generated_particles_dir():
-    if not data_dir.exists():
+    particles_dir = data_dir / "generated_particles"
+    if not particles_dir.exists():
         np.random.seed(123)
         config = DataGenerationConfig()
         config.augmentation.max_translation = 0
-        config.io.point_cloud_path = (
-            "/home/plumail/Téléchargements/sample_centriole_point_cloud.csv"
-        )
+        config.io.point_cloud_path = pointcloud_path
         config.io.extension = "tiff"
         config.voxelisation.image_shape = D
         config.voxelisation.max_particle_dim = int(0.6 * D)
@@ -38,13 +38,13 @@ def generated_particles_dir():
         config.augmentation.rotation_proba = 1
         config.augmentation.shrink_range = (1.0, 1.0)
         gen = DataGenerator(config)
-        data_dir.mkdir()
-        gt_path = data_dir / "gt.tiff"
-        gen.save_psf(data_dir / "psf.tiff")
+        particles_dir.mkdir()
+        gt_path = particles_dir / "gt.tiff"
+        gen.save_psf(particles_dir / "psf.tiff")
         gen.save_groundtruth(gt_path)
-        gen.create_particles(data_dir, output_extension="tiff")
+        gen.create_particles(particles_dir, output_extension="tiff")
 
-    return data_dir
+    return particles_dir
 
 
 @pytest.fixture(scope="session")
