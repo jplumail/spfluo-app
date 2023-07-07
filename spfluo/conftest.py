@@ -17,7 +17,7 @@ from spfluo.picking.modules.pretraining.generate.data_generator import (
 D = 50
 N = 10
 anisotropy = (1.0, 1.0, 1.0)
-data_dir = Path(__file__).parent.parent / "data"
+data_dir = Path(__file__).parent / "data"
 pointcloud_path = data_dir / "sample_centriole_point_cloud.csv"
 
 
