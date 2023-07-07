@@ -69,3 +69,37 @@ def get_transform_matrix(
     #   4-3-2 <- 1
     H = H_rot @ H_center
     return H
+
+
+def distance_poses(
+    p1: Array, p2: Array, convention: str = "XZX"
+) -> Tuple[Array, Array]:
+    """Compute the rotation distance and the euclidean distance between p1 and p2.
+    Parameters:
+        p1, p2 : arrays of shape (..., 6). Must be broadcastable. Represents poses (theta,psi,gamma,tz,ty,tx).
+    Returns:
+        distances : Tuple[Array, Array] of shape broadcasted dims.
+    """
+    # Rotation distance
+    xp = array_api_compat.array_namespace(p1, p2)
+    rot1, rot2 = p1[..., :3], p2[..., :3]
+    rot_mat1 = xp.reshape(
+        euler_to_matrix(convention, xp.reshape(rot1, (-1, 3)), degrees=True),
+        rot1.shape[:-1] + (3, 3),
+    )
+    rot_mat2 = xp.reshape(
+        euler_to_matrix(convention, xp.reshape(rot2, (-1, 3)), degrees=True),
+        rot2.shape[:-1] + (3, 3),
+    )
+    v = xp.reshape(
+        xp.asarray([1, 0, 0], device=xp.device(rot1), dtype=rot1.dtype), (3, 1)
+    )
+    v1 = rot_mat1 @ v
+    v2 = rot_mat2 @ v
+    rot_distance = xp.acos(xp.sum(v1 * v2, axis=-2))[..., 0] * 180 / xp.pi
+
+    # Euclidian distance
+    t1, t2 = p1[..., 3:], p2[..., 3:]
+    trans_distance = xp.sum(((t1 - t2) ** 2), axis=-1) ** 0.5
+
+    return rot_distance, trans_distance

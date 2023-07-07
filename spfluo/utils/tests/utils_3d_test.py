@@ -532,17 +532,3 @@ def test_broadcasting_fourier_shift():
     )
 
     assert np.isclose(offset_images1, offset_images2).all()
-
-
-#######################
-# Test distance_poses #
-#######################
-
-
-def test_distance_poses():
-    p1 = torch.tensor([90, 90, 0, 1, 0, 0]).type(torch.float)
-    p2 = torch.tensor([-90, 90, 0, 0, 1, 0]).type(torch.float)
-    angle, t = spfluo.utils.distance_poses(p1, p2)
-
-    assert torch.isclose(angle, torch.tensor(180.0))
-    assert torch.isclose(t, torch.tensor(2.0) ** 0.5)

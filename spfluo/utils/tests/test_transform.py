@@ -1,11 +1,15 @@
 import numpy as np
 
-from spfluo.utils.transform import get_transform_matrix
+from spfluo.utils.transform import distance_poses, get_transform_matrix
 
 
 def test_get_transform_matrix_simple():
     H = get_transform_matrix(
-        (30, 30, 30), np.array([1.0, 2.0, 3.0]), np.array([4.0, 5.0, 6.0])
+        (30, 30, 30),
+        np.array([1.0, 2.0, 3.0]),
+        np.array([4.0, 5.0, 6.0]),
+        convention="ZXZ",
+        degrees=False,
     )
     expected_result = np.array(
         [
@@ -29,3 +33,12 @@ def test_get_transform_matrix_batch():
         assert np.isclose(
             matrices[i], get_transform_matrix(output_shape, rot[i], trans[i])
         ).all()
+
+
+def test_distance_poses():
+    p1 = np.asarray([90, 90, 0, 1, 0, 0], dtype=float)
+    p2 = np.asarray([-90, 90, 0, 0, 1, 0], dtype=float)
+    angle, t = distance_poses(p1, p2)
+
+    assert np.isclose(angle, 180.0)
+    assert np.isclose(t, 2.0**0.5)
