@@ -206,27 +206,21 @@ def test_broadcasting_dftregistration():
     shift1, error1 = dftregistration(
         reference_images, offset_images, nb_spatial_dims=2, normalization=None
     )
-    res = np.stack(
-        [
-            np.stack(
-                [
-                    phase_cross_correlation(
-                        ref_image,
-                        offset_image,
-                        space="fourier",
-                        overlap_ratio=0,
-                        normalization=None,
-                    )
-                    for offset_image in offset_images[:, i]
-                ],
-                axis=0,
+    shift2, error2, _ = zip(
+        *[
+            phase_cross_correlation(
+                reference_images[i],
+                offset_images[j, i],
+                space="fourier",
+                overlap_ratio=0,
+                normalization=None,
             )
-            for i, ref_image in enumerate(reference_images)
-        ],
-        axis=1,
+            for j in range(M)
+            for i in range(N)
+        ]
     )
-    shift2 = np.stack(res[..., 0].flatten()).reshape(M, N, 2)
-    error2 = res[..., 1]
+    shift2 = np.asarray(shift2).reshape(M, N, 2)
+    error2 = np.asarray(error2).reshape(M, N)
 
     eps = 1e-3
     assert (np.abs(shift1 - shift2) < eps).all()
@@ -263,27 +257,21 @@ def test_broadcasting3d_dftregistration():
     shift1, error1 = dftregistration(
         reference_images, offset_images, nb_spatial_dims=3, normalization=None
     )
-    res = np.stack(
-        [
-            np.stack(
-                [
-                    phase_cross_correlation(
-                        ref_image,
-                        offset_image,
-                        space="fourier",
-                        overlap_ratio=0,
-                        normalization=None,
-                    )
-                    for offset_image in offset_images[:, i]
-                ],
-                axis=0,
+    shift2, error2, _ = zip(
+        *[
+            phase_cross_correlation(
+                reference_images[i],
+                offset_images[j, i],
+                space="fourier",
+                overlap_ratio=0,
+                normalization=None,
             )
-            for i, ref_image in enumerate(reference_images)
-        ],
-        axis=1,
+            for j in range(M)
+            for i in range(N)
+        ]
     )
-    shift2 = np.stack(res[..., 0].flatten()).reshape(M, N, 3)
-    error2 = res[..., 1]
+    shift2 = np.asarray(shift2).reshape(M, N, 3)
+    error2 = np.asarray(error2).reshape(M, N)
 
     eps = 1e-3
     assert (np.abs(shift1 - shift2) < eps).all()
@@ -319,7 +307,8 @@ def test_upsample_dftregistration():
 
 def test_upsample_broadcasting3d_dftregistration():
     """
-    Test of broadcasted dftRegistration in 3D with upsampling>1. (N,D,H,W) with (M,D,N,H,W)
+    Test of broadcasted dftRegistration in 3D with upsampling>1.
+    broadcasting (N,D,H,W) with (M,N,D,H,W)
     """
     N = 2
     M = 3
@@ -351,28 +340,22 @@ def test_upsample_broadcasting3d_dftregistration():
         upsample_factor=10,
         normalization=None,
     )
-    res = np.stack(
-        [
-            np.stack(
-                [
-                    phase_cross_correlation(
-                        ref_image,
-                        offset_image,
-                        space="fourier",
-                        upsample_factor=10,
-                        overlap_ratio=0.3,
-                        normalization=None,
-                    )
-                    for offset_image in offset_images[:, i]
-                ],
-                axis=0,
+    shift2, error2, _ = zip(
+        *[
+            phase_cross_correlation(
+                reference_images[i],
+                offset_images[j, i],
+                space="fourier",
+                overlap_ratio=0,
+                normalization=None,
+                upsample_factor=10,
             )
-            for i, ref_image in enumerate(reference_images)
-        ],
-        axis=1,
+            for j in range(M)
+            for i in range(N)
+        ]
     )
-    shift2 = np.stack(res[..., 0].flatten()).reshape(M, N, 3)
-    error2 = res[..., 1]
+    shift2 = np.asarray(shift2).reshape(M, N, 3)
+    error2 = np.asarray(error2).reshape(M, N)
 
     eps = 1e-3
     assert (np.abs(shift1 - shift2) < eps).all()
@@ -426,7 +409,8 @@ def create_2d_rot_mat(theta):
 
 
 def is_affine_close(im1, im2):
-    """Because scipy's and pytorch interpolations at borders don't behave equivalently, we add a margin"""
+    """Scipy's and pytorch interpolations at borders don't behave equivalently
+    So we add a margin"""
     D, H, W = im1.shape
     return np.isclose(im1, im2).sum() > (D * W * H - 2 * (H * D + D * W + W * H))
 
