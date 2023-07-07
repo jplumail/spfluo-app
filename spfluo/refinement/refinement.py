@@ -5,7 +5,6 @@ from typing import List, Optional, Tuple
 
 import numpy as np
 import torch
-from scipy.spatial.transform import Rotation
 
 from spfluo.utils import (
     affine_transform,
@@ -385,33 +384,6 @@ def refine(
         )
 
     return current_reconstruction, current_poses
-
-
-def distance_poses(p1, p2):
-    """Compute the rotation distance and the euclidean distance between p1 and p2.
-    Parameters:
-        p1, p2 : torch.Tensor of shape (..., 6). Must be broadcastable. Represents poses (theta,psi,gamma,tz,ty,tx).
-    Returns:
-        distances : Tuple[torch.Tensor] of shape broadcasted dims.
-    """
-    # Rotation distance
-    rot1, rot2 = p1[..., :3], p2[..., :3]
-    rot1 = Rotation.from_euler("ZXZ", rot1.cpu().numpy().reshape(-1, 3), degrees=True)
-    rot2 = Rotation.from_euler("ZXZ", rot2.cpu().numpy().reshape(-1, 3), degrees=True)
-    points1 = rot1.apply(np.array([0, 0, 1]), inverse=False).reshape(
-        p1.shape[:-1] + (3,)
-    )
-    points2 = rot2.apply(np.array([0, 0, 1]), inverse=False).reshape(
-        p2.shape[:-1] + (3,)
-    )
-    angle = np.arccos((points1 * points2).sum(axis=-1)) * 180 / np.pi
-    angle = torch.as_tensor(angle, dtype=p1.dtype, device=p1.device)
-
-    # Euclidian distance
-    t1, t2 = p1[..., 3:], p2[..., 3:]
-    d = ((t1 - t2) ** 2).sum(dim=-1) ** 0.5
-
-    return angle, d
 
 
 def first_reconstruction(patches, views, poses, psf, step=10):
