@@ -185,7 +185,9 @@ if __name__ == "__main__":
                         f"validation {name} images", torch.stack(images), i
                     )
                 print(
-                    f"Validation epoch {j+1}, validation set Loss mean : {dice_mean:.4f}, Loss std : {dice_std:.4f}"
+                    f"Validation epoch {j+1}, ",
+                    f"validation set Loss mean : {dice_mean:.4f}, ",
+                    f"Loss std : {dice_std:.4f}",
                 )
 
                 # Train
@@ -249,10 +251,3 @@ if __name__ == "__main__":
             infos_to_dataframe(metadatas).to_csv(
                 os.path.join(writer.log_dir, "test_metrics.csv")
             )
-
-            # best_val_loss = np.min(metrics)
-            # writer.add_hparams(
-            #    {'lr': lr, 'batch_size': batch_size, 'alpha': alpha, 'beta': beta, 'epochs': num_epochs, 'samples_per_epoch': n_samples_per_epoch},
-            #    {"val_metric": best_val_loss},
-            #    run_name='params'
-            # )

@@ -28,7 +28,8 @@ def affine_transform(
 
     Args:
         input (torch.Tensor): 3D images of shape (N, C, D, H, W)
-        matrix (torch.Tensor): transform matrices of shape (N, 3), (N,3,3), (N,4,4) or (N,3,4).
+        matrix (torch.Tensor)
+            transform matrices of shape (N, 3), (N,3,3), (N,4,4) or (N,3,4).
         offset (float or torch.Tensor): offset of the grid.
         output_shape (tuple): shape of the output.
         output: not implemented
@@ -65,7 +66,9 @@ def affine_transform(
         tvec = matrix[:, :3, 3]
     else:
         raise ValueError(
-            f"Matrix should be a tensor of shape {(N,3)}, {(N,3,3)}, {(N,4,4)} or {(N,3,4)}. Found matrix of shape {matrix.size()}"
+            "Matrix should be a tensor of shape"
+            f"{(N,3)}, {(N,3,3)}, {(N,4,4)} or {(N,3,4)}."
+            f"Found matrix of shape {matrix.size()}"
         )
 
     if output_shape is None:
@@ -161,7 +164,8 @@ def fftn(x: torch.Tensor, dim: Tuple[int] = None, out=None) -> torch.Tensor:
 
 
 def ifftn(x: torch.Tensor, dim: Tuple[int] = None, out=None) -> torch.Tensor:
-    """Computes N dimensional inverse FFT of x in batch. Tries to avoid out-of-memory errors.
+    """Computes N dimensional inverse FFT of x in batch.
+    Tries to avoid out-of-memory errors.
 
     Args:
         x: data
@@ -229,10 +233,13 @@ def fourier_shift(volume_freq: torch.Tensor, shift: torch.Tensor, nb_spatial_dim
     """
     Args:
         volume (torch.Tensor): volume in the Fourier domain ({...}, [...])
-            where [...] corresponds to the N spatial dimensions and {...} corresponds to the batched dimensions
+            where [...] corresponds to the N spatial dimensions
+            and {...} corresponds to the batched dimensions
         shift (torch.Tensor): shift to apply to the volume ({{...}}, N)
-            where {{...}} corresponds to batched dimensions. {...} and {{...}} must be broadcastable.
+            where {{...}} corresponds to batched dimensions.
         nb_spatial_dims (int): number of spatial dimensions N
+    Notes:
+        {...} and {{...}} must be broadcastable.
     Returns:
         out (torch.Tensor): volume shifted in the Fourier domain
     """
@@ -330,7 +337,8 @@ def cross_correlation_max(
 ) -> Tuple[torch.Tensor]:
     """Compute cross-correlation between x and y
     Params:
-        x (torch.Tensor) of shape (B, ...) where (...) corresponds to the N spatial dimensions
+        x (torch.Tensor) of shape (B, ...)
+            where (...) corresponds to the N spatial dimensions
         y (torch.Tensor) of the same shape
     Returns:
         maxi (torch.Tensor): cross correlatio maximum of shape (B,)
@@ -364,11 +372,15 @@ def dftregistrationND(
 ) -> torch.Tensor:
     """Phase cross-correlation between a reference and moving_images
     Params:
-        reference (torch.Tensor): image of shape ({...}, [...]) where [...] corresponds to the N spatial dimensions
-        moving_images (torch.Tensor): images to register of shape ({{...}}, [...]). {...} and {{...}} are broadcasted to (...)
+        reference (torch.Tensor): image of shape ({...}, [...])
+            where [...] corresponds to the N spatial dimensions
+        moving_images (torch.Tensor): images to register of shape ({{...}}, [...])
+            where [...] corresponds to the N spatial dimensions
         nb_spatial_dims (int): specify the N spatial dimensions
-        upsample_factor (float): upsampling factor. Images will be registered up to 1/upsample_factor.
+        upsample_factor (float): upsampling factor.
+            Images will be registered up to 1/upsample_factor.
     Returns:
+        {...} and {{...}} shapes are broadcasted to (...)
         error (torch.Tensor): tensor of shape (...)
         shift (Tuple[torch.Tensor]): tuple of N tensors of size (...)
     """
@@ -463,16 +475,17 @@ def dftregistrationND(
 def discretize_sphere_uniformly(
     N: int, M: int, symmetry: int = 1, product: bool = False, **tensor_kwargs
 ) -> Tuple[Tuple[torch.Tensor, torch.Tensor, torch.Tensor], float]:
-    """Generates a list of the two first euler angles that describe a uniform discretization of the sphere
-    with the Fibonnaci sphere algorithm.
+    """Generates a list of the two first euler angles that describe a uniform
+    discretization of the sphere with the Fibonnaci sphere algorithm.
     Params:
         N, the number of axes (two first euler angles)
         M, the number of rotations around the axes (third euler angle)
-        symmetry, the order of symmetry to reduce the range of the 3rd angle. Default to 1, no symmetry
-        product, if True return the cartesian product between the axes and the rotations
+        symmetry, the order of symmetry to reduce the range of the 3rd angle.
+        Default to 1, no symmetry product
+        If True return the cartesian product between the axes and the rotations
     Returns: (theta, phi, psi), precision
         precision, a float representing an approximation of the sampling done
-        (theta, phi, psi), a tuple of 1D tensors containing the 1st, 2nd and 3rd euler angles
+        (theta, phi, psi), a tuple of 1D tensors containing the 3 euler angles
             theta.shape == phi.shape == (N,)
             psi.shape == (M,)
         if product is false,

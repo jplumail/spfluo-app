@@ -115,7 +115,8 @@ def rotation_gpu_pytorch(volume, rot_mat, order=1, trans_vec=None):
 
 
 def discretize_sphere_uniformly(nb_view_dir, nb_angles=20):
-    """Generates a list of the two first euler angles that describe a uniform discretization of the sphere with the Fibonnaci sphere algorithm
+    """Generates a list of the two first euler angles that describe
+    a uniform discretization of the sphere with the Fibonnaci sphere algorithm
     :param N: number of points
     """
 

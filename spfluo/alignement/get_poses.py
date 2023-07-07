@@ -226,14 +226,6 @@ def iterative_alignment(particles, epsilon=1e-2, max_iter=20):
         order[1],
         get_transform(patches_padded_centered[order[0]], patches_padded[order[1]]),
     ]
-    # plt.subplot(141)
-    # plt.imshow(patches_padded[order[0]], cmap='gray')
-    # plt.subplot(142)
-    # plt.imshow(patches_padded[order[1]], cmap='gray')
-    # plt.subplot(143)
-    # plt.imshow((patches_padded[order[0]]+transform_patch(patches_padded[order[1]], *get_transform(patches_padded[order[0]], patches_padded[order[1]])))/2, cmap='gray')
-    # plt.subplot(144)
-    # plt.imshow(build_particle(patches_padded, tree, 0, 0, 0), cmap='gray')
 
     # Build the tree
     while tree[0] < N:
@@ -249,16 +241,6 @@ def iterative_alignment(particles, epsilon=1e-2, max_iter=20):
         # ty_corr, tx_corr = center[0] - y_centermass, center[1] - x_centermass
 
         tree = [m + 1, order[m], tree, (angle, ty, tx)]
-
-        # plt.subplot(141)
-        # plt.imshow(p_left, cmap='gray')
-        # plt.subplot(142)
-        # plt.imshow(p_right, cmap='gray')
-        # plt.subplot(143)
-        # plt.imshow((m*p_left+transform_patch(p_right, angle, ty, tx))/(m+1), cmap='gray')
-        # plt.subplot(144)
-        # plt.imshow(build_particle(patches_padded, tree, 0, 0, 0), cmap='gray')
-        # plt.show()
 
     # Build the average particle
     avrg_particle = build_particle(patches_padded_centered, tree, 0, 0, 0)
@@ -460,7 +442,9 @@ def get_first_euler_angle_side(side_particles, top_particles, psf, lambda_=1e-2)
             dim=(1, 2, 3),
         )
         # psf_transformed_fft = torch.fft.fftn(
-        #    pad_to_size(psf_transformed, psf_transformed.shape[:1]+particles.shape[-3:]),
+        #    pad_to_size(
+        #       psf_transformed, psf_transformed.shape[:1]+particles.shape[-3:]
+        #    ),
         #    dim=(1,2,3)
         # )
         recons_conv_fft = recon_fft[i] * psf_transformed_fft

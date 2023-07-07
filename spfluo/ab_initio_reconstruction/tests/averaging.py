@@ -1,6 +1,6 @@
 import numpy as np
 
-from spfluo.ab_initio_reconstruction.common_image_processing_methods.rotation_translation import (
+from spfluo.ab_initio_reconstruction.common_image_processing_methods.rotation_translation import (  # noqa: E501
     rotation,
 )
 

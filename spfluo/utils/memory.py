@@ -202,9 +202,6 @@ def maximum_batch(total_memory, func: str, *func_args):
         else:
             shape = None
 
-    # if 0 in max_batch:
-    # raise MemoryError(f"Total memory of {total_memory/2**20} MB is too small for func {func} with arguments of shapes: "+', '.join([repr(s.size()) for s in func_args]))
-
     return max_batch, shape
 
 

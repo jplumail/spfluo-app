@@ -8,8 +8,9 @@ def threshold(im, thresh_val):
 
 
 def crop_center(image, size):
-    """crop a sub array of shape 'size' at the center of the image. It pads the images at the dimensions where the shape is smaller
-    than the crop size"""
+    """crop a sub array of shape 'size' at the center of the image.
+    It pads the images at the dimensions where the shape is smaller than
+    the crop size"""
     nb_dim = len(image.shape)
     padding = []
     for d in range(nb_dim):

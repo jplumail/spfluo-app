@@ -37,39 +37,6 @@ def get_numpy_array(image):
         return image
 
 
-"""def load_data(rootdir, crop_size=None, extension='.tiff'):
-
-    views, patches_names = load_views(os.path.join(rootdir, "views.csv"), extension=extension)
-    ann = load_annotations(os.path.join(rootdir, 'coordinates.csv'))
-    coords = ann[:,2:].astype(float)
-    angles_file = os.path.join(rootdir, 'angles.csv')
-    translations = coords - np.rint(coords)
-    if os.path.exists(angles_file):
-        angles = load_angles(angles_file)[:,2:].astype(float)
-    else:
-        angles = np.zeros((translations.shape[0], 3))
-    
-    poses = np.concatenate([angles, translations], axis=1).astype(float)
-
-    cropped_dir = os.path.join(rootdir, "test/cropped/positive")
-    if crop_size is None and os.path.exists(cropped_dir):
-        patches = load_patches(cropped_dir, patches_names).astype(float)
-    else:
-        images = {image_name: load_array(os.path.join(rootdir, "annotated", image_name)) for image_name in tqdm(set(ann[:,0]), desc='Load images')}
-        patches = []
-        for image_name, particle_id, z, y, x in tqdm(ann, desc='Crop particles'):
-            im = images[image_name]
-            patch = crop_one_particle(im, np.rint([z,y,x]).astype(int), crop_size, im.shape)
-            patch = pad_to_size(torch.as_tensor(patch), crop_size).cpu().numpy()
-            patches.append(patch)
-        patches = np.stack(patches, axis=0)
-    
-    psf = load_array(os.path.join(rootdir, 'psf.tif'))
-
-    return patches, coords, angles, views, poses, psf
-"""
-
-
 def seed_all(seed_numpy: bool = True) -> None:
     """For reproductibility.
 
@@ -86,8 +53,8 @@ def load_array(path: str) -> np.ndarray:
     """Takes a complete path to a file and return the corresponding numpy array.
 
     Args:
-        path (str): Path to the file to read. It MUST contains the extension as this will
-                    determines the way the numpy array is loaded from the file.
+        path (str): Path to the file to read. It MUST contains the extension as this
+                    will determines the way the numpy array is loaded from the file.
 
     Returns:
         np.ndarray: The array stored in the file described by 'path'.
@@ -97,8 +64,9 @@ def load_array(path: str) -> np.ndarray:
         return np.load(path)["image"]
     elif extension in [".tif", ".tiff"]:
         image = imageio.volread(path).astype(np.int16)
-        # Some tiff images are heavily imbalanced: their data type is int16 but very few voxels
-        # are actually > 255. If this is the case, the image in truncated and casted to uint8.
+        # Some tiff images are heavily imbalanced:
+        # their data type is int16 but very few voxels are actually > 255.
+        # If this is the case, the image in truncated and casted to uint8.
         if image.dtype == np.int16 and ((image > 255).sum() / image.size) < 1e-3:
             image[image > 255] = 255
             image = image.astype(np.uint8)
@@ -114,7 +82,8 @@ def load_annotations(csv_path: str) -> np.ndarray:
         csv_path (str): Path of the file to read.
 
     Returns:
-        np.ndarray: Array into which each line is alike ('image name', particle_id, z, y, x).
+        np.ndarray: Array into which each line is alike
+            ('image name', particle_id, z, y, x).
     """
     with open(csv_path, "r") as f:
         lines = f.readlines()
@@ -133,7 +102,8 @@ def load_angles(csv_path: str) -> np.ndarray:
         csv_path (str): Path of the file to read.
 
     Returns:
-        np.ndarray: Array into which each line is alike ('image name', particle_id, z, y, x).
+        np.ndarray: Array into which each line is alike
+            ('image name', particle_id, z, y, x).
     """
     with open(csv_path, "r") as f:
         lines = f.readlines()
@@ -280,7 +250,8 @@ def reframe_corners_if_needed(
 
 def get_spacing(im_path: str) -> Tuple[Tuple[float], str]:
     """
-    Returns spacing (inverse of resolution) in x,y,z directions and unit (usually microns)
+    Returns spacing (inverse of resolution) in x,y,z directions
+    and unit (usually microns)
     """
     tif = tifffile.TiffFile(im_path)
     if tif.is_imagej:

@@ -586,14 +586,16 @@ class MakeHoles(_AbstractAugment):
     ) -> Tuple[torch.Tensor, float]:
         """Returns the center and the radius of a given point cloud.
         The center is the mean coordinate.
-        The radius is given by the max distance between the center and any point from the point cloud.
+        The radius is given by the max distance between
+        the center and any point from the point cloud.
 
         Args:
             pointcloud (torch.Tensor): Point cloud tensor, of shape (N, 3).
 
         Returns:
-            Tuple[torch.Tensor, float]: * The center coordinates (x, y, z), of shape (3, ).
-                                        * The radius as a single float.
+            Tuple[torch.Tensor, float]:
+                * The center coordinates (x, y, z), of shape (3, ).
+                * The radius as a single float.
         """
         center = pointcloud.mean(dim=0)
         distances = torch.norm(pointcloud - center, dim=1)
@@ -603,8 +605,8 @@ class MakeHoles(_AbstractAugment):
         self, center: torch.Tensor, radius: float, N: int = 1
     ) -> torch.Tensor:
         """Generate N points uniformly in the sphere(center, radius).
-        Do so by generating points in a cube(center, radius) and discarding points outside the
-        sphere.
+        Do so by generating points in a cube(center, radius) and discarding points
+        outside the sphere.
 
         Args:
             center (torch.Tensor): Sphere's center coordinate tensor, of shape (3, ).
@@ -643,12 +645,14 @@ class MakeHoles(_AbstractAugment):
 
         Args:
             pointcloud (torch.Tensor): Point cloud tensor, of shape (N, 3).
-            nb_holes_min (int, optional): Min number of intensity holes. Defaults to 0.
-            nb_holes_max (int, optional): Max number of intensity holes. Defaults to 10.
-            mean_ratio (float, optional): Holes will be from sphere following a gaussian proba
-                                        of mean radius * mean_ratio. Defaults to 0.5.
-            std_ratio (float, optional): Holes will be from sphere following a gaussian proba
-                                        of std radius * mean_std. Defaults to 0.25.
+            nb_holes_min (int, optional): Min number of intensity holes.
+                Defaults to 0.
+            nb_holes_max (int, optional): Max number of intensity holes.
+                Defaults to 10.
+            mean_ratio (float, optional): Holes will be from sphere following a
+                gaussian proba of mean radius * mean_ratio. Defaults to 0.5.
+            std_ratio (float, optional): Holes will be from sphere following a gaussia
+                proba of std radius * mean_std. Defaults to 0.25.
 
         Returns:
             torch.Tensor: Randomly filtered point cloud, of shape (N', 3), where N' < N.
@@ -722,7 +726,7 @@ class Voxelise(_AbstractTransform):
         """Get the Field Of View of a point cloud.
 
         Args:
-            pointcloud (Union[torch.Tensor, np.ndarray]): Point cloud array like, of shape (N, 3).
+            pointcloud (Union[torch.Tensor, np.ndarray]): shape (N, 3).
 
         Returns:
             Tuple[float]: x_min, x_max, y_min, y_max, z_min, z_max.

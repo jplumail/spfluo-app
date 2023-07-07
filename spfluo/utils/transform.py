@@ -19,7 +19,8 @@ def get_transform_matrix(
 ):
     """
     Returns the transformation matrix in pixel coordinates.
-    The transformation is the composition of a rotation (defined by 3 euler angles), and a translation (defined by a translation vector).
+    The transformation is the composition of a rotation (defined by 3 euler angles),
+    and a translation (defined by a translation vector).
     The rotation is made around the center of the volume.
     Params:
         shape: Tuple[int, int, int]
@@ -28,20 +29,26 @@ def get_transform_matrix(
             𝛗, 𝛉, 𝛙. See convention to see how they are used.
         translation: np.ndarray of shape ((N), 3)
         convention: str
-            Euler angles convention in scipy terms. See `scipy.spatial.transform.Rotation`.
+            Euler angles convention in scipy terms.
+            See `scipy.spatial.transform.Rotation`.
             Default to 'XZX'
 
                    a-------------b       numpy coordinates of points:
                   /             /|        - a = (0, 0, 0)
                  /             / |        - b = (0, 0, W-1)
                 c-------------+  |        - c = (0, H-1, 0)
-                |             |  |        - d = (D-1, H-1, 0)            If the convention 'XZX' is used:
-                |             |  |        - e = (D-1, H-1, W-1)             - first, rotate by 𝛗 around the X-axis. The XYZ frame is also rotated!
-                |             |  +                                          - then, rotate by 𝛉 around the Z-axis.
-                |             X Y                                           - finally, rotate by 𝛙 around the X-axis.
+                |             |  |        - d = (D-1, H-1, 0)
+                |             |  |        - e = (D-1, H-1, W-1)
+                |             |  +
+                |             X Y
                 |             ↑↗
-                d-----------Z←e   <-- reference frame used for rotations. The center of the rotation is at (D/2, H/2, W/2).
+                d-----------Z←e   <-- reference frame used for rotations.
+                                      The center of the rotation is at (D/2, H/2, W/2).
 
+            If the convention 'XZX' is used:
+                - first, rotate by 𝛗 around the X-axis. The XYZ frame is also rotated!
+                - then, rotate by 𝛉 around the Z-axis.
+                - finally, rotate by 𝛙 around the X-axis.
 
         degrees: bool
             Are the euler angles in degrees?
@@ -76,7 +83,8 @@ def distance_poses(
 ) -> Tuple[Array, Array]:
     """Compute the rotation distance and the euclidean distance between p1 and p2.
     Parameters:
-        p1, p2 : arrays of shape (..., 6). Must be broadcastable. Represents poses (theta,psi,gamma,tz,ty,tx).
+        p1, p2 : arrays of shape (..., 6). Must be broadcastable.
+            Represents poses (theta,psi,gamma,tz,ty,tx).
     Returns:
         distances : Tuple[Array, Array] of shape broadcasted dims.
     """

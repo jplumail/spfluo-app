@@ -279,7 +279,10 @@ class Fourier_pixel_representation:
         self.volume_fourier_gpu = cp.array(self.volume_fourier)
         self.volume_fourier_gpu_torch = torch.as_tensor(self.volume_fourier)
         if not known_trans and ground_truth is not None:
-            # _, self.volume_fourier = shift_registration_exhaustive_search(np.fft.fftn(ground_truth), self.volume_fourier, fourier_space=True)
+            # _, self.volume_fourier = \
+            #   shift_registration_exhaustive_search(
+            #       np.fft.fftn(ground_truth), self.volume_fourier, fourier_space=True
+            #   )
             # self.volume_fourier = center_barycenter(self.volume_fourier)
             pass
         energy += reg_coeff * l2_reg

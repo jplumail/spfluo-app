@@ -1,4 +1,4 @@
-"""Some functions from this file were translated from a Matlab project made by Denis Fortun"""
+"""Some functions from this file were translated from code written by Denis Fortun"""
 
 import math
 from typing import List, Optional, Tuple
@@ -29,13 +29,16 @@ def affine_transform_wrapper(volumes, poses, inverse=False):
 def reconstruction_L2(
     volumes: torch.Tensor, psf: torch.Tensor, poses: torch.Tensor, lambda_: torch.Tensor
 ) -> torch.Tensor:
-    """Reconstruct a particule from volumes and their poses. M reconstructions can be done at once.
+    """Reconstruct a particule from volumes and their poses.
+    M reconstructions can be done at once.
 
     Args:
         volumes (torch.Tensor): stack of N 3D images of shape (N, D, H, W)
         psf (torch.Tensor) : 3D image of shape (d, h, w)
-        poses (torch.Tensor): stack(s) of N transform matrices of shape (N, 6) or (M, N, 6).
-            Euler angles in the 'zxz' convention in degrees and translation vector tz, ty, tx
+        poses (torch.Tensor):
+            stack(s) of N poses of shape (N, 6) or (M, N, 6).
+            Euler angles in the 'zxz' convention in degrees
+            Translation vector tz, ty, tx
         lambda_ (torch.Tensor): regularization parameters of shape () or (M,)
 
     Returns:
@@ -184,8 +187,8 @@ def convolution_matching_poses_refined(
     psf: torch.Tensor,
     potential_poses: torch.Tensor,
 ) -> Tuple[torch.Tensor]:
-    """Find the best pose from a list of poses for each volume. There can be a different list of pose
-    for each volume.
+    """Find the best pose from a list of poses for each volume.
+    There can be a different list of pose for each volume.
     Params:
         reference (torch.Tensor) : reference 3D image of shape (D, H, W)
         volumes (torch.Tensor) : volumes to match of shape (N, D, H, W)

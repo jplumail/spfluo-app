@@ -12,13 +12,16 @@ def gaussian_mixture_isotrop_identical_gaussians(
 def gaussian_mixture(
     grid, coeffs, centers, covs, nb_dim, alpha, return_gaussians=False
 ):
-    """computes the values of a multivariate gaussian mixture on a 3d grid. It truncates the gaussians around their centers
+    """computes the values of a multivariate gaussian mixture on a 3d grid.
+    It truncates the gaussians around their centers
     IN :
-    - grid : 4d array of shape  (d, h, w, 3) set of 3d voxels organised in a 3d volume. Values are computed on these voxels
+    - grid : 4d array of shape  (d, h, w, 3) set of 3d voxels organised in a 3d volume.
+             Values are computed on these voxels
     - centers : array of shape (Nb_gaussians, 3,1)
     - covs : covariance matrices of the gaussians, shape (Nb_gaussians, 3,3)
     - coeffs : linear coefficient of each gaussian
-    OUT : array of shape (d, h, w) containing the values taken by the gaussian mixture at the voxels on the grid
+    OUT : array of shape (d, h, w) containing the values taken
+          by the gaussian mixture at the voxels on the grid
     """
     shp = tuple([grid.shape[d] for d in range(nb_dim)])
     gauss_mixture = np.zeros(shp)
@@ -42,13 +45,16 @@ def gaussian_mixture(
 def truncated_nd_gaussian(
     grid, gaussian_mixture, coeff, center, cov, nb_dim, alpha, return_gaussian=False
 ):
-    """computes the values of a multivariate gaussian on a 3d grid. It truncates the gaussian around the center
+    """computes the values of a multivariate gaussian on a 3d grid.
+    It truncates the gaussian around the center
     IN :
-    - grid : 4d array of shape (d, h, w, 3) set of 3d voxels organised in a 3d volume. Values are computed on these voxels
+    - grid : 4d array of shape (d, h, w, 3) set of 3d voxels organised in a 3d volume.
+             Values are computed on these voxels
     - center : array of shape (3)
     - cov : covariance matrix of the gaussian, shape (3,3)
     - half_size_cut : half_size of the cut
-    OUT : array of shape (d, h, w) containing the values taken by the gaussian at the voxels on the grid
+    OUT : array of shape (d, h, w) containing the values taken by the gaussian at
+          the voxels on the grid
     """
     grid_step = 2 / (len(grid) - 1)
     center_int = [int((center[d] - 1) / grid_step + len(grid)) for d in range(nb_dim)]

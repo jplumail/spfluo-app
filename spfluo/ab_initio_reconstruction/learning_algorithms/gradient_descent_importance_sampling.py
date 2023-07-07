@@ -18,7 +18,7 @@ from ..common_image_processing_methods.rotation_translation import (
     get_rotation_matrix,
 )
 from ..manage_files.read_save_files import make_dir, save, write_array_csv
-from ..volume_representation.gaussian_mixture_representation.GMM_grid_evaluation import (
+from ..volume_representation.gaussian_mixture_representation.GMM_grid_evaluation import (  # noqa: E501
     one_d_gaussian,
 )
 

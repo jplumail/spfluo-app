@@ -58,7 +58,8 @@ def write_array_csv(np_array, path):
 
 
 def read_csv(path, first_col=1):
-    """read the csvfile at location 'path'. It reads only the colums after the column indexed by 'first_col'"""
+    """read the csvfile at location 'path'.
+    It reads only the colums after the column indexed by 'first_col'"""
     return np.array(pd.read_csv(path))[:, first_col:].squeeze().astype(np.float32)
 
 
