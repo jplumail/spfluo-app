@@ -22,9 +22,10 @@ pointcloud_path = data_dir / "sample_centriole_point_cloud.csv"
 
 
 @pytest.fixture(scope="session")
-def generated_particles_dir():
-    particles_dir = data_dir / "generated_particles"
-    if not particles_dir.exists():
+def generated_root_dir():
+    root_dir = data_dir / "generated"
+    if not (root_dir / "particles").exists():
+        root_dir.mkdir(exist_ok=True)
         np.random.seed(123)
         config = DataGenerationConfig()
         config.augmentation.max_translation = 0
@@ -38,36 +39,33 @@ def generated_particles_dir():
         config.augmentation.rotation_proba = 1
         config.augmentation.shrink_range = (1.0, 1.0)
         gen = DataGenerator(config)
-        particles_dir.mkdir()
-        gt_path = particles_dir / "gt.tiff"
-        gen.save_psf(particles_dir / "psf.tiff")
+        gt_path = root_dir / "gt.tiff"
+        gen.save_psf(root_dir / "psf.tiff")
         gen.save_groundtruth(gt_path)
-        gen.create_particles(particles_dir, output_extension="tiff")
+        gen.create_particles(root_dir, output_extension="tiff")
 
-    return particles_dir
-
-
-@pytest.fixture(scope="session")
-def psf_array(generated_particles_dir):
-    return tifffile.imread(generated_particles_dir / "psf.tiff")
+    return root_dir
 
 
 @pytest.fixture(scope="session")
-def groundtruth_array(generated_particles_dir):
-    return tifffile.imread(generated_particles_dir / "gt.tiff")
+def psf_array(generated_root_dir):
+    return tifffile.imread(generated_root_dir / "psf.tiff")
 
 
 @pytest.fixture(scope="session")
-def particles(generated_particles_dir):
-    content = csv.reader(
-        (generated_particles_dir / "poses.csv").read_text().split("\n")
-    )
+def groundtruth_array(generated_root_dir):
+    return tifffile.imread(generated_root_dir / "gt.tiff")
+
+
+@pytest.fixture(scope="session")
+def particles(generated_root_dir):
+    content = csv.reader((generated_root_dir / "poses.csv").read_text().split("\n"))
     next(content)  # skip header
     data = {}
     for row in content:
         if len(row) == 7:
             data[row[0]] = {
-                "array": tifffile.imread(generated_particles_dir / row[0]),
+                "array": tifffile.imread(generated_root_dir / row[0]),
                 "rot": np.array(row[1:4], dtype=float),
                 "trans": np.array(row[4:7], dtype=float),
             }
