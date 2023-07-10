@@ -1,5 +1,6 @@
 import argparse
 import csv
+import os
 
 import numpy as np
 import tifffile
@@ -19,11 +20,9 @@ def read_poses(path: str, alphabetic_order=True):
     for row in content:
         if len(row) > 0:
             poses.append(np.array(row[1:], dtype=float))
-            fnames.append(row[0])
+            fnames.append(os.path.basename(row[0]))
     if alphabetic_order:
-        _, poses = zip(
-            *sorted(zip(range(len(poses)), poses), key=lambda x: fnames[x[0]])
-        )
+        _, poses = zip(*sorted(zip(fnames, poses), key=lambda x: x[0]))
     poses = np.stack(poses)
     return poses
 
@@ -92,7 +91,6 @@ def main(args):
 
     particles, psf, guessed_poses = map(as_tensor, (particles, psf, guessed_poses))
 
-    print(args)
     reconstruction, poses = refine(
         particles,
         psf,
