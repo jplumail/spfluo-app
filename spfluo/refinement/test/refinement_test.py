@@ -189,7 +189,7 @@ def test_refine_shapes():
     guessed_poses = torch.randn((N, 6), device=device)
 
     S = 2
-    steps = [(S * S, S)] * 2
+    steps = [(S * S, S), S * S * S]
     ranges = [0, 40]
     recon, poses = refine(patches, psf, guessed_poses, steps, ranges)
 

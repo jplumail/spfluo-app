@@ -1,7 +1,7 @@
 """Some functions from this file were translated from code written by Denis Fortun"""
 
 import math
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -353,7 +353,7 @@ def refine(
     patches: torch.Tensor,
     psf: torch.Tensor,
     guessed_poses: torch.Tensor,
-    steps: List[Tuple[int, int]],
+    steps: List[Union[Tuple[int, int], int]],
     ranges: List[float],
     lambda_=100,
     symmetry=1,
@@ -365,20 +365,27 @@ def refine(
     initial_reconstruction, _ = reconstruction_L2(patches, psf, guessed_poses, lambda_)
 
     current_reconstruction = initial_reconstruction
+    current_poses = guessed_poses
     for i in range(len(steps)):
         # Poses estimation
-        M_axes, M_rot = steps[i]
-        if ranges[i] == 0:  # Discretization of the whole sphere
+        s = steps[i]
+        if ranges[i] == 0 and type(s) is tuple:  # Discretization of the whole sphere
+            M_axes, M_rot = s
             potential_poses, _ = create_poses_grid(
                 M_axes, M_rot, symmetry=symmetry, **tensor_kwargs
             )
             current_poses, _ = convolution_matching_poses_grid(
                 current_reconstruction, patches, psf, potential_poses
             )
-        else:  # Refinement around the current poses
-            steps_ = int((M_axes * M_rot) ** (1 / 3))
+        elif type(s) is int:  # Refinement around the current poses
             current_poses, _ = refine_poses(
-                current_reconstruction, patches, psf, current_poses, ranges[i], steps_
+                current_reconstruction, patches, psf, current_poses, ranges[i], s
+            )
+        else:
+            raise ValueError(
+                "When range==0, steps should be a tuple. "
+                "When range>0, steps should be an int. "
+                f"Found range={ranges[i]} and steps={s}"
             )
 
         # Reconstruction
