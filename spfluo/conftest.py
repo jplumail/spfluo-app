@@ -9,41 +9,22 @@ import pytest
 import tifffile
 import torch
 
-from spfluo.picking.modules.pretraining.generate.data_generator import (
-    DataGenerationConfig,
-    DataGenerator,
-)
+from spfluo.picking.modules.pretraining.generate.generate_data import generate_particles
 
 D = 50
 N = 10
 anisotropy = (1.0, 1.0, 1.0)
-data_dir = Path(__file__).parent / "data"
-pointcloud_path = data_dir / "sample_centriole_point_cloud.csv"
+DATA_DIR = Path(__file__).parent / "data"
+pointcloud_path = DATA_DIR / "sample_centriole_point_cloud.csv"
 
 
 @pytest.fixture(scope="session")
 def generated_root_dir():
-    root_dir = data_dir / "generated"
+    root_dir = DATA_DIR / "generated"
     if not (root_dir / "particles").exists():
         root_dir.mkdir(exist_ok=True)
         np.random.seed(123)
-        config = DataGenerationConfig()
-        config.augmentation.max_translation = 0
-        config.io.point_cloud_path = pointcloud_path
-        config.io.extension = "tiff"
-        config.voxelisation.image_shape = D
-        config.voxelisation.max_particle_dim = int(0.6 * D)
-        config.voxelisation.num_particles = N
-        config.voxelisation.bandwidth = 17
-        config.sensor.anisotropic_blur_sigma = anisotropy
-        config.augmentation.rotation_proba = 1
-        config.augmentation.shrink_range = (1.0, 1.0)
-        gen = DataGenerator(config)
-        gt_path = root_dir / "gt.tiff"
-        gen.save_psf(root_dir / "psf.tiff")
-        gen.save_groundtruth(gt_path)
-        gen.create_particles(root_dir, output_extension="tiff")
-
+        generate_particles(pointcloud_path, root_dir, D, N, anisotropy)
     return root_dir
 
 
