@@ -422,6 +422,8 @@ class DataGenerator:
         if output is not None:
             output_dir = Path(output)
             os.makedirs(output_dir, exist_ok=True)
+            particles_dir = output_dir / "particles"
+            os.makedirs(particles_dir, exist_ok=True)
             f = open(output_dir / "poses.csv", "w")
             csvwriter = csv.writer(f)
             csvwriter.writerow(["name", "rot1", "rot2", "rot3", "t1", "t2", "t3"])
@@ -447,8 +449,10 @@ class DataGenerator:
             particles.append(particle)
             real_translations.append(translation)
             if output is not None:
-                csvwriter.writerow([f"{i}.tiff", *rotation_angles, *translation])
-                tifffile.imwrite(output_dir / f"{i}.tiff", particle)
+                csvwriter.writerow(
+                    [f"particles/{i}.tiff", *rotation_angles, *translation]
+                )
+                tifffile.imwrite(particles_dir / f"{i}.tiff", particle)
 
         real_translations = np.stack(real_translations)
         if output is not None:
