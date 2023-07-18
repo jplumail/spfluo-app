@@ -49,7 +49,7 @@ class DataGenerator:
         template_point_cloud = np.loadtxt(
             self.config.io.point_cloud_path, delimiter=","
         )
-        pointcloud = torch.as_tensor(template_point_cloud, dtype=self.dtype).to(
+        pointcloud = torch.as_tensor(template_point_cloud, dtype=torch.float32).to(
             self.device
         )
         return (pointcloud - pointcloud.mean(dim=0, keepdim=True))[:, [2, 1, 0]]
@@ -251,7 +251,6 @@ class DataGenerator:
     def image_from_pointcloud(
         self, pointcloud: np.ndarray, fov: Optional[Tuple[float]] = None
     ) -> np.ndarray:
-        dtype = pointcloud.dtype
         cfg = self.config.voxelisation
         particle_fov = F.get_FOV(pointcloud)
         if fov is None:
@@ -286,11 +285,13 @@ class DataGenerator:
         target_points = target_points.reshape(3, -1).T
         weights = np.ones(len(pointcloud))
         figtree_kwargs = {"bandwidth": cfg.bandwidth, "epsilon": cfg.epsilon}
-        densities = figtree(pointcloud, target_points, weights, **figtree_kwargs)
+        densities = figtree(
+            pointcloud.astype(np.float64), target_points, weights, **figtree_kwargs
+        )
+        densities = densities.astype(self.dtype)
         densities = densities.reshape((x_range, y_range, z_range))
         densities = (densities - densities.min()) / (densities.max() - densities.min())
 
-        densities = densities.astype(dtype)
         return densities
 
     # +---------------------------------------------------------------------------------------+ #
