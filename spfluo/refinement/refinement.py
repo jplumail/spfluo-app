@@ -1,6 +1,8 @@
 """Some functions from this file were translated from code written by Denis Fortun"""
 
+import logging
 import math
+import time
 from typing import List, Optional, Tuple, Union
 
 import numpy as np
@@ -15,6 +17,8 @@ from spfluo.utils import (
 from spfluo.utils.memory import split_batch_func
 from spfluo.utils.transform import get_transform_matrix
 from spfluo.utils.volume import interpolate_to_size
+
+refinement_logger = logging.getLogger("spfluo.refinement")
 
 
 def affine_transform_wrapper(volumes, poses, inverse=False):
@@ -364,6 +368,7 @@ def refine(
     assert len(steps) > 0, "length of steps and ranges lists should be at least 1"
     assert symmetry >= 1, "symmetry should be an integer greater or equal to 1"
     assert lambda_ > 0, f"lambda should be greater than 1, found {lambda_}"
+    refinement_logger.debug("Calling function refine")
     tensor_kwargs = dict(dtype=patches.dtype, device=patches.device)
     lambda_ = torch.tensor(lambda_, **tensor_kwargs)
     initial_reconstruction, _ = reconstruction_L2(patches, psf, guessed_poses, lambda_)
@@ -371,6 +376,8 @@ def refine(
     current_reconstruction = initial_reconstruction
     current_poses = guessed_poses
     for i in range(len(steps)):
+        refinement_logger.debug(f"STEP {i+1}/{len(steps)}")
+        time.time()
         # Poses estimation
         s = steps[i]
         if ranges[i] == 0 and type(s) is tuple:  # Discretization of the whole sphere
@@ -378,13 +385,26 @@ def refine(
             potential_poses, _ = create_poses_grid(
                 M_axes, M_rot, symmetry=symmetry, **tensor_kwargs
             )
+            refinement_logger.debug(
+                "[convolution_matching_poses_grid] Searching the whole grid."
+                f"N_axes={M_axes}, N_rot={M_rot}."
+            )
+            t0 = time.time()
             current_poses, _ = convolution_matching_poses_grid(
                 current_reconstruction, patches, psf, potential_poses
             )
+            refinement_logger.debug(
+                f"[convolution_matching_poses_grid] Done in {time.time()-t0:.3f}s"
+            )
         elif type(s) is int:  # Refinement around the current poses
+            refinement_logger.debug(
+                f"[refine_poses] Refining the poses. range={ranges[i]}, steps={s}"
+            )
+            t0 = time.time()
             current_poses, _ = refine_poses(
                 current_reconstruction, patches, psf, current_poses, ranges[i], s
             )
+            refinement_logger.debug(f"[refine_poses] Done in {time.time()-t0:.3f}s")
         else:
             raise ValueError(
                 "When range==0, steps should be a tuple. "
@@ -393,8 +413,24 @@ def refine(
             )
 
         # Reconstruction
+        refinement_logger.debug("[reconstruction_L2] Reconstruction")
+        t0 = time.time()
         current_reconstruction, _ = reconstruction_L2(
             patches, psf, current_poses, lambda_
+        )
+        refinement_logger.debug(f"[reconstruction_L2] Done in {time.time()-t0:.3f}s")
+
+        if refinement_logger.isEnabledFor(
+            logging.DEBUG
+        ):  # .cpu() causes host-device sync
+            refinement_logger.debug(
+                "pose[0], found: ["
+                + ", ".join([f"{x:.1f}" for x in current_poses[0].cpu().tolist()])
+                + "]",
+            )
+
+        refinement_logger.debug(
+            f"STEP {i+1}/{len(steps)} done in {time.time()-t0:.3f}s"
         )
 
     return current_reconstruction, current_poses
