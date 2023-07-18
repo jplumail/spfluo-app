@@ -39,7 +39,6 @@ def test_simple_dftregistration():
     # The shift corresponds to the pixel offset relative to the reference image
     image_fourier = np.fft.fftn(image)
     offset_image = fourier_shift(image_fourier, shift)
-    offset_image = np.fft.ifftn(offset_image)
 
     shift1, error1 = dftregistration(image_fourier, offset_image, normalization=None)
     shift2, error2, _ = phase_cross_correlation(
@@ -64,7 +63,6 @@ def test_simple_phasenorm_dftregistration():
     # The shift corresponds to the pixel offset relative to the reference image
     image_fourier = np.fft.fftn(image)
     offset_image = fourier_shift(image_fourier, shift)
-    offset_image = np.fft.ifftn(offset_image)
 
     shift1, error1 = dftregistration(image_fourier, offset_image, normalization="phase")
     shift2, error2, _ = phase_cross_correlation(

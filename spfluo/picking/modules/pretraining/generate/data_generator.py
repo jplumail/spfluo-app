@@ -15,6 +15,11 @@ from scipy.stats import truncnorm
 from skimage.util import random_noise
 from tqdm import tqdm
 
+from spfluo.ab_initio_reconstruction.volume_representation.gaussian_mixture_representation.GMM_grid_evaluation import (
+    make_grid,
+    nd_gaussian,
+)
+
 from . import functional as F
 from .config import DataGenerationConfig
 from .config import Outliers as OutliersConfig
@@ -49,7 +54,7 @@ class DataGenerator:
         template_point_cloud = np.loadtxt(
             self.config.io.point_cloud_path, delimiter=","
         )
-        pointcloud = torch.as_tensor(template_point_cloud, dtype=self.dtype).to(
+        pointcloud = torch.as_tensor(template_point_cloud, dtype=torch.float32).to(
             self.device
         )
         return (pointcloud - pointcloud.mean(dim=0, keepdim=True))[:, [2, 1, 0]]
@@ -251,7 +256,6 @@ class DataGenerator:
     def image_from_pointcloud(
         self, pointcloud: np.ndarray, fov: Optional[Tuple[float]] = None
     ) -> np.ndarray:
-        dtype = pointcloud.dtype
         cfg = self.config.voxelisation
         particle_fov = F.get_FOV(pointcloud)
         if fov is None:
@@ -286,11 +290,13 @@ class DataGenerator:
         target_points = target_points.reshape(3, -1).T
         weights = np.ones(len(pointcloud))
         figtree_kwargs = {"bandwidth": cfg.bandwidth, "epsilon": cfg.epsilon}
-        densities = figtree(pointcloud, target_points, weights, **figtree_kwargs)
+        densities = figtree(
+            pointcloud.astype(np.float64), target_points, weights, **figtree_kwargs
+        )
+        densities = densities.astype(self.dtype)
         densities = densities.reshape((x_range, y_range, z_range))
         densities = (densities - densities.min()) / (densities.max() - densities.min())
 
-        densities = densities.astype(dtype)
         return densities
 
     # +---------------------------------------------------------------------------------------+ #
@@ -381,12 +387,14 @@ class DataGenerator:
         # Anisotropic blur
         if self.config.sensor.anisotropic_blur:
             sigma = np.array(self.config.sensor.anisotropic_blur_sigma, dtype=int)
-            mode = self.config.sensor.anisotropic_blur_border_mode
             k = 4  # +/- 4 sigmas is sufficient
             shape = np.ceil(2 * k * sigma + 1).astype(int)
-            psf = np.zeros(shape, dtype=float)
-            psf[tuple(np.floor(k * sigma).astype(int))] = 1  # dirac
-            psf = gaussian_filter(psf, sigma=sigma, mode=mode)
+            size = max(shape)
+            grid = make_grid(size, 3)
+            grid_step = 2 / (size - 1)
+            cov_PSF = grid_step**2 * np.eye(3)
+            cov_PSF[[0, 1, 2], [0, 1, 2]] *= sigma
+            psf = nd_gaussian(grid, np.zeros(3), cov_PSF, 3).astype(self.dtype)
 
             # Save
             if psf.max() > psf.min():
