@@ -8,6 +8,8 @@ import torch.nn.functional as F
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from skimage.registration import phase_cross_correlation
 
+from spfluo.utils.transform import get_zoom_matrix
+
 from .memory import split_batch_func
 
 
@@ -227,6 +229,18 @@ def pad_to_size(volume: torch.Tensor, output_size: torch.Size) -> torch.Tensor:
     ]
 
     return output_volume[tuple(slices)]
+
+
+def interpolate_to_size(volume: torch.Tensor, output_size: torch.Size) -> torch.Tensor:
+    N, d, h, w = volume.size()
+    D, H, W = output_size
+    mat = get_zoom_matrix(
+        (d, h, w), (D, H, W), torch, device=volume.device, dtype=volume.dtype
+    )
+    out_vol = affine_transform(
+        volume[:, None], torch.linalg.inv(mat).expand(N, -1, -1), output_shape=(D, H, W)
+    )[:, 0]
+    return out_vol
 
 
 def fourier_shift(volume_freq: torch.Tensor, shift: torch.Tensor, nb_spatial_dims=None):

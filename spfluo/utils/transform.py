@@ -111,3 +111,24 @@ def distance_poses(
     trans_distance = xp.sum(((t1 - t2) ** 2), axis=-1) ** 0.5
 
     return rot_distance, trans_distance
+
+
+
+
+def get_zoom_matrix(
+    input_shape: Tuple[int, int, int],
+    output_shape: Tuple[int, int, int],
+    xp,
+    **array_kwargs,
+):
+    in_shape, out_shape = xp.asarray(input_shape, **array_kwargs), xp.asarray(
+        output_shape, **array_kwargs
+    )
+    input_center, output_center = (in_shape - 1) / 2, (out_shape - 1) / 2
+    H_center, H_homo = xp.eye(4, **array_kwargs), xp.eye(4, **array_kwargs)
+    H_center[:3, 3] = -input_center  # 1. translation to (0,0,0)
+    H_homo[:3, 3] = output_center  # 3. translation to center of image
+
+    #    3-2 <- 1
+    H = H_homo @ H_center
+    return H
