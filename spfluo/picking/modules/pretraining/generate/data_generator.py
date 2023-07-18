@@ -15,6 +15,11 @@ from scipy.stats import truncnorm
 from skimage.util import random_noise
 from tqdm import tqdm
 
+from spfluo.ab_initio_reconstruction.volume_representation.gaussian_mixture_representation.GMM_grid_evaluation import (
+    make_grid,
+    nd_gaussian,
+)
+
 from . import functional as F
 from .config import DataGenerationConfig
 from .config import Outliers as OutliersConfig
@@ -382,12 +387,14 @@ class DataGenerator:
         # Anisotropic blur
         if self.config.sensor.anisotropic_blur:
             sigma = np.array(self.config.sensor.anisotropic_blur_sigma, dtype=int)
-            mode = self.config.sensor.anisotropic_blur_border_mode
             k = 4  # +/- 4 sigmas is sufficient
             shape = np.ceil(2 * k * sigma + 1).astype(int)
-            psf = np.zeros(shape, dtype=float)
-            psf[tuple(np.floor(k * sigma).astype(int))] = 1  # dirac
-            psf = gaussian_filter(psf, sigma=sigma, mode=mode)
+            size = max(shape)
+            grid = make_grid(size, 3)
+            grid_step = 2 / (size - 1)
+            cov_PSF = grid_step**2 * np.eye(3)
+            cov_PSF[[0, 1, 2], [0, 1, 2]] *= sigma
+            psf = nd_gaussian(grid, np.zeros(3), cov_PSF, 3).astype(self.dtype)
 
             # Save
             if psf.max() > psf.min():
