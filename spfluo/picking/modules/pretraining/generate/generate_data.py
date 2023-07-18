@@ -2,6 +2,8 @@ from os import PathLike
 from pathlib import Path
 from typing import Tuple
 
+import numpy as np
+
 from .config import DataGenerationConfig
 from .data_generator import DataGenerator
 
@@ -80,8 +82,11 @@ def generate_particles(
     num_particles: int,
     anisotropy: Tuple[float, float, float],
 ):
-    output_dir = Path(output_dir)
+    output_dir: Path = Path(output_dir)
+    if not output_dir.exists():
+        output_dir.mkdir()
     config = DataGenerationConfig()
+    config.dtype = np.float32
     config.augmentation.max_translation = 0
     if pointcloud_path is not None:
         config.io.point_cloud_path = pointcloud_path
