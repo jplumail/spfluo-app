@@ -92,10 +92,10 @@ def affine_transform(
     if not prefilter:
         raise NotImplementedError()
 
-    return _affine_transform(input, rotMat, tvec, output_shape, mode, tensor_kwargs)
+    return _affine_transform(input, rotMat, tvec, output_shape, mode, **tensor_kwargs)
 
 
-def _affine_transform(input, rotMat, tvec, output_shape, mode, tensor_kwargs):
+def _affine_transform(input, rotMat, tvec, output_shape, mode, **tensor_kwargs):
     output_shape = list(output_shape)
     rotated_vol = input.new_empty(list(input.shape[:2]) + output_shape)
     grid = torch.stack(

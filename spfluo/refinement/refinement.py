@@ -20,7 +20,7 @@ from spfluo.utils.volume import interpolate_to_size
 def affine_transform_wrapper(volumes, poses, inverse=False):
     H = get_transform_matrix(
         volumes.shape[2:], poses[:, :3], poses[:, 3:], convention="XZX", degrees=True
-    )
+    ).type(volumes.dtype)
     if not inverse:  # scipy's affine_transform do inverse transform by default
         torch.linalg.inv(H, out=H)
     return affine_transform(volumes, H)
