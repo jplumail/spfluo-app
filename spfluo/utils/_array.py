@@ -11,7 +11,8 @@ Array = TypeVar("Array", numpy_array, cupy_array, torch_array)
 def cpu_only_compatibility(cpu_func):
     """
     Apply this decorator to cpu only functions to make them compliant with the array-api
-
+    cpu_func: Callable
+        signature (*args, **kwargs) -> array like object
     """
     is_array = array_api_compat.is_array_api_obj
 
