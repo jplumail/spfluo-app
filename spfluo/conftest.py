@@ -68,7 +68,8 @@ def volumes_and_poses(
     N = len(particles_dict)
     p0 = next(iter(particles_dict))
     D = particles_dict[p0]["array"].shape[0]
-    volumes_arr = np.zeros((N, D, D, D))
+    dtype = particles_dict[p0]["array"].dtype
+    volumes_arr = np.zeros((N, D, D, D), dtype=dtype)
     poses_arr = np.zeros((len(particles_dict), 6))
     for i, k in enumerate(particles_dict):
         p = particles_dict[k]
