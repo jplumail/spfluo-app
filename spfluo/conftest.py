@@ -95,7 +95,8 @@ def generated_data_arrays(
 def poses_with_noise(generated_data_arrays: Tuple[np.ndarray, ...]) -> np.ndarray:
     _, poses, _, _ = generated_data_arrays
     poses_noisy = poses.copy()
-    sigma_rot, sigma_trans = 5, 0
+    sigma_rot, sigma_trans = 10, 2
+    np.random.seed(123)
     poses_noisy[:, :3] += np.random.randn(len(poses), 3) * sigma_rot
     poses_noisy[:, 3:] += np.random.randn(len(poses), 3) * sigma_trans
     return poses_noisy
