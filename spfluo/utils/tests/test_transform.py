@@ -1,6 +1,10 @@
 import numpy as np
 
-from spfluo.utils.transform import distance_poses, get_transform_matrix
+from spfluo.utils.transform import (
+    distance_family_poses,
+    distance_poses,
+    get_transform_matrix,
+)
 
 
 def test_get_transform_matrix_simple():
@@ -42,3 +46,34 @@ def test_distance_poses():
 
     assert np.isclose(angle, 180.0)
     assert np.isclose(t, 2.0**0.5)
+
+
+def test_distance_family_poses():
+    p1 = np.asarray(
+        [[70, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [90, 90, 0, 1, 0, 0]], dtype=float
+    )
+    p2 = np.asarray(
+        [[70, 0, 0, 0, 0, 0], [90, 0, 0, 0, 0, 0], [90, 90, 0, 0, 1, 0]], dtype=float
+    )
+    angle, t = distance_family_poses(p1, p2)
+    assert np.isclose(angle, [30, 60, 30], atol=1e-5).all()
+    assert np.isclose(t, [0, 0, 2.0**0.5]).all()
+
+
+def test_distance_family_poses_sym():
+    symmetry = 9
+    error = 0.2 * (360 / symmetry)
+    p1 = np.asarray(
+        [
+            [70, 0, 0, 0, 0, 0],
+            [5 * 360 / symmetry + error, 0, 0, 0, 0, 0],
+            [90, 90, 0, 1, 0, 0],
+        ],
+        dtype=float,
+    )
+    p2 = np.asarray(
+        [[70, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [90, 90, 0, 0, 1, 0]], dtype=float
+    )
+    angle, t = distance_family_poses(p1, p2, symmetry=9)
+    assert np.isclose(angle, [error / 3, error * 2 / 3, error / 3], atol=1e-5).all()
+    assert np.isclose(t, [0, 0, 2.0**0.5]).all()
