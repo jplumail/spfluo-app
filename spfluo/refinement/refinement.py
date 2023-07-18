@@ -357,11 +357,13 @@ def refine(
     guessed_poses: torch.Tensor,
     steps: List[Union[Tuple[int, int], int]],
     ranges: List[float],
-    lambda_=100,
-    symmetry=1,
+    lambda_: float = 100.0,
+    symmetry: int = 1,
 ):
-    assert len(steps) == len(ranges)
-    assert len(steps) > 0
+    assert len(steps) == len(ranges), "steps and ranges lists should have equal length"
+    assert len(steps) > 0, "length of steps and ranges lists should be at least 1"
+    assert symmetry >= 1, "symmetry should be an integer greater or equal to 1"
+    assert lambda_ > 0, f"lambda should be greater than 1, found {lambda_}"
     tensor_kwargs = dict(dtype=patches.dtype, device=patches.device)
     lambda_ = torch.tensor(lambda_, **tensor_kwargs)
     initial_reconstruction, _ = reconstruction_L2(patches, psf, guessed_poses, lambda_)
