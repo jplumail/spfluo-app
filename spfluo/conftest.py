@@ -18,13 +18,22 @@ DATA_DIR = Path(__file__).parent / "data"
 pointcloud_path = DATA_DIR / "sample_centriole_point_cloud.csv"
 
 
-@pytest.fixture(scope="session")
-def generated_root_dir():
-    root_dir = DATA_DIR / "generated"
+def get_ids(anisotropy: Tuple[float, float, float]):
+    dz, dy, dx = anisotropy
+    assert dx == dy
+    if dz == dy:
+        return "isotropic-" + str(dz)
+    else:
+        return "anisotropic-" + str(dz) + "-" + str(dy) + "-" + str(dx)
+
+
+@pytest.fixture(scope="session", params=[(1.0, 1.0, 1.0), (5.0, 1.0, 1.0)], ids=get_ids)
+def generated_root_dir(request):
+    root_dir: Path = DATA_DIR / "generated" / get_ids(request.param)
     if not (root_dir / "particles").exists():
-        root_dir.mkdir(exist_ok=True)
+        root_dir.mkdir(exist_ok=True, parents=True)
         np.random.seed(123)
-        generate_particles(pointcloud_path, root_dir, D, N, anisotropy)
+        generate_particles(pointcloud_path, root_dir, D, N, request.param)
     return root_dir
 
 
