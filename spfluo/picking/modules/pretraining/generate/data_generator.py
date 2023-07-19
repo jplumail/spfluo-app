@@ -393,7 +393,7 @@ class DataGenerator:
             grid = make_grid(size, 3)
             grid_step = 2 / (size - 1)
             cov_PSF = grid_step**2 * np.eye(3)
-            cov_PSF[[0, 1, 2], [0, 1, 2]] *= sigma
+            cov_PSF[[0, 1, 2], [0, 1, 2]] *= sigma**2
             psf = nd_gaussian(grid, np.zeros(3), cov_PSF, 3).astype(self.dtype)
 
             # Save
