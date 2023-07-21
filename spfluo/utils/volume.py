@@ -488,7 +488,7 @@ def dftregistrationND(
 
 def discretize_sphere_uniformly(
     N: int, M: int, symmetry: int = 1, product: bool = False, **tensor_kwargs
-) -> Tuple[Tuple[torch.Tensor, torch.Tensor, torch.Tensor], float]:
+) -> Tuple[Tuple[torch.Tensor, torch.Tensor, torch.Tensor], Tuple[float, float]]:
     """Generates a list of the two first euler angles that describe a uniform
     discretization of the sphere with the Fibonnaci sphere algorithm.
     Params:
@@ -515,9 +515,12 @@ def discretize_sphere_uniformly(
         theta, psi2 = torch.cartesian_prod(theta, psi).T
         phi, _ = torch.cartesian_prod(phi, psi).T
         psi = psi2
-    precision = 360 / (torch.pi * N) ** 0.5
+    precision_axes = (
+        (180 / torch.pi) * 2 * (torch.pi) ** 0.5 / N**0.5
+    )  # aire autour d'un point = 4*pi/N
+    precision_rot = (180 / torch.pi) * 2 * np.pi / symmetry / M
     theta, phi, psi = theta * 180 / torch.pi, phi * 180 / torch.pi, psi * 180 / torch.pi
-    return (theta, phi, psi), precision
+    return (theta, phi, psi), (precision_axes, precision_rot)
 
 
 def normalize_patches(patches: torch.Tensor) -> torch.Tensor:

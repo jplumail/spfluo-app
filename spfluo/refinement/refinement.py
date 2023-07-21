@@ -19,6 +19,11 @@ from spfluo.utils.transform import get_transform_matrix
 from spfluo.utils.volume import interpolate_to_size
 
 refinement_logger = logging.getLogger("spfluo.refinement")
+if refinement_logger.isEnabledFor(logging.DEBUG):
+    from spfluo.utils.debug import DEBUG_DIR, save_image
+
+    DEBUG_DIR_REFINEMENT = DEBUG_DIR / __name__
+    DEBUG_DIR_REFINEMENT.mkdir(parents=True, exist_ok=False)
 
 
 def affine_transform_wrapper(volumes, poses, inverse=False):
@@ -373,21 +378,29 @@ def refine(
     lambda_ = torch.tensor(lambda_, **tensor_kwargs)
     initial_reconstruction, _ = reconstruction_L2(patches, psf, guessed_poses, lambda_)
 
+    if refinement_logger.isEnabledFor(logging.DEBUG):
+        im = initial_reconstruction.cpu().numpy()
+        p = save_image(im, DEBUG_DIR_REFINEMENT, refine, "initial-reconstruction")
+        refinement_logger.debug("Saving current reconstruction at " + str(p))
+        all_recons = [im]
+
     current_reconstruction = initial_reconstruction
     current_poses = guessed_poses
     for i in range(len(steps)):
         refinement_logger.debug(f"STEP {i+1}/{len(steps)}")
-        time.time()
+        t1 = time.time()
         # Poses estimation
         s = steps[i]
         if ranges[i] == 0 and type(s) is tuple:  # Discretization of the whole sphere
             M_axes, M_rot = s
-            potential_poses, _ = create_poses_grid(
+            potential_poses, (precision_axes, precision_rot) = create_poses_grid(
                 M_axes, M_rot, symmetry=symmetry, **tensor_kwargs
             )
             refinement_logger.debug(
-                "[convolution_matching_poses_grid] Searching the whole grid."
-                f"N_axes={M_axes}, N_rot={M_rot}."
+                "[convolution_matching_poses_grid] Searching the whole grid. "
+                f"N_axes={M_axes}, N_rot={M_rot}. "
+                f"precision_axes={precision_axes:.2f}°, "
+                f"precision_rot={precision_rot:.2f}°"
             )
             t0 = time.time()
             current_poses, _ = convolution_matching_poses_grid(
@@ -423,15 +436,30 @@ def refine(
         if refinement_logger.isEnabledFor(
             logging.DEBUG
         ):  # .cpu() causes host-device sync
-            refinement_logger.debug(
-                "pose[0], found: ["
-                + ", ".join([f"{x:.1f}" for x in current_poses[0].cpu().tolist()])
-                + "]",
-            )
+            for j in range(len(current_poses)):
+                refinement_logger.debug(
+                    f"pose[{j}], found: ["
+                    + ", ".join([f"{x:.1f}" for x in current_poses[j].cpu().tolist()])
+                    + "]",
+                )
+            im = current_reconstruction.cpu().numpy()
+            p = save_image(im, DEBUG_DIR_REFINEMENT, refine, f"step{i+1}")
+            refinement_logger.debug("Saving current reconstruction at " + str(p))
+            all_recons.append(im)
 
         refinement_logger.debug(
-            f"STEP {i+1}/{len(steps)} done in {time.time()-t0:.3f}s"
+            f"STEP {i+1}/{len(steps)} done in {time.time()-t1:.3f}s"
         )
+
+    if refinement_logger.isEnabledFor(logging.DEBUG):
+        p = save_image(
+            np.stack(all_recons, axis=0),
+            DEBUG_DIR_REFINEMENT,
+            refine,
+            "all-steps",
+            sequence=True,
+        )
+        refinement_logger.debug("Saving all reconstructions at " + str(p))
 
     return current_reconstruction, current_poses
 

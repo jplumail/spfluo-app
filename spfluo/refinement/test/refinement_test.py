@@ -203,12 +203,13 @@ def test_refine_easy(generated_data_pytorch, poses_with_noise_pytorch):
     volumes, groundtruth_poses, psf, groundtruth = generated_data_pytorch
 
     S = 10
-    steps = [(12 * 12, 12)] + [S] * 4
+    A = 14 * 2
+    steps = [(A**2, 50)] + [S] * 7  # 7.25° axis precision; 0.8° sym precision
     ranges = [
         0,
-    ] + [20, 10, 10, 5]
+    ] + [10, 5, 5, 2, 2, 1, 1]
     reconstruction, best_poses = refine(
-        volumes, psf, poses, steps, ranges, symmetry=9, lambda_=1e-3
+        volumes, psf, poses, steps, ranges, symmetry=9, lambda_=1e-2
     )
 
     rot_dist_deg1, trans_dist_pix1 = distance_family_poses(

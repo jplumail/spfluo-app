@@ -13,18 +13,31 @@ from spfluo.picking.modules.pretraining.generate.generate_data import generate_p
 
 D = 50
 N = 10
-anisotropy = (1.0, 1.0, 1.0)
 DATA_DIR = Path(__file__).parent / "data"
 pointcloud_path = DATA_DIR / "sample_centriole_point_cloud.csv"
 
 
+def get_ids(anisotropy: Tuple[float, float, float]):
+    dz, dy, dx = anisotropy
+    assert dx == dy
+    if dz == dy:
+        return "isotropic-" + str(dz)
+    else:
+        return "anisotropic-" + str(dz) + "-" + str(dy) + "-" + str(dx)
+
+
+@pytest.fixture(scope="session", params=[(1.0, 1.0, 1.0), (5.0, 1.0, 1.0)], ids=get_ids)
+def anisotropy_fixture(request):
+    return request.param
+
+
 @pytest.fixture(scope="session")
-def generated_root_dir():
-    root_dir = DATA_DIR / "generated"
+def generated_root_dir(anisotropy_fixture):
+    root_dir: Path = DATA_DIR / "generated" / get_ids(anisotropy_fixture)
     if not (root_dir / "particles").exists():
-        root_dir.mkdir(exist_ok=True)
+        root_dir.mkdir(exist_ok=True, parents=True)
         np.random.seed(123)
-        generate_particles(pointcloud_path, root_dir, D, N, anisotropy)
+        generate_particles(pointcloud_path, root_dir, D, N, anisotropy_fixture, 20)
     return root_dir
 
 
@@ -95,7 +108,7 @@ def generated_data_arrays(
 def poses_with_noise(generated_data_arrays: Tuple[np.ndarray, ...]) -> np.ndarray:
     _, poses, _, _ = generated_data_arrays
     poses_noisy = poses.copy()
-    sigma_rot, sigma_trans = 10, 2
+    sigma_rot, sigma_trans = 20, 2
     np.random.seed(123)
     poses_noisy[:, :3] += np.random.randn(len(poses), 3) * sigma_rot
     poses_noisy[:, 3:] += np.random.randn(len(poses), 3) * sigma_trans
