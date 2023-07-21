@@ -11,6 +11,7 @@ from spfluo.refinement import (
     reconstruction_L2,
     refine,
 )
+from spfluo.utils.transform import distance_family_poses
 from spfluo.utils.volume import are_volumes_aligned
 
 ##########################
@@ -195,3 +196,27 @@ def test_refine_shapes():
 
     assert recon.shape == patches[0].shape
     assert poses.shape == guessed_poses.shape
+
+
+def test_refine_easy(generated_data_pytorch, poses_with_noise_pytorch):
+    poses = poses_with_noise_pytorch
+    volumes, groundtruth_poses, psf, groundtruth = generated_data_pytorch
+
+    S = 10
+    steps = [(12 * 12, 12)] + [S] * 4
+    ranges = [
+        0,
+    ] + [20, 10, 10, 5]
+    reconstruction, best_poses = refine(
+        volumes, psf, poses, steps, ranges, symmetry=9, lambda_=1e-3
+    )
+
+    rot_dist_deg1, trans_dist_pix1 = distance_family_poses(
+        best_poses, groundtruth_poses, symmetry=9
+    )
+    rot_dist_deg2, trans_dist_pix2 = distance_family_poses(
+        poses, groundtruth_poses, symmetry=9
+    )
+
+    assert rot_dist_deg1.sum() < rot_dist_deg2.sum()
+    assert trans_dist_pix1.sum() < trans_dist_pix2.sum()

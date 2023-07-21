@@ -2,6 +2,7 @@ from .volume import (
     affine_transform,
     dftregistrationND,
     discretize_sphere_uniformly,
+    disp3D,
     fftn,
     fourier_shift,
     pad_to_size,
@@ -14,4 +15,5 @@ __all__ = [
     discretize_sphere_uniformly,
     fftn,
     pad_to_size,
+    disp3D,
 ]

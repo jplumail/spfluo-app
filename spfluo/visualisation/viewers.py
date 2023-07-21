@@ -8,7 +8,7 @@ from aicsimageio.aics_image import AICSImage
 from napari.experimental import link_layers, unlink_layers
 from napari.layers import Points
 
-from spfluo.visualisation import add_orthoviewer_widget, init_qt
+from spfluo.visualisation.multiple_viewer_widget import add_orthoviewer_widget, init_qt
 
 
 def show_points(im_path: str, csv_path: str):
