@@ -81,6 +81,7 @@ def generate_particles(
     image_shape: int,
     num_particles: int,
     anisotropy: Tuple[float, float, float],
+    target_snr: int,
 ):
     output_dir: Path = Path(output_dir)
     if not output_dir.exists():
@@ -98,6 +99,7 @@ def generate_particles(
     config.sensor.anisotropic_blur_sigma = anisotropy
     config.augmentation.rotation_proba = 1
     config.augmentation.shrink_range = (1.0, 1.0)
+    config.sensor.gaussian_noise_target_snr_db = target_snr
     gen = DataGenerator(config)
     gt_path = output_dir / "gt.tiff"
     gen.save_psf(output_dir / "psf.tiff")

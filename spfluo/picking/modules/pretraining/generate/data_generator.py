@@ -449,11 +449,28 @@ class DataGenerator:
             )
             translation /= self.step
             translation = translation
+
             # add anisotropic blur
             sigma = self.config.sensor.anisotropic_blur_sigma
             mode = self.config.sensor.anisotropic_blur_border_mode
             if any([s > 0 for s in sigma]):
-                particle = ndii.convolve(particle, self.psf, mode=mode)
+                particle = ndii.convolve(particle, self.psf, mode=mode, cval=0.0)
+
+            # add gaussian noise
+            image_average_db = 10 * np.log10(particle.mean())
+            noise_average_db = (
+                image_average_db - self.config.sensor.gaussian_noise_target_snr_db
+            )
+            noise_average = 10 ** (noise_average_db / 10)
+            noise = R.normal(
+                self.config.sensor.gaussian_noise_mean,
+                np.sqrt(noise_average),
+                particle.shape,
+            )
+            particle += noise
+            pixel_values_range = particle.max() - particle.min()
+            particle = (particle - particle.min()) / pixel_values_range
+
             particles.append(particle)
             real_translations.append(translation)
             if output is not None:
