@@ -4,7 +4,7 @@ from cupyx.scipy.ndimage import affine_transform as affine_transform_cupy
 from scipy.ndimage.interpolation import affine_transform
 from scipy.spatial.transform import Rotation as R
 
-from spfluo.utils import affine_transform as affine_transform_pytorch
+from spfluo.utils.volume import affine_transform as affine_transform_spfluo
 
 interp_order = 3
 
@@ -100,16 +100,18 @@ def rotation_gpu_pytorch(volume, rot_mat, order=1, trans_vec=None):
     if order > 1:
         raise NotImplementedError("order should be 1")
     if trans_vec is None:
-        trans_vec = volume.new_zeros((volume.size(0), volume.ndim - 2, 1))
+        trans_vec = volume.new_zeros((volume.size(0), volume.ndim - 1, 1))
     else:
         trans_vec = trans_vec[:, :, None]
-    c = volume.new_tensor([size // 2 for size in volume.shape[2:]])[:, None]
-    rotated = affine_transform_pytorch(
+    c = volume.new_tensor([size // 2 for size in volume.shape[1:]])[:, None]
+    rotated = affine_transform_spfluo(
         volume,
         rot_mat.transpose(1, 2),
         (c - rot_mat.transpose(1, 2) @ (c + trans_vec))[..., 0],
         order=order,
-        mode="zeros",
+        mode="constant",
+        prefilter=False,
+        batch=True,
     )
     return rotated, rot_mat
 

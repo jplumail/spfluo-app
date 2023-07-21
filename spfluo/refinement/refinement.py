@@ -28,11 +28,11 @@ if refinement_logger.isEnabledFor(logging.DEBUG):
 
 def affine_transform_wrapper(volumes, poses, inverse=False):
     H = get_transform_matrix(
-        volumes.shape[2:], poses[:, :3], poses[:, 3:], convention="XZX", degrees=True
+        volumes.shape[1:], poses[:, :3], poses[:, 3:], convention="XZX", degrees=True
     ).type(volumes.dtype)
     if not inverse:  # scipy's affine_transform do inverse transform by default
         torch.linalg.inv(H, out=H)
-    return affine_transform(volumes, H)
+    return affine_transform(volumes, H, order=1, prefilter=False, batch=True)
 
 
 def reconstruction_L2(
@@ -76,7 +76,7 @@ def reconstruction_L2(
     dxyz[2, 0, 0, 0] = 1
     dxyz[2, 0, 0, 1] = -1
 
-    dxyz_padded = interpolate_to_size(dxyz, (D, H, W))
+    dxyz_padded = interpolate_to_size(dxyz, (D, H, W), batch=True)
     DtD = (torch.fft.fftn(dxyz_padded, dim=(1, 2, 3)).abs() ** 2).sum(dim=0)
 
     poses_psf = torch.zeros_like(poses)
@@ -90,17 +90,17 @@ def reconstruction_L2(
             size_batch, 1, 1, 1, 1
         )  # shape (size_batch, N, D, H, W)
         y = affine_transform_wrapper(
-            y.view(size_batch * N, D, H, W)[:, None],
+            y.view(size_batch * N, D, H, W),
             poses[start:end].view(size_batch * N, 6),
             inverse=True,
-        )[:, 0].view(size_batch, N, D, H, W)
+        ).view(size_batch, N, D, H, W)
         y = y.type(torch.complex64)
 
-        h_ = psf.unsqueeze(0).repeat(N * size_batch, 1, 1, 1).unsqueeze(1)
+        h_ = psf.unsqueeze(0).repeat(N * size_batch, 1, 1, 1)
         h_ = affine_transform_wrapper(
             h_, poses_psf[start:end].view(size_batch * N, 6), inverse=True
-        )[:, 0].view(size_batch, N, d, h, w)
-        H_ = interpolate_to_size(h_.view(-1, d, h, w), (D, H, W)).view(
+        ).view(size_batch, N, d, h, w)
+        H_ = interpolate_to_size(h_.view(-1, d, h, w), (D, H, W), batch=True).view(
             size_batch, N, D, H, W
         )
         H_ = H_.type(torch.complex64)
@@ -150,7 +150,7 @@ def convolution_matching_poses_grid(
     N, D, H, W = volumes.shape
 
     # PSF
-    h = torch.fft.fftn(torch.fft.fftshift(interpolate_to_size(psf[None], (D, H, W))[0]))
+    h = torch.fft.fftn(torch.fft.fftshift(interpolate_to_size(psf, (D, H, W))))
 
     shifts = torch.empty((N, M, 3))
     errors = torch.empty((N, M))
@@ -164,9 +164,9 @@ def convolution_matching_poses_grid(
 
         # Rotate the reference
         reference_minibatch = reference.repeat(end2 - start2, 1, 1, 1)
-        reference_minibatch = affine_transform_wrapper(
-            reference_minibatch[:, None], potential_poses_minibatch
-        )[:, 0]
+        reference_minibatch = affine_transform_wrapper(  # TODO: inefficient
+            reference_minibatch, potential_poses_minibatch  # should leverage pytorch
+        )  # multichannel grid_sample
         reference_minibatch = h * torch.fft.fftn(reference_minibatch, dim=(1, 2, 3))
 
         # Registration
@@ -215,7 +215,7 @@ def convolution_matching_poses_refined(
     assert N == N1
 
     # PSF
-    h = torch.fft.fftn(torch.fft.fftshift(interpolate_to_size(psf[None], (D, H, W))[0]))
+    h = torch.fft.fftn(torch.fft.fftshift(interpolate_to_size(psf, (D, H, W))))
 
     shifts = torch.empty((N, M, 3))
     errors = torch.empty((N, M))
@@ -233,9 +233,9 @@ def convolution_matching_poses_refined(
         # Rotate the reference
         reference_minibatch = reference.repeat(minibatch_size, 1, 1, 1)
         reference_minibatch = affine_transform_wrapper(
-            reference_minibatch[:, None],
+            reference_minibatch,
             potential_poses_minibatch.view(minibatch_size, d),
-        )[:, 0].view(end1 - start1, end2 - start2, D, H, W)
+        ).view(end1 - start1, end2 - start2, D, H, W)
         reference_minibatch = h * torch.fft.fftn(reference_minibatch, dim=(2, 3, 4))
 
         # Registration
@@ -487,8 +487,8 @@ def first_reconstruction(patches, views, poses, psf, step=10):
         # compute error
         N = patches[mask_top_side].shape[0]
         recon_noised_transformed = affine_transform_wrapper(
-            recon_noised[None, None].repeat(N, 1, 1, 1, 1), poses_known[mask_top_side]
-        )[:, 0]
+            recon_noised[None].repeat(N, 1, 1, 1), poses_known[mask_top_side]
+        )
         error = (
             ((recon_noised_transformed - patches[mask_top_side]) ** 2)
             .view(N, -1)

@@ -156,28 +156,28 @@ class Fourier_pixel_representation:
     ):
         N = rot_mats.size(0)
         psfs_rotated = rotation_gpu_pytorch(
-            self.psf_gpu_torch.to(rot_mats.device).repeat(N, 1, 1, 1, 1),
+            self.psf_gpu_torch.to(rot_mats.device).repeat(N, 1, 1, 1),
             rot_mats.permute((0, 2, 1)),
             order=interp_order,
-        )[0][:, 0]
+        )[0]
         psfs_rotated_fft = torch.fft.fftn(psfs_rotated, dim=(1, 2, 3))
         if known_trans:
             view_rotated_fft = torch.fft.fftn(
                 rotation_gpu_pytorch(
-                    view.repeat(N, 1, 1, 1, 1),
+                    view.repeat(N, 1, 1, 1),
                     rot_mats.permute((0, 2, 1)),
                     trans_vec=-rot_mats.permute((0, 2, 1)) @ trans_vec,
                     order=interp_order,
-                )[0][:, 0],
+                )[0],
                 dim=(1, 2, 3),
             )
         else:
             view_rotated_fft = torch.fft.fftn(
                 rotation_gpu_pytorch(
-                    view.repeat(N, 1, 1, 1, 1),
+                    view.repeat(N, 1, 1, 1),
                     rot_mats.permute((0, 2, 1)),
                     order=interp_order,
-                )[0][:, 0],
+                )[0],
                 dim=(1, 2, 3),
             )
             _, shift = phase_cross_correlation_gpu_pytorch(

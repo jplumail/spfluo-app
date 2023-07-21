@@ -392,12 +392,24 @@ def test_upsample_cuda_dftregistration():
 ####################################################
 
 
-def affine_transform_gpu(vol, mat, offset=0.0, output_shape=None, device="cpu"):
-    out = spfluo.utils.affine_transform(
+def affine_transform_gpu(
+    vol,
+    mat,
+    offset=0.0,
+    output_shape=None,
+    device="cpu",
+    batch=False,
+    multichannel=False,
+):
+    out = spfluo.utils.volume.affine_transform(
         torch.as_tensor(vol, device=device),
         torch.as_tensor(mat, device=device),
         offset=offset,
         output_shape=output_shape,
+        batch=batch,
+        multichannel=multichannel,
+        prefilter=False,
+        order=1,
     )
     return out.cpu().numpy()
 
@@ -423,7 +435,7 @@ def test_affine_transform_simple():
         matrices[i, :3, 3] = np.random.randn(3)
 
     out_scipy = [affine_transform(image, m, order=1) for m in matrices]
-    out_pt = list(affine_transform_gpu(np.stack([image] * N)[:, None], matrices)[:, 0])
+    out_pt = list(affine_transform_gpu(np.stack([image] * N), matrices, batch=True))
     assert all([is_affine_close(x, y) for x, y in zip(out_scipy, out_pt)])
 
 
@@ -444,7 +456,7 @@ def test_affine_transform_output_shape():
         affine_transform(image, matrix, order=1, output_shape=o) for o in output_shapes
     ]
     out_pt = [
-        affine_transform_gpu(image[None, None], matrix[None], output_shape=o)[:, 0]
+        affine_transform_gpu(image[None], matrix[None], output_shape=o, batch=True)
         for o in output_shapes
     ]
     assert all([is_affine_close(x, y) for x, y in zip(out_scipy, out_pt)])
@@ -459,7 +471,7 @@ def test_affine_transform_offset():
 
     out_scipy = [affine_transform(image, matrix, order=1, offset=o) for o in offsets]
     out_pt = affine_transform_gpu(
-        np.stack([image] * N)[:, None], matrices, offset=offsets
+        np.stack([image] * N), matrices, offset=offsets, batch=True
     )
     assert all([is_affine_close(x, y) for x, y in zip(out_scipy, out_pt)])
 

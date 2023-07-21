@@ -1,19 +1,250 @@
 import itertools
-from typing import Tuple
+from typing import Optional, Tuple, Union
 
+import array_api_compat.cupy
+import array_api_compat.numpy
+import array_api_compat.torch
+import cupy as cp
 import numpy as np
 import scipy.ndimage as ndii
 import torch
 import torch.nn.functional as F
+from cupy.typing import NDArray as CPArray
+from cupyx.scipy.ndimage import affine_transform as affine_transform_cupy
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from numpy.typing import DTypeLike, NDArray
+from scipy.ndimage import affine_transform as affine_transform_scipy
 from skimage.registration import phase_cross_correlation
 
 from spfluo.utils.transform import get_zoom_matrix
 
+from ._array import Array, array_api_compat
 from .memory import split_batch_func
 
 
 def affine_transform(
+    input: Array,
+    matrix: Array,
+    offset: Union[float, Tuple[float], Array] = 0.0,
+    output_shape: Optional[Tuple[int]] = None,
+    output: Optional[Union[Array, DTypeLike]] = None,
+    order: int = 3,
+    mode: str = "constant",
+    cval: float = 0.0,
+    prefilter: bool = True,
+    *,
+    batch: bool = False,
+    multichannel: bool = False,
+) -> Array:
+    """Apply affine transformations to an image.
+    Works with multichannel images and batches.
+    Supports numpy, cupy and torch inputs.
+    torch only supports linear interpolation.
+
+    Given an output image pixel index vector ``o``, the pixel value is
+    determined from the input image at position
+    ``xp.dot(matrix, o) + offset``.
+
+    Args:
+        input (xp.ndarray): The input array.
+            torch only supports 3D inputs.
+        matrix (xp.ndarray): The inverse coordinate transformation matrix,
+            mapping output coordinates to input coordinates. If ``ndim`` is the
+            number of dimensions of ``input``, the given matrix must have one
+            of the following shapes:
+
+                - ``(N, ndim, ndim)``: the linear transformation matrix for each
+                  output coordinate.
+                - ``(N, ndim,)``: assume that the 2D transformation matrix is
+                  diagonal, with the diagonal specified by the given value.
+                - ``(N, ndim + 1, ndim + 1)``: assume that the transformation is
+                  specified using homogeneous coordinates. In this case, any
+                  value passed to ``offset`` is ignored.
+                - ``(N, ndim, ndim + 1)``: as above, but the bottom row of a
+                  homogeneous transformation matrix is always
+                  ``[0, 0, ..., 1]``, and may be omitted.
+
+        offset (float or sequence or cp.array): The offset into the array where
+            the transform is applied. If a float, ``offset`` is the same for each
+            axis. If a sequence, ``offset`` should contain one value for each
+            axis. If a xp.array, should be of shape (N, d) where d is the number
+            of axes.
+        output_shape (tuple of ints): Shape tuple. One shape for all the batch.
+        output (xp.ndarray or ~xp.dtype): The array in which to place the
+            output, or the dtype of the returned array.
+            Not implemented in torch.
+        order (int): The order of the spline interpolation, default is 3. Must
+            be in the range 0-5.
+            Only order 1 is implemented in torch.
+        mode (str): Points outside the boundaries of the input are filled
+            according to the given mode (``'constant'``, ``'nearest'``,
+            ``'mirror'``, ``'reflect'``, ``'wrap'``, ``'grid-mirror'``,
+            ``'grid-wrap'``, ``'grid-constant'`` or ``'opencv'``).
+            Only ``'constant'``, ``'nearest'``, ``'reflect'`` are implemented
+            in torch.
+        cval (scalar): Value used for points outside the boundaries of
+            the input if ``mode='constant'`` or ``mode='opencv'``. Default is
+            0.0.
+            Only 0.0 is implemented in torch.
+        prefilter (bool): Determines if the input array is prefiltered with
+            ``spline_filter`` before interpolation. The default is True, which
+            will create a temporary ``float64`` array of filtered values if
+            ``order > 1``. If setting this to False, the output will be
+            slightly blurred if ``order > 1``, unless the input is prefiltered,
+            i.e. it is the result of calling ``spline_filter`` on the original
+            input.
+            Not implemented in torch.
+
+        batch (bool): if True, the first dimension is a batch dimension
+            default to False
+        multichannel (bool): if True, the first (or second if batch=True) is
+            the channel dimension
+
+    Returns:
+        xp.ndarray:
+            The transformed input. Return None if output is given.
+    """
+    xp = array_api_compat.array_namespace(input, matrix)
+    has_output = False
+    if array_api_compat.is_array_api_obj(output):
+        output = xp.asarray(output)
+        has_output = True
+
+    if batch is False:
+        input = input[None]
+        matrix = matrix[None]
+        if has_output:
+            output = output[None]
+    if multichannel is False:
+        input = input[:, None]
+
+    if xp == array_api_compat.torch:
+        func = affine_transform_batched_multichannel_pytorch
+    elif xp == array_api_compat.cupy:
+        func = affine_transform_batched_multichannel_cupy
+    elif xp == array_api_compat.numpy:
+        func = affine_transform_batched_multichannel_scipy
+    else:
+        raise ValueError(f"No backend found for {xp}")
+    out = func(
+        input, matrix, offset, output_shape, output, order, mode, cval, prefilter
+    )
+    if has_output:
+        out = output
+    if multichannel is False:
+        out = out[:, 0]
+    if batch is False:
+        out = out[0]
+    if not has_output:
+        return out
+
+
+def affine_transform_batched_multichannel_scipy(
+    input: NDArray,
+    matrix: NDArray,
+    offset: Union[float, Tuple[float], NDArray] = 0.0,
+    output_shape: Optional[Tuple[int]] = None,
+    output: Optional[Union[NDArray, DTypeLike]] = None,
+    order: int = 1,
+    mode: str = "constant",
+    cval: float = 0.0,
+    prefilter: bool = True,
+) -> NDArray:
+    N, C, *image_shape = input.shape
+    if output_shape is None:
+        output_shape = tuple(image_shape)
+    return_none = False
+    if output is None:
+        output = np.empty((N, C) + output_shape, dtype=input.dtype)
+    elif type(output) is type:
+        output = np.empty((N, C) + output_shape, dtype=output)
+    else:
+        return_none = True
+    if type(offset) is float or type(offset) is tuple:
+
+        def offset_gen(_):
+            return offset
+
+    else:
+        assert type(offset) is np.ndarray
+
+        def offset_gen(i):
+            return offset[i]
+
+    for i in range(N):
+        for j in range(C):
+            affine_transform_scipy(
+                input[i, j],
+                matrix[i],
+                offset_gen(i),
+                output_shape,
+                output[i, j],
+                order,
+                mode,
+                cval,
+                prefilter,
+            )
+
+    if return_none:
+        return
+
+    return output
+
+
+def affine_transform_batched_multichannel_cupy(
+    input: CPArray,
+    matrix: CPArray,
+    offset: Union[float, Tuple[float], CPArray] = 0.0,
+    output_shape: Optional[Tuple[int]] = None,
+    output: Optional[Union[CPArray, DTypeLike]] = None,
+    order: int = 1,
+    mode: str = "constant",
+    cval: float = 0.0,
+    prefilter: bool = True,
+) -> CPArray:
+    N, C, *image_shape = input.shape
+    if output_shape is None:
+        output_shape = tuple(image_shape)
+    return_none = False
+    if output is None:
+        output = cp.empty((N, C) + output_shape, dtype=input.dtype)
+    elif type(output) is type:
+        output = cp.empty((N, C) + output_shape, dtype=output)
+    else:
+        return_none = True
+    if type(offset) is float or type(offset) is tuple:
+
+        def offset_gen(_):
+            return offset
+
+    else:
+        assert type(offset) is cp.ndarray
+
+        def offset_gen(i):
+            return offset[i]
+
+    for i in range(N):
+        for j in range(C):
+            affine_transform_cupy(
+                input[i, j],
+                matrix[i],
+                offset_gen(i),
+                output_shape,
+                output[i, j],
+                order,
+                mode,
+                cval,
+                prefilter,
+                texture_memory=False,
+            )
+
+    if return_none:
+        return
+
+    return output
+
+
+def affine_transform_batched_multichannel_pytorch(
     input: torch.Tensor,
     matrix: torch.Tensor,
     offset=0.0,
@@ -36,8 +267,10 @@ def affine_transform(
         output_shape (tuple): shape of the output.
         output: not implemented
         order (int): must be 1. Only linear interpolation is implemented.
-        mode (str): How to fill blank space. 'zeros', 'border' or 'reflection'
-        cval (float): not implemented
+        mode (str): Points outside the boundaries of the input are filled
+            according to the given mode
+            Only ``'constant'``, ``'nearest'``, ``'reflect'`` are implemented.
+        cval (float): cannot be different than 0.0
         prefilter (bool): not implemented
 
     Returns:
@@ -82,17 +315,20 @@ def affine_transform(
     if order > 1:
         raise NotImplementedError()
 
-    pytorch_modes = ["zeros", "border", "reflection"]
+    pytorch_modes = {"constant": "zeros", "nearest": "border", "reflect": "reflection"}
     if mode not in pytorch_modes:
-        raise NotImplementedError(f"Only {pytorch_modes} are available")
+        raise NotImplementedError(f"Only {pytorch_modes.keys()} are available")
+    pt_mode = pytorch_modes[mode]
 
     if cval != 0:
         raise NotImplementedError()
 
-    if not prefilter:
+    if prefilter:
         raise NotImplementedError()
 
-    return _affine_transform(input, rotMat, tvec, output_shape, mode, **tensor_kwargs)
+    return _affine_transform(
+        input, rotMat, tvec, output_shape, pt_mode, **tensor_kwargs
+    )
 
 
 def _affine_transform(input, rotMat, tvec, output_shape, mode, **tensor_kwargs):
@@ -231,15 +467,33 @@ def pad_to_size(volume: torch.Tensor, output_size: torch.Size) -> torch.Tensor:
     return output_volume[tuple(slices)]
 
 
-def interpolate_to_size(volume: torch.Tensor, output_size: torch.Size) -> torch.Tensor:
-    N, d, h, w = volume.size()
+def interpolate_to_size(
+    volume: Array,
+    output_size: Tuple[int, int, int],
+    order=1,
+    batch=False,
+    multichannel=False,
+) -> Array:
+    xp = array_api_compat.array_namespace(volume)
+    volume = xp.asarray(volume)
+    d, h, w = volume.shape[-3:]
     D, H, W = output_size
     mat = get_zoom_matrix(
-        (d, h, w), (D, H, W), torch, device=volume.device, dtype=volume.dtype
+        (d, h, w), (D, H, W), xp, device=xp.device(volume), dtype=volume.dtype
     )
+    inv_mat = xp.linalg.inv(mat)
+    if batch:
+        N = volume.shape[0]
+        inv_mat = xp.broadcast_to(inv_mat[None], (N, 4, 4))
     out_vol = affine_transform(
-        volume[:, None], torch.linalg.inv(mat).expand(N, -1, -1), output_shape=(D, H, W)
-    )[:, 0]
+        volume,
+        inv_mat,
+        output_shape=(D, H, W),
+        batch=batch,
+        multichannel=multichannel,
+        order=order,
+        prefilter=False,
+    )
     return out_vol
 
 
