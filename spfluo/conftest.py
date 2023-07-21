@@ -13,7 +13,6 @@ from spfluo.picking.modules.pretraining.generate.generate_data import generate_p
 
 D = 50
 N = 10
-anisotropy = (1.0, 1.0, 1.0)
 DATA_DIR = Path(__file__).parent / "data"
 pointcloud_path = DATA_DIR / "sample_centriole_point_cloud.csv"
 
@@ -28,12 +27,17 @@ def get_ids(anisotropy: Tuple[float, float, float]):
 
 
 @pytest.fixture(scope="session", params=[(1.0, 1.0, 1.0), (5.0, 1.0, 1.0)], ids=get_ids)
-def generated_root_dir(request):
-    root_dir: Path = DATA_DIR / "generated" / get_ids(request.param)
+def anisotropy_fixture(request):
+    return request.param
+
+
+@pytest.fixture(scope="session")
+def generated_root_dir(anisotropy_fixture):
+    root_dir: Path = DATA_DIR / "generated" / get_ids(anisotropy_fixture)
     if not (root_dir / "particles").exists():
         root_dir.mkdir(exist_ok=True, parents=True)
         np.random.seed(123)
-        generate_particles(pointcloud_path, root_dir, D, N, request.param)
+        generate_particles(pointcloud_path, root_dir, D, N, anisotropy_fixture, 20)
     return root_dir
 
 
