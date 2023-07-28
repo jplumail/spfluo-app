@@ -10,9 +10,9 @@ import torch
 
 from spfluo.utils import (
     affine_transform,
-    dftregistrationND,
     discretize_sphere_uniformly,
     fftn,
+    phase_cross_correlation,
 )
 from spfluo.utils.memory import split_batch_func
 from spfluo.utils.transform import get_transform_matrix
@@ -170,12 +170,13 @@ def convolution_matching_poses_grid(
         reference_minibatch = h * torch.fft.fftn(reference_minibatch, dim=(1, 2, 3))
 
         # Registration
-        err, sh = dftregistrationND(
+        sh, err, _ = phase_cross_correlation(
             reference_minibatch[None],
             volumes_freq[:, None],
             nb_spatial_dims=3,
             normalization=None,
             upsample_factor=10,
+            space="fourier",
         )
         sh = torch.stack(list(sh), dim=-1)
 
@@ -239,12 +240,13 @@ def convolution_matching_poses_refined(
         reference_minibatch = h * torch.fft.fftn(reference_minibatch, dim=(2, 3, 4))
 
         # Registration
-        err, sh = dftregistrationND(
+        sh, err, _ = phase_cross_correlation(
             reference_minibatch,
             volumes_freq[:, None],
             nb_spatial_dims=3,
             normalization=None,
             upsample_factor=10,
+            space="fourier",
         )
         sh = torch.stack(list(sh), dim=-1)
 

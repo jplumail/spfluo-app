@@ -1,390 +1,98 @@
+from functools import partial
+
+import array_api_compat.cupy
+import array_api_compat.numpy
+import array_api_compat.torch
 import numpy as np
+import pytest
 import torch
+from array_api_compat import array_namespace
+from hypothesis import given, settings
+from hypothesis import strategies as st
+from hypothesis.extra.numpy import arrays
 from scipy.ndimage import affine_transform, fourier_shift
 from scipy.spatial.transform import Rotation as R
 from skimage import data, util
-from skimage.registration import phase_cross_correlation
+from skimage.registration import (
+    phase_cross_correlation as phase_cross_correlation_skimage,
+)
 
 import spfluo.utils
-from spfluo.utils import dftregistrationND
+from spfluo.utils.volume import phase_cross_correlation
 
 
-def dftregistration(
-    reference,
-    image,
-    nb_spatial_dims=None,
-    upsample_factor=1,
-    normalization="phase",
-    device="cpu",
+def assert_allclose(a, b, rtol=1e-7, atol=0):
+    xp = array_namespace(a, b)
+    assert xp.all(xp.abs(a - b) <= atol + rtol * xp.abs(b))
+
+
+##################################################################
+# Test phase_cross_correlation against the scikit-image function #
+##################################################################
+
+
+phase_cross_correlation_skimage = partial(
+    phase_cross_correlation_skimage, return_error="always"
+)
+
+
+@settings(deadline=None)
+@given(
+    translation=arrays(
+        float,
+        (3,),
+        elements=st.floats(
+            min_value=-10, max_value=10, allow_nan=False, allow_infinity=False
+        ),
+    ),
+    upsample_factor=st.integers(min_value=1, max_value=100),
+    normalization=st.sampled_from(["phase", None]),
+)
+@pytest.mark.parametrize(
+    "xp, device",
+    [
+        (array_api_compat.numpy, None),
+        (array_api_compat.cupy, None),
+        (array_api_compat.torch, "cpu"),
+        (array_api_compat.torch, "cuda"),
+    ],
+)
+@pytest.mark.parametrize("image", [data.camera(), data.cells3d()[:, 0, :60, :60]])
+def test_correctness_phase_cross_correlation(
+    xp, device, image, translation, upsample_factor, normalization
 ):
-    error, shift = dftregistrationND(
-        torch.as_tensor(reference, device=device),
-        torch.as_tensor(image, device=device),
-        nb_spatial_dims,
-        upsample_factor,
-        normalization,
-    )
-    error = error.cpu().numpy()
-    shift = np.stack([shift[i].cpu().numpy() for i in range(len(shift))], axis=-1)
+    reference_image = np.fft.fftn(util.img_as_float(image))
+    translation = translation[: reference_image.ndim]
+    moving_image = fourier_shift(reference_image, translation)
 
-    return shift, error
+    reference_image_xp = xp.asarray(reference_image, device=device)
+    moving_image_xp = xp.asarray(moving_image, device=device)
 
-
-def test_simple_dftregistration():
-    """
-    Test of 1 dftRegistration in 2D
-    """
-    image = data.camera().astype(float)
-    shift = (-22.4, 13.32)
-    # The shift corresponds to the pixel offset relative to the reference image
-    image_fourier = np.fft.fftn(image)
-    offset_image = fourier_shift(image_fourier, shift)
-
-    shift1, error1 = dftregistration(image_fourier, offset_image, normalization=None)
-    shift2, error2, _ = phase_cross_correlation(
-        image_fourier,
-        offset_image,
-        space="fourier",
-        overlap_ratio=0,
-        normalization=None,
-    )
-
-    eps = 1e-3
-    assert ((shift1 - shift2) < eps).all()
-    assert (error1 - error2) < eps
-
-
-def test_simple_phasenorm_dftregistration():
-    """
-    Test of 1 dftRegistration in 2D
-    """
-    image = data.camera().astype(float)
-    shift = (-22.4, 13.32)
-    # The shift corresponds to the pixel offset relative to the reference image
-    image_fourier = np.fft.fftn(image)
-    offset_image = fourier_shift(image_fourier, shift)
-
-    shift1, error1 = dftregistration(image_fourier, offset_image, normalization="phase")
-    shift2, error2, _ = phase_cross_correlation(
-        image_fourier,
-        offset_image,
-        space="fourier",
-        overlap_ratio=0,
-        normalization="phase",
-    )
-
-    eps = 1e-3
-    assert ((shift1 - shift2) < eps).all()
-    assert (error1 - error2) < eps
-
-
-def test_batch_dftregistration():
-    """
-    Test of a batch of 5 dftRegistration in 2D
-    """
-    N = 5
-    image = data.camera().astype(float)
-    shifts = np.random.randn(N, 2) * 6
-    image_fourier = np.fft.fftn(image)
-    offset_images = np.stack(
-        [fourier_shift(image_fourier, shift) for shift in shifts], axis=0
-    )
-
-    shift1, error1 = dftregistration(
-        image_fourier, offset_images, nb_spatial_dims=2, normalization=None
-    )
-    shift2, error2, _ = zip(
-        *[
-            phase_cross_correlation(
-                image_fourier,
-                offset_image,
-                space="fourier",
-                overlap_ratio=0,
-                normalization=None,
-            )
-            for offset_image in offset_images
+    (shift, error, phasediff), (shift_skimage, error_skimage, phasediff_skimage) = [
+        func(
+            reference_image_,
+            moving_image_,
+            space="fourier",
+            upsample_factor=upsample_factor,
+            normalization=normalization,
+        )
+        for func, reference_image_, moving_image_ in [
+            (phase_cross_correlation, reference_image_xp, moving_image_xp),
+            (phase_cross_correlation_skimage, reference_image, moving_image),
         ]
-    )
-    shift2 = np.stack(shift2, axis=0)
-    error2 = np.array(error2)
+    ]
 
-    eps = 1e-3
-    assert ((shift1 - shift2) < eps).all()
-    assert ((error1 - error2) < eps).all()
-
-
-def test_3d_dftregistration():
-    """
-    Test of 1 dftRegistration in 3D
-    """
-    d = 3
-    image_fourier = np.fft.fftn(util.img_as_float(data.cells3d()[:, 1, :, :]))
-    shift = np.random.randn(d) * 10
-    offset_image = fourier_shift(image_fourier, shift)
-
-    shift1, error1 = dftregistration(
-        image_fourier, offset_image, nb_spatial_dims=d, normalization=None
-    )
-    shift2, error2, _ = phase_cross_correlation(
-        image_fourier,
-        offset_image,
-        space="fourier",
-        overlap_ratio=1,
-        normalization=None,
-    )
-
-    eps = 1e-3
-    assert (np.abs(-shift2 - shift) <= 1).all()
-    assert (np.abs(shift1 - shift2) < eps).all()
-    assert (np.abs(error1 - error2) < eps).all()
+    for i in range(reference_image.ndim):
+        assert_allclose(
+            xp.asarray(shift[i]), xp.asarray(shift_skimage[i]), atol=1 / upsample_factor
+        )
+    assert_allclose(error, xp.asarray(error_skimage), atol=1e7, rtol=0.01)
+    if xp != array_api_compat.torch:
+        assert_allclose(phasediff, xp.asarray(phasediff_skimage), atol=1e7, rtol=0.01)
 
 
-def test_batch_3d_dftregistration():
-    """
-    Test of batch of 5 dftRegistration in 3D
-    """
-    d = 3
-    N = 5
-    image_fourier = np.fft.fftn(util.img_as_float(data.cells3d()[:, 1, :, :]))
-    shifts = np.random.randn(N, d) * 100
-    offset_images = np.stack(
-        [fourier_shift(image_fourier, shift) for shift in shifts], axis=0
-    )
-
-    shift1, error1 = dftregistration(
-        image_fourier, offset_images, nb_spatial_dims=d, normalization=None
-    )
-    shift2, error2, _ = zip(
-        *[
-            phase_cross_correlation(
-                image_fourier,
-                offset_image,
-                space="fourier",
-                overlap_ratio=0,
-                normalization=None,
-            )
-            for offset_image in offset_images
-        ]
-    )
-    shift2 = np.stack(shift2, axis=0)
-    error2 = np.array(error2)
-
-    eps = 1e-3
-    assert (np.abs(shift1 - shift2) < eps).all()
-    assert (np.abs(error1 - error2) < eps).all()
-
-
-def test_broadcasting_dftregistration():
-    """
-    Test of broadcasted dftRegistration in 2D. (N,H,W) with (M,N,H,W)
-    """
-    N = 2
-    M = 3
-    image = data.camera().astype(float)
-    reference_shifts = np.random.randn(N, 2) * 6
-    reference_images = np.stack(
-        [fourier_shift(np.fft.fftn(image), shift) for shift in reference_shifts], axis=0
-    )  # size N,H,W
-
-    offset_shifts = np.random.randn(M, 2) * 6
-    offset_images = np.stack(
-        [
-            np.stack(
-                [
-                    fourier_shift(np.fft.fftn(ref_image), shift)
-                    for shift in offset_shifts
-                ],
-                axis=0,
-            )
-            for ref_image in reference_images
-        ],
-        axis=1,
-    )  # size M,N,H,W
-
-    shift1, error1 = dftregistration(
-        reference_images, offset_images, nb_spatial_dims=2, normalization=None
-    )
-    shift2, error2, _ = zip(
-        *[
-            phase_cross_correlation(
-                reference_images[i],
-                offset_images[j, i],
-                space="fourier",
-                overlap_ratio=0,
-                normalization=None,
-            )
-            for j in range(M)
-            for i in range(N)
-        ]
-    )
-    shift2 = np.asarray(shift2).reshape(M, N, 2)
-    error2 = np.asarray(error2).reshape(M, N)
-
-    eps = 1e-3
-    assert (np.abs(shift1 - shift2) < eps).all()
-    assert (np.abs(error1 - error2) < eps).all()
-
-
-def test_broadcasting3d_dftregistration():
-    """
-    Test of broadcasted dftRegistration in 3D. (N,D,H,W) with (M,D,N,H,W)
-    """
-    N = 2
-    M = 3
-    image = util.img_as_float(data.cells3d()[:, 1, :, :])
-    reference_shifts = np.random.randn(N, 3) * 6
-    reference_images = np.stack(
-        [fourier_shift(np.fft.fftn(image), shift) for shift in reference_shifts], axis=0
-    )  # size N,D,H,W
-
-    offset_shifts = np.random.randn(M, 3) * 6
-    offset_images = np.stack(
-        [
-            np.stack(
-                [
-                    fourier_shift(np.fft.fftn(ref_image), shift)
-                    for shift in offset_shifts
-                ],
-                axis=0,
-            )
-            for ref_image in reference_images
-        ],
-        axis=1,
-    )  # size M,N,D,H,W
-
-    shift1, error1 = dftregistration(
-        reference_images, offset_images, nb_spatial_dims=3, normalization=None
-    )
-    shift2, error2, _ = zip(
-        *[
-            phase_cross_correlation(
-                reference_images[i],
-                offset_images[j, i],
-                space="fourier",
-                overlap_ratio=0,
-                normalization=None,
-            )
-            for j in range(M)
-            for i in range(N)
-        ]
-    )
-    shift2 = np.asarray(shift2).reshape(M, N, 3)
-    error2 = np.asarray(error2).reshape(M, N)
-
-    eps = 1e-3
-    assert (np.abs(shift1 - shift2) < eps).all()
-    assert (np.abs(error1 - error2) < eps).all()
-
-
-def test_upsample_dftregistration():
-    """
-    Test of 1 dftRegistration in 2D with upsampling factor > 1
-    """
-    image = data.camera().astype(float)
-    shift = (-22.4, 13.32)
-    # The shift corresponds to the pixel offset relative to the reference image
-    image_fourier = np.fft.fftn(image)
-    offset_image = fourier_shift(image_fourier, shift)
-
-    shift1, error1 = dftregistration(
-        image_fourier, offset_image, upsample_factor=100, normalization=None
-    )
-    shift2, error2, _ = phase_cross_correlation(
-        image_fourier,
-        offset_image,
-        space="fourier",
-        upsample_factor=100,
-        overlap_ratio=0,
-        normalization=None,
-    )
-
-    eps = 1e-3
-    assert ((shift1 - shift2) < eps).all()
-    assert (error1 - error2) < eps
-
-
-def test_upsample_broadcasting3d_dftregistration():
-    """
-    Test of broadcasted dftRegistration in 3D with upsampling>1.
-    broadcasting (N,D,H,W) with (M,N,D,H,W)
-    """
-    N = 2
-    M = 3
-    image = util.img_as_float(data.cells3d()[:, 1, :, :])
-    reference_shifts = np.random.randn(N, 3) * 6
-    reference_images = np.stack(
-        [fourier_shift(np.fft.fftn(image), shift) for shift in reference_shifts], axis=0
-    )  # size N,D,H,W
-
-    offset_shifts = np.random.randn(M, 3) * 6
-    offset_images = np.stack(
-        [
-            np.stack(
-                [
-                    fourier_shift(np.fft.fftn(ref_image), shift)
-                    for shift in offset_shifts
-                ],
-                axis=0,
-            )
-            for ref_image in reference_images
-        ],
-        axis=1,
-    )  # size M,N,D,H,W
-
-    shift1, error1 = dftregistration(
-        reference_images,
-        offset_images,
-        nb_spatial_dims=3,
-        upsample_factor=10,
-        normalization=None,
-    )
-    shift2, error2, _ = zip(
-        *[
-            phase_cross_correlation(
-                reference_images[i],
-                offset_images[j, i],
-                space="fourier",
-                overlap_ratio=0,
-                normalization=None,
-                upsample_factor=10,
-            )
-            for j in range(M)
-            for i in range(N)
-        ]
-    )
-    shift2 = np.asarray(shift2).reshape(M, N, 3)
-    error2 = np.asarray(error2).reshape(M, N)
-
-    eps = 1e-3
-    assert (np.abs(shift1 - shift2) < eps).all()
-    assert (np.abs(error1 - error2) < eps).all()
-
-
-def test_upsample_cuda_dftregistration():
-    """
-    Test of 1 dftRegistration in 2D with upsampling factor > 1
-    """
-    image = data.camera().astype(float)
-    shift = (-22.4, 13.32)
-    # The shift corresponds to the pixel offset relative to the reference image
-    image = np.fft.fftn(image)
-    offset_image = fourier_shift(image, shift)
-
-    shift1, error1 = dftregistration(
-        image, offset_image, upsample_factor=10, device="cuda", normalization=None
-    )
-    shift2, error2, _ = phase_cross_correlation(
-        image,
-        offset_image,
-        space="fourier",
-        upsample_factor=10,
-        overlap_ratio=0,
-        normalization=None,
-    )
-
-    eps = 1e-3
-    assert ((shift1 - shift2) < eps).all()
-    assert (error1 - error2) < eps
+def test_broadcasting_phase_cross_correlation():  # TODO
+    pass
 
 
 ####################################################

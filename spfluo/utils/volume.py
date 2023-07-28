@@ -9,12 +9,17 @@ import numpy as np
 import scipy.ndimage as ndii
 import torch
 import torch.nn.functional as F
+from cucim.skimage.registration import (
+    phase_cross_correlation as phase_cross_correlation_cucim,
+)
 from cupy.typing import NDArray as CPArray
 from cupyx.scipy.ndimage import affine_transform as affine_transform_cupy
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from numpy.typing import DTypeLike, NDArray
 from scipy.ndimage import affine_transform as affine_transform_scipy
-from skimage.registration import phase_cross_correlation
+from skimage.registration import (
+    phase_cross_correlation as phase_cross_correlation_skimage,
+)
 
 from spfluo.utils.transform import get_zoom_matrix
 
@@ -631,30 +636,53 @@ def cross_correlation_max(
     return maxi, shift, z
 
 
-def dftregistrationND(
-    reference: torch.Tensor,
-    moving_images: torch.Tensor,
-    nb_spatial_dims: int = None,
+def phase_cross_correlation_broadcasted_pytorch(
+    reference_image: Array,
+    moving_image: Array,
+    *,
     upsample_factor: int = 1,
+    space: str = "real",
+    disambiguate: bool = False,
+    reference_mask: Optional[Array] = None,
+    moving_mask: Optional[Array] = None,
+    overlap_ratio: float = 0.3,
     normalization: str = "phase",
-) -> torch.Tensor:
+    nb_spatial_dims: Optional[int] = None,
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """Phase cross-correlation between a reference and moving_images
     Params:
         reference (torch.Tensor): image of shape ({...}, [...])
             where [...] corresponds to the N spatial dimensions
         moving_images (torch.Tensor): images to register of shape ({{...}}, [...])
             where [...] corresponds to the N spatial dimensions
-        nb_spatial_dims (int): specify the N spatial dimensions
         upsample_factor (float): upsampling factor.
             Images will be registered up to 1/upsample_factor.
+        space: not implemented
+        disambiguate: not implemented
+        reference_mask: not implemented
+        moving_mask: not implemented
+        overlap_ratio: not implemented
+        normalization : {"phase", None}
+            The type of normalization to apply to the cross-correlation. This
+            parameter is unused when masks (`reference_mask` and `moving_mask`) are
+            supplied.
+        nb_spatial_dims (int): specify the N spatial dimensions
     Returns:
         {...} and {{...}} shapes are broadcasted to (...)
         error (torch.Tensor): tensor of shape (...)
         shift (Tuple[torch.Tensor]): tuple of N tensors of size (...)
     """
-    device = reference.device
+    if space == "real":
+        raise NotImplementedError("Space should be 'fourier'")
+    if disambiguate:
+        raise NotImplementedError(
+            "pytorch masked cross correlation disambiguate is not implemented"
+        )
+    if reference_mask is not None or moving_mask is not None:
+        raise NotImplementedError("pytorch masked cross correlation is not implemented")
+    device = reference_image.device
     output_shape = torch.as_tensor(
-        torch.broadcast_shapes(reference.size(), moving_images.size())
+        torch.broadcast_shapes(reference_image.size(), moving_image.size())
     )
     if nb_spatial_dims is None:
         nb_spatial_dims = len(output_shape)
@@ -668,7 +696,7 @@ def dftregistrationND(
 
     # Single pixel registration
     error, shift, image_product = cross_correlation_max(
-        reference, moving_images, normalization, nb_spatial_dims=nb_spatial_dims
+        reference_image, moving_image, normalization, nb_spatial_dims=nb_spatial_dims
     )
 
     # Now change shifts so that they represent relative shifts and not indices
@@ -677,21 +705,23 @@ def dftregistrationND(
     )
     shift[shift > midpoints] -= spatial_shapes_broadcasted[shift > midpoints]
 
-    spatial_size = torch.prod(spatial_shapes).type(reference.dtype)
+    spatial_size = torch.prod(spatial_shapes).type(reference_image.dtype)
 
     if upsample_factor == 1:
         rg00 = (
             torch.sum(
-                (reference * reference.conj()),
-                dim=tuple(range(reference.ndim - nb_spatial_dims, reference.ndim)),
+                (reference_image * reference_image.conj()),
+                dim=tuple(
+                    range(reference_image.ndim - nb_spatial_dims, reference_image.ndim)
+                ),
             )
             / spatial_size
         )
         rf00 = (
             torch.sum(
-                (moving_images * moving_images.conj()),
+                (moving_image * moving_image.conj()),
                 dim=tuple(
-                    range(moving_images.ndim - nb_spatial_dims, moving_images.ndim)
+                    range(moving_image.ndim - nb_spatial_dims, moving_image.ndim)
                 ),
             )
             / spatial_size
@@ -726,20 +756,239 @@ def dftregistrationND(
         shift += maxima / upsample_factor
 
         rg00 = torch.sum(
-            (reference * reference.conj()),
-            dim=tuple(range(reference.ndim - nb_spatial_dims, reference.ndim)),
+            (reference_image * reference_image.conj()),
+            dim=tuple(
+                range(reference_image.ndim - nb_spatial_dims, reference_image.ndim)
+            ),
         )
         rf00 = torch.sum(
-            (moving_images * moving_images.conj()),
-            dim=tuple(range(moving_images.ndim - nb_spatial_dims, moving_images.ndim)),
+            (moving_image * moving_image.conj()),
+            dim=tuple(range(moving_image.ndim - nb_spatial_dims, moving_image.ndim)),
         )
 
     error = torch.tensor([1.0], device=device) - error / (rg00.real * rf00.real)
     error = torch.sqrt(error.abs())
 
-    return error, tuple([shift[..., i] for i in range(shift.size(-1))])
+    return tuple([shift[..., i] for i in range(shift.size(-1))]), error, None
 
 
+def phase_cross_correlation_broadcasted_skimage(
+    reference_image: Array,
+    moving_image: Array,
+    *,
+    upsample_factor: int = 1,
+    space: str = "real",
+    disambiguate: bool = False,
+    reference_mask: Optional[Array] = None,
+    moving_mask: Optional[Array] = None,
+    overlap_ratio: float = 0.3,
+    normalization: str = "phase",
+    nb_spatial_dims: Optional[int] = None,
+):
+    if nb_spatial_dims is None:
+        return phase_cross_correlation_skimage(
+            reference_image,
+            moving_image,
+            upsample_factor=upsample_factor,
+            space=space,
+            disambiguate=disambiguate,
+            return_error="always",
+            reference_mask=reference_mask,
+            moving_mask=moving_mask,
+            overlap_ratio=overlap_ratio,
+            normalization=normalization,
+        )
+    broadcast = np.broadcast(reference_image, moving_image)
+    reference_image, moving_image = np.broadcast_arrays(reference_image, moving_image)
+    other_shape = broadcast.shape[:-nb_spatial_dims]
+    shifts = [np.empty(other_shape) for _ in range(nb_spatial_dims)]
+    errors = np.empty(other_shape)
+    phasediffs = np.empty(other_shape)
+    for index in np.ndindex(other_shape):
+        ref_im, moving_im = reference_image[index], moving_image[index]
+        s, e, p = phase_cross_correlation_skimage(
+            ref_im,
+            moving_im,
+            upsample_factor=upsample_factor,
+            space=space,
+            disambiguate=disambiguate,
+            return_error="always",
+            reference_mask=reference_mask,
+            moving_mask=moving_mask,
+            overlap_ratio=overlap_ratio,
+            normalization=normalization,
+        )
+        for i in range(nb_spatial_dims):
+            shifts[i][index] = s[i]
+        errors[index] = e
+        phasediffs[index] = p
+    return tuple(shifts), errors, phasediffs
+
+
+def phase_cross_correlation_broadcasted_cucim(
+    reference_image: Array,
+    moving_image: Array,
+    *,
+    upsample_factor: int = 1,
+    space: str = "real",
+    disambiguate: bool = False,
+    reference_mask: Optional[Array] = None,
+    moving_mask: Optional[Array] = None,
+    overlap_ratio: float = 0.3,
+    normalization: str = "phase",
+    nb_spatial_dims: Optional[int] = None,
+):
+    if nb_spatial_dims is None:
+        shifts, error, phasediff = phase_cross_correlation_cucim(
+            reference_image,
+            moving_image,
+            upsample_factor=upsample_factor,
+            space=space,
+            disambiguate=disambiguate,
+            return_error="always",
+            reference_mask=reference_mask,
+            moving_mask=moving_mask,
+            overlap_ratio=overlap_ratio,
+            normalization=normalization,
+        )
+        shifts = tuple([cp.array(s, dtype=float) for s in shifts])
+        return shifts, error, phasediff
+
+    broadcast = cp.broadcast(reference_image, moving_image)
+    reference_image, moving_image = cp.broadcast_arrays(reference_image, moving_image)
+    other_shape = broadcast.shape[:-nb_spatial_dims]
+    shifts = [cp.empty(other_shape) for _ in range(nb_spatial_dims)]
+    errors = cp.empty(other_shape)
+    phasediffs = cp.empty(other_shape)
+    for index in cp.ndindex(other_shape):
+        ref_im, moving_im = reference_image[index], moving_image[index]
+        s, e, p = phase_cross_correlation_cucim(
+            ref_im,
+            moving_im,
+            upsample_factor=upsample_factor,
+            space=space,
+            disambiguate=disambiguate,
+            return_error="always",
+            reference_mask=reference_mask,
+            moving_mask=moving_mask,
+            overlap_ratio=overlap_ratio,
+            normalization=normalization,
+        )
+        for i in range(nb_spatial_dims):
+            shifts[i][index] = s[i]
+        errors[index] = e
+        phasediffs[index] = p
+    return tuple(shifts), errors, phasediffs
+
+
+def phase_cross_correlation(
+    reference_image: Array,
+    moving_image: Array,
+    *,
+    upsample_factor: int = 1,
+    space: str = "real",
+    disambiguate: bool = False,
+    reference_mask: Optional[Array] = None,
+    moving_mask: Optional[Array] = None,
+    overlap_ratio: float = 0.3,
+    normalization: str = "phase",
+    nb_spatial_dims: Optional[int] = None,
+):
+    """Efficient subpixel image translation registration by cross-correlation.
+
+    This code gives the same precision as the FFT upsampled cross-correlation
+    in a fraction of the computation time and with reduced memory requirements.
+    It obtains an initial estimate of the cross-correlation peak by an FFT and
+    then refines the shift estimation by upsampling the DFT only in a small
+    neighborhood of that estimate by means of a matrix-multiply DFT [1]_.
+
+    Parameters
+    ----------
+    reference_image : array
+        Reference image.
+    moving_image : array
+        Image to register. Must be same dimensionality as
+        ``reference_image``.
+    upsample_factor : int, optional
+        Upsampling factor. Images will be registered to within
+        ``1 / upsample_factor`` of a pixel. For example
+        ``upsample_factor == 20`` means the images will be registered
+        within 1/20th of a pixel. Default is 1 (no upsampling).
+        Not used if any of ``reference_mask`` or ``moving_mask`` is not None.
+    space : string, one of "real" or "fourier", optional
+        Defines how the algorithm interprets input data. "real" means
+        data will be FFT'd to compute the correlation, while "fourier"
+        data will bypass FFT of input data. Case insensitive. Not
+        used if any of ``reference_mask`` or ``moving_mask`` is not
+        None.
+    disambiguate : bool
+        The shift returned by this function is only accurate *modulo* the
+        image shape, due to the periodic nature of the Fourier transform. If
+        this parameter is set to ``True``, the *real* space cross-correlation
+        is computed for each possible shift, and the shift with the highest
+        cross-correlation within the overlapping area is returned.
+    reference_mask : ndarray
+        Boolean mask for ``reference_image``. The mask should evaluate
+        to ``True`` (or 1) on valid pixels. ``reference_mask`` should
+        have the same shape as ``reference_image``.
+    moving_mask : ndarray or None, optional
+        Boolean mask for ``moving_image``. The mask should evaluate to ``True``
+        (or 1) on valid pixels. ``moving_mask`` should have the same shape
+        as ``moving_image``. If ``None``, ``reference_mask`` will be used.
+    overlap_ratio : float, optional
+        Minimum allowed overlap ratio between images. The correlation for
+        translations corresponding with an overlap ratio lower than this
+        threshold will be ignored. A lower `overlap_ratio` leads to smaller
+        maximum translation, while a higher `overlap_ratio` leads to greater
+        robustness against spurious matches due to small overlap between
+        masked images. Used only if one of ``reference_mask`` or
+        ``moving_mask`` is not None.
+    normalization : {"phase", None}
+        The type of normalization to apply to the cross-correlation. This
+        parameter is unused when masks (`reference_mask` and `moving_mask`) are
+        supplied.
+    nb_spatial_dims: int
+        If your inputs are broadcastable, you must fill this param.
+
+    Returns
+    -------
+    shift : array
+        Shift vector (in pixels) required to register ``moving_image``
+        with ``reference_image``. Axis ordering is consistent with
+        the axis order of the input array.
+    error : float
+        Translation invariant normalized RMS error between
+        ``reference_image`` and ``moving_image``. For masked cross-correlation
+        this error is not available and NaN is returned if ``return_error``
+        is "always".
+    phasediff : float
+        Global phase difference between the two images (should be
+        zero if images are non-negative). For masked cross-correlation
+        this phase difference is not available and NaN is returned if
+        ``return_error`` is "always".
+    """
+    xp = array_api_compat.array_namespace(reference_image, moving_image)
+    if xp == array_api_compat.torch:
+        func = phase_cross_correlation_broadcasted_pytorch
+    elif xp == array_api_compat.numpy:
+        func = phase_cross_correlation_broadcasted_skimage
+    elif xp == array_api_compat.cupy:
+        func = phase_cross_correlation_broadcasted_cucim
+
+    shift, error, phasediff = func(
+        reference_image,
+        moving_image,
+        upsample_factor=upsample_factor,
+        space=space,
+        disambiguate=disambiguate,
+        reference_mask=reference_mask,
+        moving_mask=moving_mask,
+        overlap_ratio=overlap_ratio,
+        normalization=normalization,
+        nb_spatial_dims=nb_spatial_dims,
+    )
+
+    return shift, error, phasediff
 def discretize_sphere_uniformly(
     N: int, M: int, symmetry: int = 1, product: bool = False, **tensor_kwargs
 ) -> Tuple[Tuple[torch.Tensor, torch.Tensor, torch.Tensor], Tuple[float, float]]:
