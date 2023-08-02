@@ -1,5 +1,5 @@
 import itertools
-from typing import Optional, Tuple, Union
+from typing import Optional, Sequence, Tuple, Union
 
 import array_api_compat.cupy
 import array_api_compat.numpy
@@ -14,9 +14,11 @@ from cucim.skimage.registration import (
 )
 from cupy.typing import NDArray as CPArray
 from cupyx.scipy.ndimage import affine_transform as affine_transform_cupy
+from cupyx.scipy.ndimage import fourier_shift as fourier_shift_cupy
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from numpy.typing import DTypeLike, NDArray
 from scipy.ndimage import affine_transform as affine_transform_scipy
+from scipy.ndimage import fourier_shift as fourier_shift_scipy
 from skimage.registration import (
     phase_cross_correlation as phase_cross_correlation_skimage,
 )
@@ -502,35 +504,48 @@ def interpolate_to_size(
     return out_vol
 
 
-def fourier_shift(volume_freq: torch.Tensor, shift: torch.Tensor, nb_spatial_dims=None):
+def fourier_shift_broadcasted_pytorch(
+    input: torch.Tensor,
+    shift: Union[float, Sequence[float], torch.Tensor],
+    n: int = -1,
+    axis: int = -1,
+    output: Optional[torch.Tensor] = None,
+):
     """
     Args:
-        volume (torch.Tensor): volume in the Fourier domain ({...}, [...])
+        input (torch.Tensor): input in the Fourier domain ({...}, [...])
             where [...] corresponds to the N spatial dimensions
             and {...} corresponds to the batched dimensions
-        shift (torch.Tensor): shift to apply to the volume ({{...}}, N)
+        shift (torch.Tensor): shift to apply to the input ({{...}}, N)
             where {{...}} corresponds to batched dimensions.
-        nb_spatial_dims (int): number of spatial dimensions N
+        n: not implemented
+        axis: not implemented
+        output: not implemented
     Notes:
-        {...} and {{...}} must be broadcastable.
+        {...} and {{...}} are broadcasted to (...).
     Returns:
-        out (torch.Tensor): volume shifted in the Fourier domain
+        out (torch.Tensor): input shifted in the Fourier domain. Shape ((...), [...])
     """
-    tensor_kwargs = {"device": volume_freq.device}
-    if volume_freq.dtype == torch.complex128:
+    if n != -1:
+        raise NotImplementedError("n should be equal to -1")
+    if axis != -1:
+        raise NotImplementedError("axis should be equal to -1")
+    if output is not None:
+        raise NotImplementedError("can't store result in output. not implemented")
+    tensor_kwargs = {"device": input.device}
+    if input.dtype == torch.complex128:
         tensor_kwargs["dtype"] = torch.float64
-    elif volume_freq.dtype == torch.complex64:
+    elif input.dtype == torch.complex64:
         tensor_kwargs["dtype"] = torch.float32
-    elif volume_freq.dtype == torch.complex32:
+    elif input.dtype == torch.complex32:
         tensor_kwargs["dtype"] = torch.float16
     else:
         print("Volume must be complex")
-    if nb_spatial_dims is None:
-        nb_spatial_dims = volume_freq.ndim
-    spatial_shape = torch.as_tensor(
-        volume_freq.size()[-nb_spatial_dims:], **tensor_kwargs
-    )
-    assert shift.size(-1) == nb_spatial_dims
+    shift = torch.asarray(shift, **tensor_kwargs)
+    if shift.ndim == 0:
+        shift = np.asarray([shift] * input.ndim)
+    nb_spatial_dims = shift.shape[-1]
+    spatial_shape = torch.as_tensor(input.size()[-nb_spatial_dims:], **tensor_kwargs)
     shift = shift.view(*shift.shape[:-1], *[1 for _ in range(nb_spatial_dims)], -1)
 
     grid_freq = torch.stack(
@@ -543,9 +558,131 @@ def fourier_shift(volume_freq: torch.Tensor, shift: torch.Tensor, nb_spatial_dim
     phase_shift = (grid_freq * shift).sum(-1)
 
     # Fourier shift
-    out = volume_freq * torch.exp(-1j * 2 * torch.pi * phase_shift)
+    out = input * torch.exp(-1j * 2 * torch.pi * phase_shift)
 
     return out
+
+
+def fourier_shift_broadcasted_scipy(
+    input: NDArray,
+    shift: Union[float, Sequence[float], NDArray],
+    n: int = -1,
+    axis: int = -1,
+    output: Optional[NDArray] = None,
+):
+    shift = np.asarray(shift)
+    if shift.ndim == 0:
+        shift = np.asarray([shift] * input.ndim)
+    nb_spatial_dims = shift.shape[-1]
+    broadcasted_shape = np.broadcast_shapes(
+        input.shape[:-nb_spatial_dims], shift.shape[:-1]
+    )
+    image_shape = input.shape[-nb_spatial_dims:]
+    input = np.broadcast_to(input, broadcasted_shape + image_shape)
+    shift = np.broadcast_to(shift, broadcasted_shape + (nb_spatial_dims,))
+    output = np.empty(broadcasted_shape + image_shape, dtype=input.dtype)
+    for index in np.ndindex(broadcasted_shape):
+        fourier_shift_scipy(
+            input[index].copy(),
+            shift[index],
+            n,
+            axis,
+            output[index],
+        )
+    return output
+
+
+def fourier_shift_broadcasted_cupy(
+    input: cp.ndarray,
+    shift: Union[float, Sequence[float]],
+    n: int = -1,
+    axis: int = -1,
+    output: Optional[cp.ndarray] = None,
+):
+    shift = cp.asarray(shift)
+    if shift.ndim == 0:
+        shift = cp.asarray([shift] * input.ndim)
+    nb_spatial_dims = shift.shape[-1]
+    broadcasted_shape = cp.broadcast_shapes(
+        input.shape[:-nb_spatial_dims], shift.shape[:-1]
+    )
+    image_shape = input.shape[-nb_spatial_dims:]
+    input = cp.broadcast_to(input, broadcasted_shape + image_shape)
+    shift = cp.broadcast_to(shift, broadcasted_shape + (nb_spatial_dims,))
+    output = cp.empty(broadcasted_shape + image_shape, dtype=input.dtype)
+    for index in cp.ndindex(broadcasted_shape):
+        fourier_shift_cupy(
+            input[index].copy(),
+            shift[index],
+            n,
+            axis,
+            output[index],
+        )
+    return output
+
+
+def fourier_shift(
+    input: Array,
+    shift: Union[float, Sequence[float], Array],
+    n: int = -1,
+    axis: int = -1,
+    output: Optional[Array] = None,
+):
+    """
+    Multidimensional Fourier shift filter.
+
+    The array is multiplied with the Fourier transform of a shift operation.
+
+    Parameters
+    ----------
+    input : array_like
+        The input array.
+        If shift is an array, input and shift will be broadcasted:
+            input of shape ({...}, [...])
+            where [...] corresponds to the D spatial dimensions
+            and {...} corresponds to the dimensions to be broadcasted
+    shift : float, sequence or array_like
+        The size of the box used for filtering.
+        If a float, `shift` is the same for all axes. If a sequence, `shift`
+        has to contain one value for each axis.
+        If an array, shift will be broadcasted with the input :
+            shift must be of shape ({{...}}, D)
+            where {{...}} corresponds to dimensions to be broadcasted
+            and D to the number of spatial dimensions
+    n : int, optional
+        If `n` is negative (default), then the input is assumed to be the
+        result of a complex fft.
+        If `n` is larger than or equal to zero, the input is assumed to be the
+        result of a real fft, and `n` gives the length of the array before
+        transformation along the real transform direction.
+    axis : int, optional
+        The axis of the real transform.
+    output : ndarray, optional
+        If given, the result of shifting the input is placed in this array.
+        None is returned in this case.
+    Returns
+    -------
+    fourier_shift : ndarray
+        The shifted input.
+        If shift is an array, {...} and {{...}} are broadcasted to (...).
+        The resulting shifted array has the shape ((...), [...])
+    """
+    xp = array_api_compat.array_namespace(input)
+    if xp == array_api_compat.torch:
+        func = fourier_shift_broadcasted_pytorch
+    elif xp == array_api_compat.numpy:
+        func = fourier_shift_broadcasted_scipy
+    elif xp == array_api_compat.cupy:
+        func = fourier_shift_broadcasted_cupy
+
+    output = func(
+        input,
+        shift,
+        n,
+        axis,
+        output,
+    )
+    return output
 
 
 def hann_window(shape: Tuple[int], **kwargs) -> torch.Tensor:

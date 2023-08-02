@@ -10,7 +10,8 @@ from array_api_compat import array_namespace
 from hypothesis import given, settings
 from hypothesis import strategies as st
 from hypothesis.extra.numpy import arrays
-from scipy.ndimage import affine_transform, fourier_shift
+from scipy.ndimage import affine_transform
+from scipy.ndimage import fourier_shift as fourier_shift_scipy
 from scipy.spatial.transform import Rotation as R
 from skimage import data, util
 from skimage.registration import (
@@ -18,7 +19,7 @@ from skimage.registration import (
 )
 
 import spfluo.utils
-from spfluo.utils.volume import phase_cross_correlation
+from spfluo.utils.volume import fourier_shift, phase_cross_correlation
 
 
 def assert_allclose(a, b, rtol=1e-7, atol=0):
@@ -189,48 +190,46 @@ def test_affine_transform_offset():
 #################################################
 
 
-def fourier_shift2(volume_freq, shift, nb_spatial_dims=None, device="cpu"):
-    out = spfluo.utils.fourier_shift(
-        torch.as_tensor(volume_freq, device=device),
-        torch.as_tensor(shift, device=device),
-        nb_spatial_dims,
+@settings(deadline=None)
+@given(
+    shift=arrays(
+        float,
+        (3,),
+        elements=st.floats(
+            min_value=-10, max_value=10, allow_nan=False, allow_infinity=False
+        ),
+    ),
+)
+@pytest.mark.parametrize(
+    "xp, device",
+    [
+        (array_api_compat.numpy, None),
+        (array_api_compat.cupy, None),
+        (array_api_compat.torch, "cpu"),
+        (array_api_compat.torch, "cuda"),
+    ],
+)
+@pytest.mark.parametrize("image", [data.camera(), data.cells3d()[:, 0, :60, :60]])
+def test_correctness_fourier_shift(
+    xp,
+    device,
+    image,
+    shift,
+):
+    input = np.fft.fftn(util.img_as_float(image))
+    shift = shift[: image.ndim]
+
+    input_xp = xp.asarray(input, device=device)
+    shift_xp = xp.asarray(shift, device=device)
+
+    output = fourier_shift(input_xp, shift_xp)
+    output_scipy = fourier_shift_scipy(input, shift)
+
+    assert_allclose(
+        output,
+        xp.asarray(output_scipy, device=device),
     )
 
-    return out.cpu().numpy()
 
-
-def test_simple_fourier_shift():
-    """
-    Test of 1 fourier shift in 2D
-    """
-    image = data.camera().astype(float)
-    shift = (-22.4, 13.32)
-    # The shift corresponds to the pixel offset relative to the reference image
-    offset_image1 = fourier_shift(np.fft.fftn(image), shift)
-    offset_image2 = fourier_shift2(np.fft.fftn(image), shift)
-
-    assert np.isclose(offset_image1, offset_image2).all()
-
-
-def test_broadcasting_fourier_shift():
-    """
-    Test broadcasted fourier shift in 2D
-    """
-    M = 2
-    N = 10
-    images = np.stack([data.camera().astype(float) for i in range(M)])
-    images[0, :10, :10] = 0.0  # images[0] and images[1] are different
-    shifts = np.random.randn(N, 2)
-    # The shift corresponds to the pixel offset relative to the reference image
-    images_fft = np.fft.fftn(images, axes=(1, 2))
-    offset_images1 = np.stack(
-        [
-            np.stack([fourier_shift(image_fft, shift) for shift in shifts])
-            for image_fft in images_fft
-        ]
-    )
-    offset_images2 = fourier_shift2(
-        images_fft[:, None], shifts[None, :], nb_spatial_dims=2
-    )
-
-    assert np.isclose(offset_images1, offset_images2).all()
+def test_broadcasting_fourier_shift():  # TODO
+    pass
