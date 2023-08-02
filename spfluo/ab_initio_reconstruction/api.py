@@ -1,8 +1,10 @@
+import array_api_compat.numpy
 import numpy as np
 
-from .common_image_processing_methods.rotation_translation import (
+from spfluo.utils.volume import (
     discretize_sphere_uniformly,
 )
+
 from .learning_algorithms.gradient_descent_importance_sampling import (
     gd_importance_sampling_3d,
 )
@@ -32,8 +34,12 @@ class AbInitioReconstruction:
         )
 
         N = X.shape[0]
+
         uniform_sphere_discretization = discretize_sphere_uniformly(
-            params_learning_alg.M_axes, params_learning_alg.M_rot
+            array_api_compat.numpy,
+            params_learning_alg.M_axes,
+            params_learning_alg.M_rot,
+            dtype=np.float64,
         )
         imp_distrs_axes = (
             np.ones((N, params_learning_alg.M_axes)) / params_learning_alg.M_axes
