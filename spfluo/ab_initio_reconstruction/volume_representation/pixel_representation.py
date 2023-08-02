@@ -66,9 +66,7 @@ class Fourier_pixel_representation:
 
         save(path, im)
         if ground_truth is not None:
-            _, im = registration_exhaustive_search(
-                ground_truth, im, output_dir, output_name
-            )
+            _, im = registration_exhaustive_search(ground_truth, im)
         return im
 
     def center(self):

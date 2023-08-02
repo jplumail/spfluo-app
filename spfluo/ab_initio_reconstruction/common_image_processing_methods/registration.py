@@ -1,5 +1,3 @@
-import os
-
 import cc3d
 import cupy as cp
 import numpy as np
@@ -10,14 +8,10 @@ from numpy import pi
 from scipy.ndimage import fourier_shift
 from tqdm import tqdm
 
-from ..manage_files.read_save_files import read_image, save
-
 
 def registration_exhaustive_search(
     fixed_image,
     moving_image,
-    output_dir,
-    output_name,
     sample_per_axis=40,
     gradient_descent=False,
     threads=1,
@@ -82,10 +76,6 @@ def registration_exhaustive_search(
         0.0,
         moving_image.GetPixelID(),
     )
-    if output_dir is not None and output_name is not None:
-        sitk.WriteImage(moving_resampled, os.path.join(output_dir, f"{output_name}"))
-        im = read_image(f"{output_dir}/{output_name}")
-        save(f"{output_dir}/{output_name}", im)
     moving_resampled = sitk.GetArrayFromImage(moving_resampled)
     angle_X, angle_Y, angle_Z, _, _, _ = final_transform.GetParameters()
     return 180 * np.array([angle_X, angle_Y, angle_Z]) / np.pi, moving_resampled
