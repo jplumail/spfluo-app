@@ -10,9 +10,8 @@ from spfluo.ab_initio_reconstruction.manage_files.read_save_files import (
 from spfluo.utils.volume import interpolate_to_size
 
 
-def parse_args():
+def create_parser():
     parser = argparse.ArgumentParser("Ab initio reconstruction")
-    parser = argparse.ArgumentParser()
 
     # Input files
     parser.add_argument("--particles_dir", type=str)
@@ -51,7 +50,7 @@ def parse_args():
     # Ouput directory
     parser.add_argument("--output_dir", type=str)
 
-    return parser.parse_args()
+    return parser
 
 
 def main(args):
@@ -66,4 +65,4 @@ def main(args):
 
 
 if __name__ == "__main__":
-    main(parse_args())
+    main(create_parser().parse_args())
