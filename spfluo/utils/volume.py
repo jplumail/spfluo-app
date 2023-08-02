@@ -5,6 +5,7 @@ import array_api_compat.cupy
 import array_api_compat.numpy
 import array_api_compat.torch
 import cupy as cp
+import matplotlib.pyplot as plt
 import numpy as np
 import scipy.ndimage as ndii
 import torch
@@ -1197,7 +1198,9 @@ def normalize_patches(patches: torch.Tensor) -> torch.Tensor:
     return normalized_patches
 
 
-def disp3D(fig, *ims, axis_off=False):
+def disp3D(*ims, fig=None, axis_off=False):
+    if fig is None:
+        fig = plt.figure()
     axes = fig.subplots(1, len(ims))
     if len(ims) == 1:
         axes = [axes]
