@@ -2,14 +2,12 @@ import argparse
 
 import numpy as np
 
-from spfluo.ab_initio_reconstruction import AbInitioReconstruction
-from spfluo.ab_initio_reconstruction.common_image_processing_methods.others import (
-    crop_center,
-)
+from spfluo.ab_initio_reconstruction.api import AbInitioReconstruction
 from spfluo.ab_initio_reconstruction.manage_files.read_save_files import (
     read_image,
     read_images_in_folder,
 )
+from spfluo.utils.volume import interpolate_to_size
 
 
 def parse_args():
@@ -63,7 +61,7 @@ def main(args):
     for k in ["output_dir", "gpu", "psf_path", "particles_dir"]:
         ab_initio_params.pop(k)
     reconstruction = AbInitioReconstruction(**ab_initio_params)
-    psf = crop_center(psf, particles.shape[1:])
+    psf = interpolate_to_size(psf, particles.shape[1:])
     reconstruction.fit(particles, psf=psf, gpu=args.gpu, output_dir=args.output_dir)
 
 
