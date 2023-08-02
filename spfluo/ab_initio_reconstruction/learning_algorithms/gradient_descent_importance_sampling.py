@@ -2,7 +2,9 @@ import copy
 import json
 import os
 import shutil
+from typing import Tuple
 
+import array_api_compat
 import cupy as cp
 import numpy as np
 import pandas as pd
@@ -12,10 +14,17 @@ from skimage import io
 from skimage.metrics import structural_similarity as ssim
 from tqdm.auto import tqdm
 
+from spfluo.ab_initio_reconstruction.volume_representation.pixel_representation import (
+    Fourier_pixel_representation,
+)
+from spfluo.utils._array import Array
+from spfluo.utils.transform import get_transform_matrix
+from spfluo.utils.volume import fourier_shift, phase_cross_correlation
+
 from ..common_image_processing_methods.others import normalize, stopping_criteria
 from ..common_image_processing_methods.rotation_translation import (
     conversion_2_first_eulers_angles_cartesian,
-    get_rotation_matrix,
+    rotation,
 )
 from ..manage_files.read_save_files import make_dir, save, write_array_csv
 from ..volume_representation.gaussian_mixture_representation.GMM_grid_evaluation import (  # noqa: E501
@@ -23,188 +32,8 @@ from ..volume_representation.gaussian_mixture_representation.GMM_grid_evaluation
 )
 
 
-def gradient_descent_importance_sampling_known_axes(
-    volume_representation,
-    uniform_sphere_discretization,
-    true_rot_vecs,
-    true_trans_vecs,
-    views,
-    imp_distrs_rot,
-    unif_prop,
-    unif_prop_min,
-    params_learning_alg,
-    known_trans,
-):
-    thetas, phis, psis = uniform_sphere_discretization
-    M_rot = len(psis)
-    imp_distrs_rot_recorded = []
-    itr = 0
-    recorded_energies = []
-    nb_views = len(views)
-    recorded_shifts = [[] for _ in range(nb_views)]
-    # views_fft = [np.fft.fftn(v) for v in views]
-    while itr < params_learning_alg.N_iter_max and (
-        not stopping_criteria(recorded_energies, params_learning_alg.eps)
-    ):
-        itr += 1
-        total_energy = 0
-        for v in range(nb_views):
-            indices_rot = np.random.choice(
-                range(M_rot), p=imp_distrs_rot[v], size=params_learning_alg.N_rot
-            )
-            energies = np.zeros(params_learning_alg.N_rot)
-            best_energy = 10**10
-            best_idx_rot = 0
-            for k, idx_rot in enumerate(indices_rot):
-                psi = psis[idx_rot]
-                rot_vec = [true_rot_vecs[v, 0], true_rot_vecs[v, 1], psi]
-                rot_mat = get_rotation_matrix(rot_vec, params_learning_alg.convention)
-                # energy = volume_representation.\
-                # get_energy_2(rot_mat, true_trans_vecs[v], views_fft[v], known_trans)
-                energy, _ = volume_representation.get_energy(
-                    rot_mat,
-                    true_trans_vecs[v],
-                    views[v],
-                    recorded_shifts,
-                    v,
-                    False,
-                    known_trans,
-                )
-
-                energies[k] = energy
-                if energy < best_energy:
-                    best_energy = energy
-                    best_idx_rot = idx_rot
-            psi = psis[best_idx_rot]
-            rot_vec = [true_rot_vecs[v, 0], true_rot_vecs[v, 1], psi]
-            rot_mat = get_rotation_matrix(rot_vec, params_learning_alg.convention)
-            energy = volume_representation.one_gd_step(
-                rot_mat,
-                true_trans_vecs[v],
-                views,
-                params_learning_alg.lr,
-                known_trans,
-                v,
-                recorded_shifts,
-            )  # ,
-            # suppress_gauss=(v==nb_views-1))
-
-            total_energy += energy
-            energies = normalize(energies, max=6)
-            likekihoods = np.exp(-energies)
-            K = np.zeros((params_learning_alg.N_rot, M_rot))
-            for k, idx_rot in enumerate(indices_rot):
-                a = psis[idx_rot]
-                K[k, :] = one_d_gaussian(psis, a, params_learning_alg.std_rot)
-            update_imp_distr(imp_distrs_rot, likekihoods, K, unif_prop, M_rot, v)
-        imp_distrs_rot_recorded.append(copy.deepcopy(imp_distrs_rot))
-        unif_prop /= params_learning_alg.dec_factor
-        if unif_prop < unif_prop_min:
-            unif_prop = unif_prop_min
-        total_energy /= nb_views
-        # print(f"total energy epoque {itr}", total_energy)
-        recorded_energies.append(total_energy)
-    return (
-        imp_distrs_rot_recorded,
-        recorded_energies,
-        recorded_shifts,
-        unif_prop,
-        volume_representation,
-        itr,
-    )
-
-
-def gradient_descent_importance_sampling_known_rot(
-    volume_representation,
-    uniform_sphere_discretization,
-    true_rot_vecs,
-    true_trans_vecs,
-    views,
-    imp_distrs,
-    unif_prop,
-    unif_prop_min,
-    params_learning_alg,
-    known_trans,
-):
-    thetas, phis, psis = uniform_sphere_discretization
-    x, y, z = conversion_2_first_eulers_angles_cartesian(thetas, phis)
-    axes = np.array([x, y, z])
-    M = len(thetas)
-    imp_distrs_recorded = []
-    itr = 0
-    recorded_energies = []
-    nb_views = len(views)
-    recorded_shifts = [[] for _ in range(nb_views)]
-    while itr < params_learning_alg.N_iter_max and (
-        not stopping_criteria(recorded_energies, params_learning_alg.eps)
-    ):
-        itr += 1
-        total_energy = 0
-        for v in range(nb_views):
-            indices = np.random.choice(
-                range(M), p=imp_distrs[v], size=params_learning_alg.N_axes
-            )
-            energies = np.zeros(params_learning_alg.N_axes)
-            best_energy = 10**10
-            best_idx = 0
-            for k, idx in enumerate(indices):
-                theta, phi = thetas[idx], phis[idx]
-                rot_vec = [theta, phi, true_rot_vecs[v, 2]]
-                rot_mat = get_rotation_matrix(rot_vec, params_learning_alg.convention)
-                energy, _ = volume_representation.get_energy(
-                    rot_mat,
-                    true_trans_vecs[v],
-                    views[v],
-                    recorded_shifts,
-                    v,
-                    False,
-                    known_trans,
-                )
-
-                energies[k] = energy
-                if energy < best_energy:
-                    best_energy = energy
-                    best_idx = idx
-
-            theta, phi = thetas[best_idx], phis[best_idx]
-            rot_vec = [theta, phi, true_rot_vecs[v, 2]]
-            rot_mat = get_rotation_matrix(rot_vec, params_learning_alg.convention)
-            energy = volume_representation.one_gd_step(
-                rot_mat,
-                true_trans_vecs[v],
-                views,
-                params_learning_alg.lr,
-                known_trans,
-                v,
-                recorded_shifts,
-            )
-            total_energy += energy
-            energies = normalize(energies, max=6)
-            likekihoods = np.exp(-energies)
-            K_axes = np.exp(
-                params_learning_alg.coeff_kernel * axes[:, indices].T.dot(axes)
-            )
-
-            update_imp_distr(imp_distrs, likekihoods, K_axes, unif_prop, M, v)
-        imp_distrs_recorded.append(copy.deepcopy(imp_distrs))
-        unif_prop /= params_learning_alg.dec_factor
-        if unif_prop < unif_prop_min:
-            unif_prop = unif_prop_min
-        total_energy /= nb_views
-        # print(f'total energy epoque {itr}', total_energy)
-        recorded_energies.append(total_energy)
-    return (
-        imp_distrs_recorded,
-        recorded_energies,
-        recorded_shifts,
-        unif_prop,
-        volume_representation,
-        itr,
-    )
-
-
 def gd_importance_sampling_3d(
-    volume_representation,
+    volume_representation: Fourier_pixel_representation,
     uniform_sphere_discretization,
     true_trans_vecs,
     views,
@@ -213,7 +42,6 @@ def gd_importance_sampling_3d(
     unif_prop,
     unif_prop_min,
     params_learning_alg,
-    known_trans,
     output_dir,
     ground_truth=None,
     file_names=None,
@@ -234,7 +62,7 @@ def gd_importance_sampling_3d(
 
     make_dir(output_dir)
     # print('number of views', len(views))
-    thetas, phis, psis = uniform_sphere_discretization
+    (thetas, phis, psis), _ = uniform_sphere_discretization
     x, y, z = conversion_2_first_eulers_angles_cartesian(thetas, phis)
     axes = np.array([x, y, z])
     M_axes = len(thetas)
@@ -249,10 +77,11 @@ def gd_importance_sampling_3d(
     ssims = []
     sub_dir = os.path.join(output_dir, "intermediar_results")
     make_dir(sub_dir)
-    ests_rot_vecs = []
+    ests_poses = []
     nb_step_of_supress = 0
     pbar = tqdm(total=params_learning_alg.N_iter_max, leave=False, desc="energy : +inf")
     views = views.astype(params_learning_alg.dtype)
+    N_axes, N_rot = params_learning_alg.N_axes, params_learning_alg.N_rot
     while itr < params_learning_alg.N_iter_max and (
         not stopping_criteria(recorded_energies, params_learning_alg.eps)
     ):
@@ -261,7 +90,7 @@ def gd_importance_sampling_3d(
         nb_views = len(views)
         itr += 1
         total_energy = 0
-        estimated_rot_vecs_iter = np.zeros((nb_views, 3))
+        estimated_poses_iter = np.zeros((nb_views, 6))
 
         if params_learning_alg.random_sampling:
             # Weighted-random sampling
@@ -302,137 +131,167 @@ def gd_importance_sampling_3d(
             gradients_batch = []
             energies_batch = []
             for v in batch:
+                # Pick a subset of the discretization of SO(3) based on
+                # importance distributions
                 indices_axes = np.random.choice(
-                    range(M_axes), p=imp_distrs_axes[v], size=params_learning_alg.N_axes
+                    range(M_axes), p=imp_distrs_axes[v], size=N_axes
                 )
                 indices_rot = np.random.choice(
-                    range(M_rot), p=imp_distrs_rot[v], size=params_learning_alg.N_rot
+                    range(M_rot), p=imp_distrs_rot[v], size=N_rot
                 )
-                energies = np.zeros(
-                    (params_learning_alg.N_axes, params_learning_alg.N_rot)
+                rot_vecs = np.stack(
+                    np.broadcast_arrays(
+                        thetas[indices_axes][:, None],
+                        phis[indices_axes][:, None],
+                        psis[indices_rot],
+                    ),
+                    axis=-1,
+                )  # the euler angles, shape N_axes x N_rot x 3
+                image_shape = views[0].shape
+                # turn the euler angles into transform matrices, shape N_axes*N_rot x 3
+                transforms = get_transform_matrix(
+                    shape=image_shape,
+                    euler_angles=rot_vecs.reshape(-1, 3),
+                    translation=np.zeros((N_axes * N_rot, 3)),
+                    convention=params_learning_alg.convention,
+                    degrees=True,
                 )
-                if known_trans:
-                    true_trans_vec = true_trans_vecs[v]
-                else:
-                    true_trans_vec = None
+                # transforms represents transformation from reference volume
+                # to the views
 
-                if gpu == "pytorch" or gpu == "cucim":
-                    rot_vecs = np.stack(
-                        np.broadcast_arrays(
-                            thetas[indices_axes][:, None],
-                            phis[indices_axes][:, None],
-                            psis[indices_rot],
-                        ),
-                        axis=-1,
-                    )  # Na x Nr x 3
-                    rot_mats = R.from_euler(
-                        "zxz", rot_vecs.reshape(-1, 3), degrees=True
-                    ).as_matrix()  # (Na*Nr) x 3 x 3
+                # inverse_transforms represents transformation from the views
+                # to the reference volume
+                inverse_transforms = np.linalg.inv(transforms)
+
+                view = views[v]
                 if gpu == "pytorch":
-                    rot_mats_gpu, true_trans_vec_gpu, view_gpu = map(
+                    inverse_transforms, view = map(
                         lambda x: torch.as_tensor(
                             x.astype(params_learning_alg.dtype), device="cuda"
-                        )
-                        if x is not None
-                        else None,
-                        [rot_mats, true_trans_vec, views[v]],
-                    )
-                    energies, _ = volume_representation.get_energy_gpu_pytorch(
-                        rot_mats_gpu,
-                        true_trans_vec_gpu,
-                        view_gpu,
-                        None,
-                        None,
-                        False,
-                        known_trans,
-                        interp_order=params_learning_alg.interp_order,
-                    )
-                    energies = (
-                        energies.cpu()
-                        .numpy()
-                        .reshape(len(indices_axes), len(indices_rot))
+                        ),
+                        [inverse_transforms, view],
                     )
                 elif gpu == "cucim":
-                    rot_mats_gpu, true_trans_vec_gpu, view_gpu = map(
-                        lambda x: cp.array(x.astype(params_learning_alg.dtype))
-                        if x is not None
-                        else None,
-                        [rot_mats, true_trans_vec, views[v]],
+                    inverse_transforms, view = map(
+                        lambda x: cp.asarray(x.astype(params_learning_alg.dtype)),
+                        [inverse_transforms, view],
                     )
-                    rot_mats_gpu = rot_mats_gpu.reshape(
-                        params_learning_alg.N_axes, params_learning_alg.N_rot, 3, 3
-                    )
-                    energies = cp.array(energies)
-                    for j, idx_axes in enumerate(indices_axes):
-                        for k, idx_rot in enumerate(indices_rot):
-                            energies[j, k], _ = volume_representation.get_energy_gpu(
-                                rot_mats_gpu[j, k],
-                                true_trans_vec,
-                                view_gpu,
-                                None,
-                                None,
-                                False,
-                                known_trans,
-                                interp_order=params_learning_alg.interp_order,
-                            )
-                    energies = energies.get()
-                else:
-                    for j, idx_axes in enumerate(indices_axes):
-                        for k, idx_rot in enumerate(indices_rot):
-                            rot_vec = [thetas[idx_axes], phis[idx_axes], psis[idx_rot]]
-                            rot_mat = get_rotation_matrix(
-                                rot_vec, params_learning_alg.convention
-                            ).astype(params_learning_alg.dtype)
-                            energy, _ = volume_representation.get_energy(
-                                rot_mat,
-                                true_trans_vec,
-                                views[v],
-                                recorded_shifts,
-                                v,
-                                False,
-                                known_trans,
-                                interp_order=params_learning_alg.interp_order,
-                            )
-                            energies[j, k] = energy
 
+                # Compute shifts
+                # views are transformed back to the reference volume
+                # then phase cross correlation is computed to get the shifts
+                (
+                    shifts,
+                    psf_inverse_transformed_fft,
+                    view_inverse_transformed_fft,
+                ) = compute_shifts(
+                    volume_representation.volume_fourier,
+                    volume_representation.psf,
+                    inverse_transforms,
+                    view,
+                    interp_order=1,
+                )
+
+                # Shift the view
+                view_inverse_transformed_shifted_fft = fourier_shift(
+                    view_inverse_transformed_fft, shifts
+                )
+
+                # Compute the energy associated with each transformation
+                energies = compute_energy(
+                    volume_representation.volume_fourier,
+                    psf_inverse_transformed_fft,
+                    view_inverse_transformed_shifted_fft,
+                )
+
+                # Recover the pose of the view
+
+                # To go from view to the reference volume, we did:
+                # an inverse transform, which is a pure rotation lets call it R^-1
+                # then a shift, T_{t}
+
+                # So, volume = (T_{t} o R^-1)(view)
+                # If we invert, (R o T_{-t})(volume) = view
+                # Equivalently, (T_{- R^-1 x t} o R)(volume) = view
+
+                # The associated pose with the view is therefore
+                rot = R.from_euler(
+                    params_learning_alg.convention,
+                    rot_vecs.reshape(-1, 3),
+                    degrees=True,
+                ).as_matrix()
+                shifts = array_api_compat.to_device(shifts, "cpu")
+                shifts = np.asarray(shifts)
+                associated_translations = -(np.linalg.inv(rot) @ shifts[:, :, None])
+                associated_translations = associated_translations[:, :, 0].reshape(
+                    len(indices_axes), len(indices_rot), 3
+                )
+
+                # Go back to CPU
+                def to_numpy(x):
+                    return np.asarray(array_api_compat.to_device(x, "cpu"))
+
+                energies = energies.reshape(len(indices_axes), len(indices_rot))
+                psf_inverse_transformed_fft = psf_inverse_transformed_fft.reshape(
+                    len(indices_axes), len(indices_rot), *image_shape
+                )
+                view_inverse_transformed_shifted_fft = (
+                    view_inverse_transformed_shifted_fft.reshape(
+                        len(indices_axes), len(indices_rot), *image_shape
+                    )
+                )
+                (
+                    energies,
+                    psf_inverse_transformed_fft,
+                    view_inverse_transformed_shifted_fft,
+                ) = map(
+                    to_numpy,
+                    (
+                        energies,
+                        psf_inverse_transformed_fft,
+                        view_inverse_transformed_shifted_fft,
+                    ),
+                )
+
+                # Find the energy minimum
                 j, k = np.unravel_index(np.argmin(energies), energies.shape)
+                min_energy = energies[j, k]
+                energies_batch.append(min_energy)  # store it
+                energies_each_view[v].append(min_energy)
+                pbar2.set_description(f"particle {v} energy : {min_energy:.1f}")
+
+                # The transformation associated with that minimum
                 best_idx_axes, best_idx_rot = indices_axes[j], indices_rot[k]
-                energies = normalize(energies, max=6)
-                likelihoods = np.exp(-energies)
                 rot_vec = [
                     thetas[best_idx_axes],
                     phis[best_idx_axes],
                     psis[best_idx_rot],
                 ]
+                estimated_poses_iter[v, :3] = rot_vec  # store the rotation
+                estimated_poses_iter[v, 3:] = associated_translations[
+                    j, k
+                ]  # store the translation
 
-                estimated_rot_vecs_iter[v, :] = rot_vec
-                rot_mat = get_rotation_matrix(rot_vec, params_learning_alg.convention)
-                grad, energy = volume_representation.compute_grad(
-                    rot_mat,
-                    true_trans_vec,
-                    views,
-                    known_trans,
-                    v,
-                    interp_order=params_learning_alg.interp_order,
+                # Compute the gradient of the energy with respect to the volume
+                grad = compute_grad(
+                    volume_representation.volume_fourier,
+                    psf_inverse_transformed_fft[j, k],
+                    view_inverse_transformed_shifted_fft[j, k],
                 )
-                energies_batch.append(energy)
-                gradients_batch.append(grad)
-                pbar2.set_description(f"particle {v} energy : {energy:.1f}")
-                energies_each_view[v].append(energy)
-                phi_axes = (
-                    likelihoods.dot(1 / imp_distrs_rot[v][indices_rot])
-                    / params_learning_alg.N_rot
-                )
+                gradients_batch.append(grad)  # accumulate
+
+                # Update the importance distributions
+                energies = normalize(energies, max=6)
+                likelihoods = np.exp(-energies)
+                phi_axes = likelihoods.dot(1 / imp_distrs_rot[v][indices_rot]) / N_rot
                 phi_rot = (
-                    likelihoods.T.dot(1 / imp_distrs_axes[v][indices_axes])
-                    / params_learning_alg.N_axes
+                    likelihoods.T.dot(1 / imp_distrs_axes[v][indices_axes]) / N_axes
                 )
                 K_axes = np.exp(
                     params_learning_alg.coeff_kernel_axes
                     * axes[:, indices_axes].T.dot(axes)
                 )
-                K_rot = np.zeros((params_learning_alg.N_rot, M_rot))
-
+                K_rot = np.zeros((N_rot, M_rot))
                 for k, idx_rot in enumerate(indices_rot):
                     a = psis[idx_rot]
                     if params_learning_alg.gaussian_kernel:
@@ -443,7 +302,6 @@ def gd_importance_sampling_3d(
                         K_rot[k, :] = np.exp(
                             np.cos(a - psis) * params_learning_alg.coeff_kernel_rot
                         )
-
                 update_imp_distr(
                     imp_distrs_axes, phi_axes, K_axes, unif_prop_axes, M_axes, v
                 )
@@ -451,7 +309,7 @@ def gd_importance_sampling_3d(
                     imp_distrs_rot, phi_rot, K_rot, unif_prop_rot, M_rot, v
                 )
 
-            # Gradient descent
+            # Weighted gradient descent
             energies_batch = np.array(energies_batch)
             m = energies_batch.max()
             e = np.exp(-params_learning_alg.beta_grad * (energies_batch - m))
@@ -469,7 +327,7 @@ def gd_importance_sampling_3d(
             # Increase energy
             total_energy += np.sum(energies_batch)
 
-        ests_rot_vecs.append(estimated_rot_vecs_iter)
+        ests_poses.append(estimated_poses_iter)
         pbar2.close()
 
         if (
@@ -522,7 +380,7 @@ def gd_importance_sampling_3d(
 
         # Save stuff
         write_array_csv(
-            estimated_rot_vecs_iter, f"{sub_dir}/estimated_rot_vecs_epoch_{itr}.csv"
+            estimated_poses_iter, f"{sub_dir}/estimated_poses_epoch_{itr}.csv"
         )
         if ground_truth is not None:
             regist_im = io.imread(os.path.join(sub_dir, f"recons_epoch_{itr}.tif"))
@@ -573,7 +431,7 @@ def gd_importance_sampling_3d(
         energies_each_view,
         views,
         file_names,
-        ests_rot_vecs,
+        estimated_poses_iter,
     )
 
 
@@ -583,3 +441,79 @@ def update_imp_distr(imp_distr, phi, K, prop, M, v):
     q_first_comp /= np.sum(q_first_comp)
     imp_distr[v] = (1 - prop) * q_first_comp + prop * np.ones(M) / M
     return q_first_comp
+
+
+def compute_shifts(
+    reference_volume_fft: Array,
+    psf: Array,
+    inverse_transforms: Array,
+    view: Array,
+    interp_order: int = 1,
+) -> Tuple[Array, Array, Array]:
+    xp = array_api_compat.array_namespace(inverse_transforms, view)
+    if xp == array_api_compat.torch:
+
+        def pytorch_fftn_wrapper(x, s=None, axes=None, norm="backward"):
+            from torch.fft import fftn as fftn_torch
+
+            return fftn_torch(x, s=s, dim=axes, norm=norm)
+
+        fftn = pytorch_fftn_wrapper
+    else:
+        fftn = xp.fft.fftn
+
+    (device,) = set([str(xp.device(inverse_transforms)), str(xp.device(view))])
+    psf = xp.asarray(psf, device=device)
+    volume_fourier = xp.asarray(reference_volume_fft, device=device)
+
+    N = inverse_transforms.shape[0]
+    image_shape = psf.shape
+
+    # Rotate the psf backward
+    psfs_rotated = rotation(
+        xp.broadcast_to(psf, (N,) + image_shape),
+        inverse_transforms,
+        order=interp_order,
+    )
+    psfs_rotated_fft = fftn(psfs_rotated, axes=(1, 2, 3))
+
+    # Rotate the view back to the volume
+    view_rotated = rotation(
+        xp.broadcast_to(view, (N,) + image_shape),
+        inverse_transforms,
+        order=interp_order,
+    )
+    view_rotated_fft = fftn(view_rotated, axes=(1, 2, 3))
+
+    shift, _, _ = phase_cross_correlation(
+        psfs_rotated_fft * volume_fourier,
+        view_rotated_fft,
+        nb_spatial_dims=3,
+        upsample_factor=10,
+        normalization=None,
+        space="fourier",
+    )
+    shift = xp.stack(shift, axis=-1)
+    return shift, psfs_rotated_fft, view_rotated_fft
+
+
+def compute_energy(reference_volume_fft, psf_rotated_fft, view_rotated_fft):
+    xp = array_api_compat.array_namespace(view_rotated_fft)
+    device = xp.device(view_rotated_fft)
+    reference_volume_fft = xp.asarray(reference_volume_fft, device=device)
+    psf_rotated_fft = xp.asarray(psf_rotated_fft, device=device)
+    image_size = xp.prod(xp.asarray(reference_volume_fft.shape[-3:], device=device))
+    energy = (
+        xp.linalg.vector_norm(
+            psf_rotated_fft * reference_volume_fft - view_rotated_fft,
+            axis=(-3, -2, -1),
+        )
+        ** 2
+        / image_size
+    )
+    return energy
+
+
+def compute_grad(volume_fourier, psf_rotated_fft, view_rotated_fft):
+    grad = psf_rotated_fft * (psf_rotated_fft * volume_fourier - view_rotated_fft)
+    return grad

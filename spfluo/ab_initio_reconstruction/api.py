@@ -58,7 +58,6 @@ class AbInitioReconstruction:
             params_learning_alg.init_unif_prop,
             0,
             params_learning_alg,
-            False,
             output_dir,
             ground_truth=None,
             file_names=None,
