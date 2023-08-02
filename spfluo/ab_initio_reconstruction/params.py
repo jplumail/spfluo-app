@@ -26,7 +26,7 @@ class ParametersMainAlg:
         N_iter_with_unif_distr=None,
         epochs_of_suppression=None,
         proportion_of_views_suppressed=None,
-        convention="zxz",
+        convention="XZX",
         dtype=np.float32,
         reg_coeff=0,
         beta_sampling=0,
