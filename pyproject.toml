@@ -45,6 +45,7 @@ napari = [
 ]
 dev = [
   "pytest",
+  "hypothesis",
 ]
 
 [project.urls]
