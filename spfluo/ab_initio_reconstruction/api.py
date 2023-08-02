@@ -24,7 +24,7 @@ class AbInitioReconstruction:
             output_dir = "./ab-initio-output"
 
         params_learning_alg = ParametersMainAlg(**self.params)
-        self.fourier_volume = Fourier_pixel_representation(
+        fourier_volume = Fourier_pixel_representation(
             3,
             psf.shape[0],
             psf,
@@ -48,8 +48,20 @@ class AbInitioReconstruction:
             np.ones((N, params_learning_alg.M_rot)) / params_learning_alg.M_rot
         )
 
-        gd_importance_sampling_3d(
-            self.fourier_volume,
+        (
+            imp_distrs_rot_recorded,
+            imp_distrs_axes_recorded,
+            recorded_energies,
+            recorded_shifts,
+            unif_prop,
+            volume_representation,
+            itr,
+            energies_each_view,
+            views,
+            file_names,
+            ests_poses,
+        ) = gd_importance_sampling_3d(
+            fourier_volume,
             uniform_sphere_discretization,
             None,
             X,
@@ -64,5 +76,8 @@ class AbInitioReconstruction:
             folder_views_selected=None,
             gpu=gpu,
         )
+        self._volume = volume_representation.get_image_from_fourier_representation()
+        self._energy = np.mean(energies_each_view, axis=0)
+        self._num_iter = itr
 
         return self
