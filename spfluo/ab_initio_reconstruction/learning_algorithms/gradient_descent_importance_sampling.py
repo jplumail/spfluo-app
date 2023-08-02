@@ -500,7 +500,7 @@ def gd_importance_sampling_3d(
             sub_dir,
             f"recons_epoch_{itr}.tif",
             ground_truth=ground_truth,
-            translate=True,
+            one_component=False,
             gpu=gpu,
         )
 

@@ -323,11 +323,11 @@ class Fourier_pixel_representation:
         save(path, self.get_image_from_fourier_representation())
 
     def register_and_save(
-        self, output_dir, output_name, ground_truth=None, translate=False, gpu=None
+        self, output_dir, output_name, ground_truth=None, one_component=False, gpu=None
     ):
         path = os.path.join(output_dir, output_name)
         im = self.get_image_from_fourier_representation()
-        if translate:
+        if one_component:
             im = translate_to_have_one_connected_component(im, gpu=gpu)
 
         if ground_truth is not None:
@@ -336,7 +336,10 @@ class Fourier_pixel_representation:
 
         save(path, im)
         if ground_truth is not None:
-            registration_exhaustive_search(ground_truth, im, output_dir, output_name)
+            _, im = registration_exhaustive_search(
+                ground_truth, im, output_dir, output_name
+            )
+        return im
 
 
 if __name__ == "__main__":
