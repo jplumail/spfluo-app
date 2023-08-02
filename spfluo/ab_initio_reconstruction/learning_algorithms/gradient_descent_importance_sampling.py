@@ -461,6 +461,11 @@ def gd_importance_sampling_3d(
                 grad, params_learning_alg.lr, params_learning_alg.reg_coeff
             )
 
+            # Center of mass centered
+            shift = volume_representation.center()
+            for v in range(estimated_poses_iter.shape[0]):
+                estimated_poses_iter[v, 3:] -= shift
+
             # Increase energy
             total_energy += np.sum(energies_batch)
 

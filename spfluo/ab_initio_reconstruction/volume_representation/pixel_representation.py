@@ -341,6 +341,15 @@ class Fourier_pixel_representation:
             )
         return im
 
+    def center(self):
+        volume_center_of_mass = np.asarray(
+            center_of_mass(self.get_image_from_fourier_representation())
+        )
+        c = (np.asarray(self.volume_fourier.shape) - 1) / 2
+        shift = c - volume_center_of_mass
+        self.volume_fourier = fourier_shift(self.volume_fourier, shift)
+        return shift
+
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
