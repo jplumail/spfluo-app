@@ -394,23 +394,31 @@ def gd_importance_sampling_3d(
         pbar.set_description(f"energy : {total_energy:.1f}")
         pbar.update()
 
-    shutil.copyfile(
-        os.path.join(sub_dir, f"recons_epoch_{itr}.tif"),
-        os.path.join(sub_dir, "final_recons.tif"),
-    )
+    if itr > 0:
+        shutil.copyfile(
+            os.path.join(sub_dir, f"recons_epoch_{itr}.tif"),
+            os.path.join(output_dir, "final_recons.tif"),
+        )
+        shutil.copyfile(
+            os.path.join(sub_dir, f"estimated_poses_epoch_{itr}.csv"),
+            os.path.join(output_dir, "poses.csv"),
+        )
     pbar.close()
     write_array_csv(np.array(ssims), f"{output_dir}/ssims.csv")
 
-    np.save(
-        os.path.join(output_dir, "energies_each_view.npy"), np.array(energies_each_view)
-    )
+    energies_each_view = np.array(energies_each_view)
+    np.save(os.path.join(output_dir, "energies_each_view.npy"), energies_each_view)
+    if len(imp_distrs_rot_recorded) > 0:
+        imp_distrs_rot_recorded = np.stack(imp_distrs_rot_recorded, axis=0)
+    if len(imp_distrs_axes_recorded) > 0:
+        imp_distrs_axes_recorded = np.stack(imp_distrs_axes_recorded, axis=0)
     np.save(
         os.path.join(output_dir, "distributions_rot.npy"),
-        np.stack(imp_distrs_rot_recorded, axis=0),
+        imp_distrs_rot_recorded,
     )
     np.save(
         os.path.join(output_dir, "distributions_axes.npy"),
-        np.stack(imp_distrs_axes_recorded, axis=0),
+        imp_distrs_axes_recorded,
     )
     data2 = pd.DataFrame({"energy": recorded_energies})
     data2.to_csv(os.path.join(output_dir, "energies.csv"))
