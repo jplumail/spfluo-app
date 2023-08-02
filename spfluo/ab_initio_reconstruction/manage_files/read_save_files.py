@@ -1,11 +1,9 @@
 import os
-import shutil
 
 import imageio
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from skimage import io
+import tifffile
 
 
 def read_image(path):
@@ -27,12 +25,7 @@ def read_images_in_folder(fold, alphabetic_order=True):
 
 def save(path, array):
     # save with conversion to float32 so that imaej can open it
-    io.imsave(path, np.float32(array))
-
-
-def move_if_exists(src, dst):
-    if os.path.exists(src):
-        shutil.move(src, dst)
+    tifffile.imwrite(path, np.float32(array))
 
 
 def make_dir(dir):
@@ -40,11 +33,6 @@ def make_dir(dir):
     if not os.path.exists(dir):
         print(f"directory {dir} created")
         os.makedirs(dir)
-
-
-def delete_dir(dir):
-    if os.path.exists(dir):
-        shutil.rmtree(dir)
 
 
 def make_dir_and_write_array(np_array, fold, name):
@@ -55,29 +43,3 @@ def make_dir_and_write_array(np_array, fold, name):
 
 def write_array_csv(np_array, path):
     pd.DataFrame(np_array).to_csv(path)
-
-
-def read_csv(path, first_col=1):
-    """read the csvfile at location 'path'.
-    It reads only the colums after the column indexed by 'first_col'"""
-    return np.array(pd.read_csv(path))[:, first_col:].squeeze().astype(np.float32)
-
-
-def read_csvs(paths):
-    contents = []
-    for path in paths:
-        contents.append(read_csv(path))
-    return contents
-
-
-def print_dictionnary_in_file(dic, file):
-    """print dictionnary keys and attributes in a text file"""
-    for at in list(dic.keys()):
-        at_val = dic[at]
-        print(f"{at} : {at_val}", file=file)
-
-
-def save_figure(fold, save_name):
-    make_dir(fold)
-    plt.savefig(f"{fold}/{save_name}")
-    print(f"figure saved at location {fold}, with name {save_name}")
