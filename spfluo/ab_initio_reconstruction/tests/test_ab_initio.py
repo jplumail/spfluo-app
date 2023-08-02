@@ -68,6 +68,7 @@ def test_ab_initio_files_exist(minimal_run_numpy):
             output_dir / "intermediar_results" / f"estimated_poses_epoch_{i}.csv"
         ).exists()
         assert (output_dir / "intermediar_results" / f"recons_epoch_{i}.tif").exists()
+    assert ab_initio._num_iter == len(ab_initio._energies)
 
 
 def test_ab_initio_same_results(
@@ -89,4 +90,4 @@ def long_run_pytorch(generated_data_arrays, tmpdir):
 
 def test_long_run(long_run_pytorch):
     ab_initio, tmpdir = long_run_pytorch
-    assert ab_initio._energy < 200
+    assert ab_initio._energies[-1] < 200

@@ -77,7 +77,7 @@ class AbInitioReconstruction:
             gpu=gpu,
         )
         self._volume = volume_representation.get_image_from_fourier_representation()
-        self._energy = np.mean(energies_each_view, axis=0)
+        self._energies = np.mean(energies_each_view, axis=0)
         self._num_iter = itr
 
         return self
