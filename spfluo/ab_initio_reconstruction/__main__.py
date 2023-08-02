@@ -36,7 +36,7 @@ def parse_args():
     parser.add_argument("--N_iter_with_unif_distr", type=int, default=None)
     parser.add_argument("--epochs_of_suppression", type=int, default=None)
     parser.add_argument("--proportion_of_views_suppressed", type=float, default=None)
-    parser.add_argument("--convention", type=str, default="zxz")
+    parser.add_argument("--convention", type=str, default="XZX")
     parser.add_argument("--dtype", type=type, default=np.float64)
     parser.add_argument("--reg_coeff", type=float, default=0)
     parser.add_argument("--beta_sampling", type=float, default=0)
