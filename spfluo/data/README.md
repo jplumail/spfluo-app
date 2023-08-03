@@ -6,7 +6,7 @@ iso_data = data.generated_isotropic()
 
 To generate the data yourself, call the `__main__`:
 ```bash
-python -m spfluo.data --get_path
+python spfluo/data/generate_data
 ```
 
 To generate the registry file, call `pooch`:
