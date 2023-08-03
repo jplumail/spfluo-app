@@ -16,6 +16,7 @@ dependencies = [
   "psutil",
   "matplotlib",
   "array_api_compat",
+  "pooch",
 ]
 dynamic = ["version"]
 authors = [

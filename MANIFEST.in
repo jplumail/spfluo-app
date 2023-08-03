@@ -1,0 +1,2 @@
+exclude examples/data/*
+exclude spfluo/data/generated/*
