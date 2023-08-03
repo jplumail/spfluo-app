@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=61.0", "setuptools_scm[toml]>=6.2"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -17,7 +17,7 @@ dependencies = [
   "matplotlib",
   "array_api_compat",
 ]
-version = "0.0.1"
+dynamic = ["version"]
 authors = [
   { name="Jean Plumail", email="jplumail@unistra.fr" },
 ]
@@ -50,6 +50,9 @@ dev = [
 
 [project.urls]
 Repository = "https://github.com/jplumail/spfluo.git"
+
+[tool.setuptools_scm]
+write_to = "spfluo/_version.py"
 
 [tool.ruff]
 select = [
