@@ -42,7 +42,7 @@ gpu = [
   "pynvml",
 ]
 napari = [
-  "napari[all] @ git+https://github.com/napari/napari.git@aa0330fcace8d5855fcd1e75c1fd4384b542bd4c",
+  "napari[all] >= 0.4.18",
 ]
 dev = [
   "pytest",
