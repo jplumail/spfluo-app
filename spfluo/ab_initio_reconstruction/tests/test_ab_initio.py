@@ -75,11 +75,11 @@ def test_ab_initio_same_results(
     minimal_run_numpy, minimal_run_cucim, minimal_run_pytorch
 ):
     assert np.isclose(
-        minimal_run_numpy[0]._energy, minimal_run_cucim[0]._energy, rtol=0.001
-    )
+        minimal_run_numpy[0]._energies, minimal_run_cucim[0]._energies, rtol=0.001
+    ).all()
     assert np.isclose(
-        minimal_run_numpy[0]._energy, minimal_run_pytorch[0]._energy, rtol=0.001
-    )
+        minimal_run_numpy[0]._energies, minimal_run_pytorch[0]._energies, rtol=0.001
+    ).all()
 
 
 @pytest.fixture()
