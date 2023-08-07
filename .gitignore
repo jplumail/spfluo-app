@@ -8,5 +8,6 @@ examples/
 *.csv
 *.tiff
 .hypothesis
+.venv
 
 spfluo/_version.py
