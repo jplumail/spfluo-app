@@ -8,15 +8,15 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 import torch
 
-from spfluo.utils import (
-    affine_transform,
-    discretize_sphere_uniformly,
-    fftn,
-    phase_cross_correlation,
-)
+from spfluo.utils._torch_functions.volume import fftn
 from spfluo.utils.memory import split_batch_func
 from spfluo.utils.transform import get_transform_matrix
-from spfluo.utils.volume import interpolate_to_size
+from spfluo.utils.volume import (
+    affine_transform,
+    discretize_sphere_uniformly,
+    interpolate_to_size,
+    phase_cross_correlation,
+)
 
 refinement_logger = logging.getLogger("spfluo.refinement")
 if refinement_logger.isEnabledFor(logging.DEBUG):
