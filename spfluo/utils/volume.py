@@ -1,21 +1,8 @@
 import itertools
 from typing import Optional, Sequence, Tuple, Union
 
-import array_api_compat.cupy
-import array_api_compat.numpy
-import array_api_compat.torch
-import cupy as cp
 import matplotlib.pyplot as plt
-import numpy as np
 import scipy.ndimage as ndii
-import torch
-import torch.nn.functional as F
-from cucim.skimage.registration import (
-    phase_cross_correlation as phase_cross_correlation_cucim,
-)
-from cupy.typing import NDArray as CPArray
-from cupyx.scipy.ndimage import affine_transform as affine_transform_cupy
-from cupyx.scipy.ndimage import fourier_shift as fourier_shift_cupy
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from numpy.typing import DTypeLike, NDArray
 from scipy.ndimage import affine_transform as affine_transform_scipy
@@ -24,10 +11,29 @@ from skimage.registration import (
     phase_cross_correlation as phase_cross_correlation_skimage,
 )
 
+import spfluo
+from spfluo.utils.array import Array, array_namespace, is_array_api_obj
+from spfluo.utils.array import numpy as np
 from spfluo.utils.transform import get_zoom_matrix
 
-from ._array import Array, array_api_compat
-from .memory import split_batch_func
+# Optional imports
+if spfluo.has_cupy:
+    from spfluo.utils.array import cupy
+
+    from ._cupy_functions.volume import (
+        affine_transform_batched_multichannel_cupy,
+        fourier_shift_broadcasted_cupy,
+        phase_cross_correlation_broadcasted_cucim,
+    )
+
+if spfluo.has_torch:
+    from spfluo.utils.array import torch
+
+    from ._torch_functions.volume import (
+        affine_transform_batched_multichannel_pytorch,
+        fourier_shift_broadcasted_pytorch,
+        phase_cross_correlation_broadcasted_pytorch,
+    )
 
 
 def affine_transform(
@@ -112,9 +118,9 @@ def affine_transform(
         xp.ndarray:
             The transformed input. Return None if output is given.
     """
-    xp = array_api_compat.array_namespace(input, matrix)
+    xp = array_namespace(input, matrix)
     has_output = False
-    if array_api_compat.is_array_api_obj(output):
+    if is_array_api_obj(output):
         output = xp.asarray(output)
         has_output = True
 
@@ -126,11 +132,11 @@ def affine_transform(
     if multichannel is False:
         input = input[:, None]
 
-    if xp == array_api_compat.torch:
+    if spfluo.has_torch and xp == torch:
         func = affine_transform_batched_multichannel_pytorch
-    elif xp == array_api_compat.cupy:
+    elif spfluo.has_cupy and xp == cupy:
         func = affine_transform_batched_multichannel_cupy
-    elif xp == array_api_compat.numpy:
+    elif xp == np:
         func = affine_transform_batched_multichannel_scipy
     else:
         raise ValueError(f"No backend found for {xp}")
@@ -199,282 +205,6 @@ def affine_transform_batched_multichannel_scipy(
     return output
 
 
-def affine_transform_batched_multichannel_cupy(
-    input: CPArray,
-    matrix: CPArray,
-    offset: Union[float, Tuple[float], CPArray] = 0.0,
-    output_shape: Optional[Tuple[int]] = None,
-    output: Optional[Union[CPArray, DTypeLike]] = None,
-    order: int = 1,
-    mode: str = "constant",
-    cval: float = 0.0,
-    prefilter: bool = True,
-) -> CPArray:
-    N, C, *image_shape = input.shape
-    if output_shape is None:
-        output_shape = tuple(image_shape)
-    return_none = False
-    if output is None:
-        output = cp.empty((N, C) + output_shape, dtype=input.dtype)
-    elif type(output) is type:
-        output = cp.empty((N, C) + output_shape, dtype=output)
-    else:
-        return_none = True
-    if type(offset) is float or type(offset) is tuple:
-
-        def offset_gen(_):
-            return offset
-
-    else:
-        assert type(offset) is cp.ndarray
-
-        def offset_gen(i):
-            return offset[i]
-
-    for i in range(N):
-        for j in range(C):
-            affine_transform_cupy(
-                input[i, j],
-                matrix[i],
-                offset_gen(i),
-                output_shape,
-                output[i, j],
-                order,
-                mode,
-                cval,
-                prefilter,
-                texture_memory=False,
-            )
-
-    if return_none:
-        return
-
-    return output
-
-
-def affine_transform_batched_multichannel_pytorch(
-    input: torch.Tensor,
-    matrix: torch.Tensor,
-    offset=0.0,
-    output_shape=None,
-    output=None,
-    order=1,
-    mode="zeros",
-    cval=0.0,
-    prefilter=True,
-) -> torch.Tensor:
-    """Rotate the volume according to the transform matrix.
-    Matches the `scipy.ndimage.affine_transform` function at best with the
-    `torch.nn.functional.grid_sample` function
-
-    Args:
-        input (torch.Tensor): 3D images of shape (N, C, D, H, W)
-        matrix (torch.Tensor)
-            transform matrices of shape (N, 3), (N,3,3), (N,4,4) or (N,3,4).
-        offset (float or torch.Tensor): offset of the grid.
-        output_shape (tuple): shape of the output.
-        output: not implemented
-        order (int): must be 1. Only linear interpolation is implemented.
-        mode (str): Points outside the boundaries of the input are filled
-            according to the given mode
-            Only ``'constant'``, ``'nearest'``, ``'reflect'`` are implemented.
-        cval (float): cannot be different than 0.0
-        prefilter (bool): not implemented
-
-    Returns:
-        torch.Tensor: Rotated volumes of shape (N, C, D, H, W)
-    """
-    N, C, D, H, W = input.size()
-    tensor_kwargs = dict(device=input.device, dtype=input.dtype)
-
-    if type(offset) == float:
-        tvec = torch.tensor([offset, offset, offset], **tensor_kwargs).expand(N, 3)
-    elif offset.shape == (3,):
-        tvec = torch.as_tensor(offset, **tensor_kwargs).expand(N, 3)
-    elif offset.shape == (N, 3):
-        tvec = torch.as_tensor(offset, **tensor_kwargs)
-    else:
-        raise ValueError(
-            "Offset should be a float, a sequence of size 3 or a tensor of size (N,3)."
-        )
-
-    if matrix.size() == torch.Size([N, 3, 3]):
-        rotMat = matrix
-    elif matrix.size() == torch.Size([N, 3]):
-        rotMat = torch.stack([torch.diag(matrix[i]) for i in range(N)])
-    elif matrix.size() == torch.Size([N, 4, 4]) or matrix.size() == torch.Size(
-        [N, 3, 4]
-    ):
-        rotMat = matrix[:, :3, :3]
-        tvec = matrix[:, :3, 3]
-    else:
-        raise ValueError(
-            "Matrix should be a tensor of shape"
-            f"{(N,3)}, {(N,3,3)}, {(N,4,4)} or {(N,3,4)}."
-            f"Found matrix of shape {matrix.size()}"
-        )
-
-    if output_shape is None:
-        output_shape = (D, H, W)
-
-    if output is not None:
-        raise NotImplementedError()
-
-    if order > 1:
-        raise NotImplementedError()
-
-    pytorch_modes = {"constant": "zeros", "nearest": "border", "reflect": "reflection"}
-    if mode not in pytorch_modes:
-        raise NotImplementedError(f"Only {pytorch_modes.keys()} are available")
-    pt_mode = pytorch_modes[mode]
-
-    if cval != 0:
-        raise NotImplementedError()
-
-    if prefilter:
-        raise NotImplementedError()
-
-    return _affine_transform(
-        input, rotMat, tvec, output_shape, pt_mode, **tensor_kwargs
-    )
-
-
-def _affine_transform(input, rotMat, tvec, output_shape, mode, **tensor_kwargs):
-    output_shape = list(output_shape)
-    rotated_vol = input.new_empty(list(input.shape[:2]) + output_shape)
-    grid = torch.stack(
-        torch.meshgrid(
-            [torch.linspace(0, d - 1, steps=d, **tensor_kwargs) for d in output_shape],
-            indexing="ij",
-        ),
-        dim=-1,
-    )
-    c = torch.tensor([0 for d in output_shape], **tensor_kwargs)
-    input_shape = torch.as_tensor(input.shape[2:], **tensor_kwargs)
-    for start, end in split_batch_func("affine_transform", input, rotMat):
-        grid_batch = (
-            (rotMat[start:end, None, None, None] @ ((grid - c)[None, ..., None]))[
-                ..., 0
-            ]
-            + c
-            + tvec[start:end, None, None, None, :]
-        )
-        grid_batch = -1 + 1 / input_shape + 2 * grid_batch / input_shape
-        rotated_vol[start:end] = F.grid_sample(
-            input[start:end],
-            grid_batch[:, :, :, :, [2, 1, 0]],
-            mode="bilinear",
-            align_corners=False,
-            padding_mode=mode,
-        )
-    rotated_vol[:, :, : output_shape[0], : output_shape[1], : output_shape[2]]
-    return rotated_vol
-
-
-def fftn(x: torch.Tensor, dim: Tuple[int] = None, out=None) -> torch.Tensor:
-    """Computes N dimensional FFT of x in batch. Tries to avoid out-of-memory errors.
-
-    Args:
-        x: data
-        dim: tuple of size N, dimensions where FFTs will be computed
-        out: the output tensor
-    Returns:
-        y: data in the Fourier domain, shape of x
-    """
-    if dim is None or len(dim) == x.ndim:
-        return torch.fft.fftn(x, out=out)
-    else:
-        if x.is_complex():
-            dtype = x.dtype
-        else:
-            if x.dtype is torch.float32:
-                dtype = torch.complex64
-            elif x.dtype is torch.float64:
-                dtype = torch.complex128
-        batch_indices = torch.ones((x.ndim,), dtype=bool)
-        batch_indices[list(dim)] = False
-        batch_indices = batch_indices.nonzero()[:, 0]
-        batch_slices = [slice(None, None) for i in range(x.ndim)]
-
-        if out is not None:
-            y = out
-        else:
-            y = x.new_empty(size=x.size(), dtype=dtype)
-        for batch_idx in split_batch_func("fftn", x, dim):
-            if type(batch_idx) is tuple:
-                batch_idx = [batch_idx]
-            for d, (start, end) in zip(batch_indices, batch_idx):
-                batch_slices[d] = slice(start, end)
-            torch.fft.fftn(x[tuple(batch_slices)], dim=dim, out=y[tuple(batch_slices)])
-        return y
-
-
-def ifftn(x: torch.Tensor, dim: Tuple[int] = None, out=None) -> torch.Tensor:
-    """Computes N dimensional inverse FFT of x in batch.
-    Tries to avoid out-of-memory errors.
-
-    Args:
-        x: data
-        dim: tuple of size N, dimensions where FFTs will be computed
-        out: the output tensor
-    Returns:
-        y: data in the Fourier domain, shape of x
-    """
-    if dim is None or len(dim) == x.ndim:
-        return torch.fft.ifftn(x, out=out)
-    else:
-        if x.is_complex():
-            dtype = x.dtype
-        else:
-            if x.dtype is torch.float32:
-                dtype = torch.complex64
-            elif x.dtype is torch.float64:
-                dtype = torch.complex128
-        batch_indices = torch.ones((x.ndim,), dtype=bool)
-        batch_indices[list(dim)] = False
-        batch_indices = batch_indices.nonzero()[:, 0]
-        batch_slices = [slice(None, None) for i in range(x.ndim)]
-
-        if out is not None:
-            y = out
-        else:
-            y = x.new_empty(size=x.size(), dtype=dtype)
-        for batch_idx in split_batch_func("fftn", x, dim):
-            if type(batch_idx) is tuple:
-                batch_idx = [batch_idx]
-            for d, (start, end) in zip(batch_indices, batch_idx):
-                batch_slices[d] = slice(start, end)
-            torch.fft.ifftn(x[tuple(batch_slices)], dim=dim, out=y[tuple(batch_slices)])
-        return y
-
-
-def pad_to_size(volume: torch.Tensor, output_size: torch.Size) -> torch.Tensor:
-    output_size = torch.as_tensor(output_size)
-    pad_size = torch.ceil((output_size - torch.as_tensor(volume.size())) / 2)
-
-    padding = tuple(
-        np.asarray(
-            [[max(pad_size[i], 0), max(pad_size[i], 0)] for i in range(len(pad_size))],
-            dtype=int,
-        )
-        .flatten()[::-1]
-        .tolist()
-    )
-    output_volume = F.pad(volume, padding)
-
-    shift = (torch.as_tensor(output_volume.size()) - output_size) / 2
-    slices = [
-        slice(int(np.ceil(shift[i])), -int(np.floor(shift[i])))
-        if shift[i] > 0 and np.floor(shift[i]) > 0
-        else slice(int(np.ceil(shift[i])), None)
-        if shift[i] > 0
-        else slice(None, None)
-        for i in range(len(shift))
-    ]
-
-    return output_volume[tuple(slices)]
-
-
 def interpolate_to_size(
     volume: Array,
     output_size: Tuple[int, int, int],
@@ -482,7 +212,7 @@ def interpolate_to_size(
     batch=False,
     multichannel=False,
 ) -> Array:
-    xp = array_api_compat.array_namespace(volume)
+    xp = array_namespace(volume)
     volume = xp.asarray(volume)
     d, h, w = volume.shape[-3:]
     D, H, W = output_size
@@ -505,65 +235,6 @@ def interpolate_to_size(
     return out_vol
 
 
-def fourier_shift_broadcasted_pytorch(
-    input: torch.Tensor,
-    shift: Union[float, Sequence[float], torch.Tensor],
-    n: int = -1,
-    axis: int = -1,
-    output: Optional[torch.Tensor] = None,
-):
-    """
-    Args:
-        input (torch.Tensor): input in the Fourier domain ({...}, [...])
-            where [...] corresponds to the N spatial dimensions
-            and {...} corresponds to the batched dimensions
-        shift (torch.Tensor): shift to apply to the input ({{...}}, N)
-            where {{...}} corresponds to batched dimensions.
-        n: not implemented
-        axis: not implemented
-        output: not implemented
-    Notes:
-        {...} and {{...}} are broadcasted to (...).
-    Returns:
-        out (torch.Tensor): input shifted in the Fourier domain. Shape ((...), [...])
-    """
-    if n != -1:
-        raise NotImplementedError("n should be equal to -1")
-    if axis != -1:
-        raise NotImplementedError("axis should be equal to -1")
-    if output is not None:
-        raise NotImplementedError("can't store result in output. not implemented")
-    tensor_kwargs = {"device": input.device}
-    if input.dtype == torch.complex128:
-        tensor_kwargs["dtype"] = torch.float64
-    elif input.dtype == torch.complex64:
-        tensor_kwargs["dtype"] = torch.float32
-    elif input.dtype == torch.complex32:
-        tensor_kwargs["dtype"] = torch.float16
-    else:
-        print("Volume must be complex")
-    shift = torch.asarray(shift, **tensor_kwargs)
-    if shift.ndim == 0:
-        shift = np.asarray([shift] * input.ndim)
-    nb_spatial_dims = shift.shape[-1]
-    spatial_shape = torch.as_tensor(input.size()[-nb_spatial_dims:], **tensor_kwargs)
-    shift = shift.view(*shift.shape[:-1], *[1 for _ in range(nb_spatial_dims)], -1)
-
-    grid_freq = torch.stack(
-        torch.meshgrid(
-            *[torch.fft.fftfreq(int(s), **tensor_kwargs) for s in spatial_shape],
-            indexing="ij",
-        ),
-        dim=-1,
-    )
-    phase_shift = (grid_freq * shift).sum(-1)
-
-    # Fourier shift
-    out = input * torch.exp(-1j * 2 * torch.pi * phase_shift)
-
-    return out
-
-
 def fourier_shift_broadcasted_scipy(
     input: NDArray,
     shift: Union[float, Sequence[float], NDArray],
@@ -584,35 +255,6 @@ def fourier_shift_broadcasted_scipy(
     output = np.empty(broadcasted_shape + image_shape, dtype=input.dtype)
     for index in np.ndindex(broadcasted_shape):
         fourier_shift_scipy(
-            input[index].copy(),
-            shift[index],
-            n,
-            axis,
-            output[index],
-        )
-    return output
-
-
-def fourier_shift_broadcasted_cupy(
-    input: cp.ndarray,
-    shift: Union[float, Sequence[float]],
-    n: int = -1,
-    axis: int = -1,
-    output: Optional[cp.ndarray] = None,
-):
-    shift = cp.asarray(shift)
-    if shift.ndim == 0:
-        shift = cp.asarray([shift] * input.ndim)
-    nb_spatial_dims = shift.shape[-1]
-    broadcasted_shape = cp.broadcast_shapes(
-        input.shape[:-nb_spatial_dims], shift.shape[:-1]
-    )
-    image_shape = input.shape[-nb_spatial_dims:]
-    input = cp.broadcast_to(input, broadcasted_shape + image_shape)
-    shift = cp.broadcast_to(shift, broadcasted_shape + (nb_spatial_dims,))
-    output = cp.empty(broadcasted_shape + image_shape, dtype=input.dtype)
-    for index in cp.ndindex(broadcasted_shape):
-        fourier_shift_cupy(
             input[index].copy(),
             shift[index],
             n,
@@ -668,12 +310,12 @@ def fourier_shift(
         If shift is an array, {...} and {{...}} are broadcasted to (...).
         The resulting shifted array has the shape ((...), [...])
     """
-    xp = array_api_compat.array_namespace(input)
-    if xp == array_api_compat.torch:
+    xp = array_namespace(input)
+    if spfluo.has_torch and xp == torch:
         func = fourier_shift_broadcasted_pytorch
-    elif xp == array_api_compat.numpy:
+    elif xp == np:
         func = fourier_shift_broadcasted_scipy
-    elif xp == array_api_compat.cupy:
+    elif spfluo.has_cupy and xp == cupy:
         func = fourier_shift_broadcasted_cupy
 
     output = func(
@@ -684,230 +326,6 @@ def fourier_shift(
         output,
     )
     return output
-
-
-def hann_window(shape: Tuple[int], **kwargs) -> torch.Tensor:
-    """Computes N dimensional Hann window.
-
-    Args:
-        shape: shape of the final window
-        kwargs: keyword arguments for torch.hann_window function
-    Returns:
-         Hann window of the shape asked
-    """
-    windows = [torch.hann_window(s, **kwargs) for s in shape]
-    view = [1] * len(shape)
-    hw = torch.ones(shape, device=windows[0].device, dtype=windows[0].dtype)
-    for i in range(len(windows)):
-        view_ = list(view)
-        view_[i] = -1
-        hw *= windows[i].view(tuple(view_))
-    return hw
-
-
-def _upsampled_dft(
-    data, upsampled_region_size, upsample_factor=1, axis_offsets=None, nb_spatial_dims=3
-):
-    tensor_kwargs = {"device": data.device, "dtype": None}
-    upsampled_region_size = [
-        upsampled_region_size,
-    ] * nb_spatial_dims
-    dim_properties = list(
-        zip(
-            data.shape[-nb_spatial_dims:],
-            upsampled_region_size,
-            axis_offsets.permute(-1, *tuple(range(axis_offsets.ndim - 1))),
-        )
-    )
-    im2pi = 1j * 2 * np.pi
-    for n_items, ups_size, ax_offset in dim_properties[::-1]:
-        kernel = (torch.arange(ups_size, **tensor_kwargs) - ax_offset[..., None])[
-            ..., None
-        ] * torch.fft.fftfreq(n_items, upsample_factor, **tensor_kwargs)
-        kernel = torch.exp(-im2pi * kernel)
-        kernel = kernel.type(data.dtype)
-        data = torch.einsum(
-            kernel,
-            [..., 0, nb_spatial_dims],
-            data,
-            [...] + list(range(1, 1 + nb_spatial_dims)),
-            [..., 0] + list(range(1, 1 + nb_spatial_dims - 1)),
-        )
-    return data
-
-
-def unravel_index(x, dims):
-    one = torch.tensor([1], dtype=dims.dtype, device=dims.device)
-    a = torch.cat((one, dims.flip([0])[:-1]))
-    dim_prod = torch.cumprod(a, dim=0).flip([0]).type(torch.float)
-    return torch.floor(x[..., None] / dim_prod) % dims
-
-
-def cross_correlation_max(
-    x: torch.Tensor, y: torch.Tensor, normalization: str, nb_spatial_dims: int = None
-) -> Tuple[torch.Tensor]:
-    """Compute cross-correlation between x and y
-    Params:
-        x (torch.Tensor) of shape (B, ...)
-            where (...) corresponds to the N spatial dimensions
-        y (torch.Tensor) of the same shape
-    Returns:
-        maxi (torch.Tensor): cross correlatio maximum of shape (B,)
-        shift (Tuple[torch.Tensor]): tuple of N tensors of size (B,)
-        image_product (torch.Tensor): product of size (B, ...)
-    """
-    nb_spatial_dims = nb_spatial_dims if nb_spatial_dims is not None else x.ndim
-    output_shape = torch.as_tensor(
-        torch.broadcast_shapes(x.size(), y.size()), dtype=torch.int64, device=x.device
-    )
-    spatial_dims = list(range(len(output_shape) - nb_spatial_dims, len(output_shape)))
-    spatial_shape = output_shape[-nb_spatial_dims:]
-    z = x * y.conj()
-    if normalization == "phase":
-        eps = torch.finfo(z.real.dtype).eps
-        z /= torch.max(z.abs(), torch.as_tensor(100 * eps))
-    cc = ifftn(z, dim=spatial_dims)
-    cc = torch.mul(cc, cc.conj(), out=cc).real
-    cc = torch.flatten(cc, start_dim=-nb_spatial_dims)
-    maxi, max_idx = torch.max(cc, dim=-1)
-    shift = unravel_index(max_idx.type(torch.int64), spatial_shape)
-    return maxi, shift, z
-
-
-def phase_cross_correlation_broadcasted_pytorch(
-    reference_image: Array,
-    moving_image: Array,
-    *,
-    upsample_factor: int = 1,
-    space: str = "real",
-    disambiguate: bool = False,
-    reference_mask: Optional[Array] = None,
-    moving_mask: Optional[Array] = None,
-    overlap_ratio: float = 0.3,
-    normalization: str = "phase",
-    nb_spatial_dims: Optional[int] = None,
-) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
-    """Phase cross-correlation between a reference and moving_images
-    Params:
-        reference (torch.Tensor): image of shape ({...}, [...])
-            where [...] corresponds to the N spatial dimensions
-        moving_images (torch.Tensor): images to register of shape ({{...}}, [...])
-            where [...] corresponds to the N spatial dimensions
-        upsample_factor (float): upsampling factor.
-            Images will be registered up to 1/upsample_factor.
-        space: not implemented
-        disambiguate: not implemented
-        reference_mask: not implemented
-        moving_mask: not implemented
-        overlap_ratio: not implemented
-        normalization : {"phase", None}
-            The type of normalization to apply to the cross-correlation. This
-            parameter is unused when masks (`reference_mask` and `moving_mask`) are
-            supplied.
-        nb_spatial_dims (int): specify the N spatial dimensions
-    Returns:
-        {...} and {{...}} shapes are broadcasted to (...)
-        error (torch.Tensor): tensor of shape (...)
-        shift (Tuple[torch.Tensor]): tuple of N tensors of size (...)
-    """
-    if space == "real":
-        raise NotImplementedError("Space should be 'fourier'")
-    if disambiguate:
-        raise NotImplementedError(
-            "pytorch masked cross correlation disambiguate is not implemented"
-        )
-    if reference_mask is not None or moving_mask is not None:
-        raise NotImplementedError("pytorch masked cross correlation is not implemented")
-    device = reference_image.device
-    output_shape = torch.as_tensor(
-        torch.broadcast_shapes(reference_image.size(), moving_image.size())
-    )
-    if nb_spatial_dims is None:
-        nb_spatial_dims = len(output_shape)
-    spatial_dims = list(range(len(output_shape) - nb_spatial_dims, len(output_shape)))
-    other_dims = list(range(0, len(output_shape) - nb_spatial_dims))
-    spatial_shapes = output_shape[spatial_dims]
-    other_shapes = output_shape[other_dims]
-    midpoints = torch.tensor(
-        [torch.fix(axis_size / 2) for axis_size in spatial_shapes], device=device
-    )
-
-    # Single pixel registration
-    error, shift, image_product = cross_correlation_max(
-        reference_image, moving_image, normalization, nb_spatial_dims=nb_spatial_dims
-    )
-
-    # Now change shifts so that they represent relative shifts and not indices
-    spatial_shapes_broadcasted = torch.broadcast_to(spatial_shapes, shift.size()).to(
-        device
-    )
-    shift[shift > midpoints] -= spatial_shapes_broadcasted[shift > midpoints]
-
-    spatial_size = torch.prod(spatial_shapes).type(reference_image.dtype)
-
-    if upsample_factor == 1:
-        rg00 = (
-            torch.sum(
-                (reference_image * reference_image.conj()),
-                dim=tuple(
-                    range(reference_image.ndim - nb_spatial_dims, reference_image.ndim)
-                ),
-            )
-            / spatial_size
-        )
-        rf00 = (
-            torch.sum(
-                (moving_image * moving_image.conj()),
-                dim=tuple(
-                    range(moving_image.ndim - nb_spatial_dims, moving_image.ndim)
-                ),
-            )
-            / spatial_size
-        )
-    else:
-        upsample_factor = torch.tensor(
-            upsample_factor, device=device, dtype=torch.float
-        )
-        shift = torch.round(shift * upsample_factor) / upsample_factor
-        upsampled_region_size = torch.ceil(upsample_factor * 1.5)
-        dftshift = torch.fix(upsampled_region_size / 2.0)
-        sample_region_offset = dftshift - shift * upsample_factor
-        cross_correlation = _upsampled_dft(
-            image_product.conj(),
-            upsampled_region_size,
-            upsample_factor,
-            sample_region_offset,
-            nb_spatial_dims,
-        ).conj()
-        cross_correlation = (cross_correlation * cross_correlation.conj()).real
-        error, max_idx = torch.max(
-            cross_correlation.reshape(*tuple(other_shapes), -1), dim=-1
-        )
-        maxima = unravel_index(
-            max_idx,
-            torch.as_tensor(
-                cross_correlation.shape[-nb_spatial_dims:], device=max_idx.device
-            ),
-        )
-        maxima -= dftshift
-
-        shift += maxima / upsample_factor
-
-        rg00 = torch.sum(
-            (reference_image * reference_image.conj()),
-            dim=tuple(
-                range(reference_image.ndim - nb_spatial_dims, reference_image.ndim)
-            ),
-        )
-        rf00 = torch.sum(
-            (moving_image * moving_image.conj()),
-            dim=tuple(range(moving_image.ndim - nb_spatial_dims, moving_image.ndim)),
-        )
-
-    error = torch.tensor([1.0], device=device) - error / (rg00.real * rf00.real)
-    error = torch.sqrt(error.abs())
-
-    return tuple([shift[..., i] for i in range(shift.size(-1))]), error, None
 
 
 def phase_cross_correlation_broadcasted_skimage(
@@ -945,62 +363,6 @@ def phase_cross_correlation_broadcasted_skimage(
     for index in np.ndindex(other_shape):
         ref_im, moving_im = reference_image[index], moving_image[index]
         s, e, p = phase_cross_correlation_skimage(
-            ref_im,
-            moving_im,
-            upsample_factor=upsample_factor,
-            space=space,
-            disambiguate=disambiguate,
-            return_error="always",
-            reference_mask=reference_mask,
-            moving_mask=moving_mask,
-            overlap_ratio=overlap_ratio,
-            normalization=normalization,
-        )
-        for i in range(nb_spatial_dims):
-            shifts[i][index] = s[i]
-        errors[index] = e
-        phasediffs[index] = p
-    return tuple(shifts), errors, phasediffs
-
-
-def phase_cross_correlation_broadcasted_cucim(
-    reference_image: Array,
-    moving_image: Array,
-    *,
-    upsample_factor: int = 1,
-    space: str = "real",
-    disambiguate: bool = False,
-    reference_mask: Optional[Array] = None,
-    moving_mask: Optional[Array] = None,
-    overlap_ratio: float = 0.3,
-    normalization: str = "phase",
-    nb_spatial_dims: Optional[int] = None,
-):
-    if nb_spatial_dims is None:
-        shifts, error, phasediff = phase_cross_correlation_cucim(
-            reference_image,
-            moving_image,
-            upsample_factor=upsample_factor,
-            space=space,
-            disambiguate=disambiguate,
-            return_error="always",
-            reference_mask=reference_mask,
-            moving_mask=moving_mask,
-            overlap_ratio=overlap_ratio,
-            normalization=normalization,
-        )
-        shifts = tuple([cp.array(s, dtype=float) for s in shifts])
-        return shifts, error, phasediff
-
-    broadcast = cp.broadcast(reference_image, moving_image)
-    reference_image, moving_image = cp.broadcast_arrays(reference_image, moving_image)
-    other_shape = broadcast.shape[:-nb_spatial_dims]
-    shifts = [cp.empty(other_shape) for _ in range(nb_spatial_dims)]
-    errors = cp.empty(other_shape)
-    phasediffs = cp.empty(other_shape)
-    for index in cp.ndindex(other_shape):
-        ref_im, moving_im = reference_image[index], moving_image[index]
-        s, e, p = phase_cross_correlation_cucim(
             ref_im,
             moving_im,
             upsample_factor=upsample_factor,
@@ -1105,12 +467,12 @@ def phase_cross_correlation(
         this phase difference is not available and NaN is returned if
         ``return_error`` is "always".
     """
-    xp = array_api_compat.array_namespace(reference_image, moving_image)
-    if xp == array_api_compat.torch:
+    xp = array_namespace(reference_image, moving_image)
+    if spfluo.has_torch and xp == torch:
         func = phase_cross_correlation_broadcasted_pytorch
-    elif xp == array_api_compat.numpy:
+    elif xp == np:
         func = phase_cross_correlation_broadcasted_skimage
-    elif xp == array_api_compat.cupy:
+    elif spfluo.has_cupy and xp == cupy:
         func = phase_cross_correlation_broadcasted_cucim
 
     shift, error, phasediff = func(
@@ -1130,7 +492,7 @@ def phase_cross_correlation(
 
 
 def cartesian_prod(*arrays):
-    xp = array_api_compat.array_namespace(*arrays)
+    xp = array_namespace(*arrays)
     return xp.stack(xp.meshgrid(*arrays, indexing="ij"), axis=-1).reshape(
         -1, len(arrays)
     )
@@ -1179,23 +541,6 @@ def discretize_sphere_uniformly(
     precision_rot = (180 / xp.pi) * 2 * xp.pi / symmetry / M
     theta, phi, psi = theta * 180 / xp.pi, phi * 180 / xp.pi, psi * 180 / xp.pi
     return (theta, phi, psi), (precision_axes, precision_rot)
-
-
-def normalize_patches(patches: torch.Tensor) -> torch.Tensor:
-    """Normalize N patches by computing min/max for each patch
-    Params: patches (torch.Tensor) of shape (N, ...)
-    Returns: normalized_patches (torch.Tensor) of shape (N, ...)
-    """
-    N = patches.size(0)
-    patch_shape = patches.shape[1:]
-    flatten_patches = patches.view(N, -1)
-    min_patch, _ = flatten_patches.min(dim=1)
-    max_patch, _ = flatten_patches.max(dim=1)
-    min_patch = min_patch.view(tuple([N] + [1] * len(patch_shape)))
-    max_patch = max_patch.view(tuple([N] + [1] * len(patch_shape)))
-    normalized_patches = (patches - min_patch) / (max_patch - min_patch)
-
-    return normalized_patches
 
 
 def disp3D(*ims, fig=None, axis_off=False):
@@ -1446,27 +791,6 @@ def pointcloud_intersect(self, corners1, corners2):
         for s1, s2 in itertools.product(surfaces1, surfaces2)
     ]
     return any(intersections)
-
-
-def create_psf(shape, cov, **kwargs):
-    center = torch.floor(torch.as_tensor(shape, **kwargs) / 2)
-    coords = torch.stack(
-        torch.meshgrid(
-            [torch.arange(0, shape[i], **kwargs) for i in range(len(shape))],
-            indexing="ij",
-        ),
-        dim=-1,
-    )
-    psf = (
-        torch.exp(
-            -0.5
-            * (coords[..., None, :] - center)
-            @ torch.linalg.inv(cov)
-            @ (coords[..., :, None] - center[:, None])
-        )
-        / torch.linalg.det(2 * torch.pi * cov) ** 0.5
-    )
-    return psf[..., 0, 0]
 
 
 def are_volumes_aligned(vol1, vol2, atol=0.1):

@@ -1,7 +1,6 @@
-import array_api_compat
 import numpy as np
 
-from spfluo.utils._array import Array
+from spfluo.utils.array import Array, array_namespace
 from spfluo.utils.volume import affine_transform as affine_transform_spfluo
 
 interp_order = 3
@@ -11,7 +10,7 @@ def rotation(volumes: Array, transform: Array, order: int = 1, inverse: bool = F
     """
     transform: homogeneous transform
     """
-    xp = array_api_compat.array_namespace(volumes, transform)
+    xp = array_namespace(volumes, transform)
     if not inverse:  # scipy's affine_transform do inverse transform by default
         transform = xp.linalg.inv(transform)
     return affine_transform_spfluo(

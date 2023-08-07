@@ -1,6 +1,4 @@
-import array_api_compat.numpy
-import numpy as np
-
+from spfluo.utils.array import numpy as np
 from spfluo.utils.volume import (
     discretize_sphere_uniformly,
 )
@@ -36,7 +34,7 @@ class AbInitioReconstruction:
         N = X.shape[0]
 
         uniform_sphere_discretization = discretize_sphere_uniformly(
-            array_api_compat.numpy,
+            np,
             params_learning_alg.M_axes,
             params_learning_alg.M_rot,
             dtype=np.float64,

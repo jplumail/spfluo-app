@@ -2,7 +2,7 @@ from typing import Tuple
 
 from scipy.spatial.transform import Rotation
 
-from ._array import Array, array_api_compat, cpu_only_compatibility
+from .array import Array, array_namespace, cpu_only_compatibility
 
 
 @cpu_only_compatibility
@@ -56,7 +56,7 @@ def get_transform_matrix(
         np.ndarray of shape ((N), 4, 4)
         An (or N) affine tranformation(s) in homogeneous coordinates.
     """
-    xp = array_api_compat.array_namespace(euler_angles, translation)
+    xp = array_namespace(euler_angles, translation)
     array_kwargs = {"dtype": euler_angles.dtype, "device": xp.device(euler_angles)}
     rot = euler_to_matrix(convention, euler_angles, degrees=degrees)
     center = (xp.asarray(shape, **array_kwargs) - 1) / 2
@@ -89,7 +89,7 @@ def distance_poses(
         distances : Tuple[Array, Array] of shape broadcasted dims.
     """
     # Rotation distance
-    xp = array_api_compat.array_namespace(p1, p2)
+    xp = array_namespace(p1, p2)
     rot1, rot2 = xp.asarray(p1[..., :3]), xp.asarray(p2[..., :3])
     rot_mat1 = xp.reshape(
         euler_to_matrix(convention, xp.reshape(rot1, (-1, 3)), degrees=True),
@@ -128,7 +128,7 @@ def distance_family_poses(
     Returns:
         rotation distance, translation distance : Tuple[Array, Array] of shape (N,)
     """
-    xp = array_api_compat.array_namespace(guessed_poses, gt_poses)
+    xp = array_namespace(guessed_poses, gt_poses)
 
     # Rotation distances
     # 1. convert euler angles to matrices

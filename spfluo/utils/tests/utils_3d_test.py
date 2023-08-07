@@ -1,12 +1,6 @@
 from functools import partial
 
-import array_api_compat.cupy
-import array_api_compat.numpy
-import array_api_compat.torch
-import numpy as np
 import pytest
-import torch
-from array_api_compat import array_namespace
 from hypothesis import given, settings
 from hypothesis import strategies as st
 from hypothesis.extra.numpy import arrays
@@ -18,8 +12,25 @@ from skimage.registration import (
     phase_cross_correlation as phase_cross_correlation_skimage,
 )
 
+import spfluo
 import spfluo.utils
+from spfluo.utils.array import array_namespace
+from spfluo.utils.array import numpy as np
 from spfluo.utils.volume import fourier_shift, phase_cross_correlation
+
+libs = [(np, None)]
+if spfluo.has_cupy:
+    from spfluo.utils.array import cupy
+
+    libs.append((cupy, None))
+if spfluo.has_torch:
+    from spfluo.utils.array import torch
+
+    libs.append((torch, "cpu"))
+    from torch import cuda
+
+    if cuda.is_available():
+        libs.append((torch, "cuda"))
 
 
 def assert_allclose(a, b, rtol=1e-7, atol=0):
@@ -51,12 +62,7 @@ phase_cross_correlation_skimage = partial(
 )
 @pytest.mark.parametrize(
     "xp, device",
-    [
-        (array_api_compat.numpy, None),
-        (array_api_compat.cupy, None),
-        (array_api_compat.torch, "cpu"),
-        (array_api_compat.torch, "cuda"),
-    ],
+    libs,
 )
 @pytest.mark.parametrize("image", [data.camera(), data.cells3d()[:, 0, :60, :60]])
 def test_correctness_phase_cross_correlation(
@@ -88,7 +94,7 @@ def test_correctness_phase_cross_correlation(
             xp.asarray(shift[i]), xp.asarray(shift_skimage[i]), atol=1 / upsample_factor
         )
     assert_allclose(error, xp.asarray(error_skimage), atol=1e7, rtol=0.01)
-    if xp != array_api_compat.torch:
+    if xp != torch:
         assert_allclose(phasediff, xp.asarray(phasediff_skimage), atol=1e7, rtol=0.01)
 
 
@@ -202,12 +208,7 @@ def test_affine_transform_offset():
 )
 @pytest.mark.parametrize(
     "xp, device",
-    [
-        (array_api_compat.numpy, None),
-        (array_api_compat.cupy, None),
-        (array_api_compat.torch, "cpu"),
-        (array_api_compat.torch, "cuda"),
-    ],
+    libs,
 )
 @pytest.mark.parametrize("image", [data.camera(), data.cells3d()[:, 0, :60, :60]])
 def test_correctness_fourier_shift(

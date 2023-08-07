@@ -1,12 +1,17 @@
 import cc3d
-import cupy as cp
 import numpy as np
 import SimpleITK as sitk
-from cupyx.scipy.ndimage import fourier_shift as fourier_shift_cupy
-from cupyx.scipy.ndimage import label as label_cupy
 from numpy import pi
 from scipy.ndimage import fourier_shift
 from tqdm import tqdm
+
+import spfluo
+
+# Optional import
+if spfluo.has_cupy:
+    import cupy as cp
+    from cupyx.scipy.ndimage import fourier_shift as fourier_shift_cupy
+    from cupyx.scipy.ndimage import label as label_cupy
 
 
 def registration_exhaustive_search(

@@ -4,20 +4,18 @@ import os
 import shutil
 from typing import Tuple
 
-import array_api_compat
-import cupy as cp
 import numpy as np
 import pandas as pd
-import torch
 from scipy.spatial.transform import Rotation as R
 from skimage import io
 from skimage.metrics import structural_similarity as ssim
 from tqdm.auto import tqdm
 
+import spfluo
 from spfluo.ab_initio_reconstruction.volume_representation.pixel_representation import (
     Fourier_pixel_representation,
 )
-from spfluo.utils._array import Array
+from spfluo.utils.array import Array, array_namespace, to_device, torch
 from spfluo.utils.transform import get_transform_matrix
 from spfluo.utils.volume import fourier_shift, phase_cross_correlation
 
@@ -164,18 +162,27 @@ def gd_importance_sampling_3d(
                 inverse_transforms = np.linalg.inv(transforms)
 
                 view = views[v]
-                if gpu == "pytorch":
-                    inverse_transforms, view = map(
-                        lambda x: torch.as_tensor(
-                            x.astype(params_learning_alg.dtype), device="cuda"
-                        ),
-                        [inverse_transforms, view],
-                    )
-                elif gpu == "cucim":
-                    inverse_transforms, view = map(
-                        lambda x: cp.asarray(x.astype(params_learning_alg.dtype)),
-                        [inverse_transforms, view],
-                    )
+                try:
+                    if gpu == "pytorch":
+                        import torch
+
+                        inverse_transforms, view = map(
+                            lambda x: torch.as_tensor(
+                                x.astype(params_learning_alg.dtype), device="cuda"
+                            ),
+                            [inverse_transforms, view],
+                        )
+                    elif gpu == "cucim":
+                        import cupy as cp
+
+                        inverse_transforms, view = map(
+                            lambda x: cp.asarray(x.astype(params_learning_alg.dtype)),
+                            [inverse_transforms, view],
+                        )
+                except ImportError as e:
+                    raise ImportError(
+                        "Install spfluo[gpu] to use the --gpu option"
+                    ) from e
 
                 # Compute shifts
                 # views are transformed back to the reference volume
@@ -220,7 +227,7 @@ def gd_importance_sampling_3d(
                     rot_vecs.reshape(-1, 3),
                     degrees=True,
                 ).as_matrix()
-                shifts = array_api_compat.to_device(shifts, "cpu")
+                shifts = to_device(shifts, "cpu")
                 shifts = np.asarray(shifts)
                 associated_translations = -(np.linalg.inv(rot) @ shifts[:, :, None])
                 associated_translations = associated_translations[:, :, 0].reshape(
@@ -229,7 +236,7 @@ def gd_importance_sampling_3d(
 
                 # Go back to CPU
                 def to_numpy(x):
-                    return np.asarray(array_api_compat.to_device(x, "cpu"))
+                    return np.asarray(to_device(x, "cpu"))
 
                 energies = energies.reshape(len(indices_axes), len(indices_rot))
                 psf_inverse_transformed_fft = psf_inverse_transformed_fft.reshape(
@@ -458,8 +465,8 @@ def compute_shifts(
     view: Array,
     interp_order: int = 1,
 ) -> Tuple[Array, Array, Array]:
-    xp = array_api_compat.array_namespace(inverse_transforms, view)
-    if xp == array_api_compat.torch:
+    xp = array_namespace(inverse_transforms, view)
+    if spfluo.has_torch and xp == torch:
 
         def pytorch_fftn_wrapper(x, s=None, axes=None, norm="backward"):
             from torch.fft import fftn as fftn_torch
@@ -506,7 +513,7 @@ def compute_shifts(
 
 
 def compute_energy(reference_volume_fft, psf_rotated_fft, view_rotated_fft):
-    xp = array_api_compat.array_namespace(view_rotated_fft)
+    xp = array_namespace(view_rotated_fft)
     device = xp.device(view_rotated_fft)
     reference_volume_fft = xp.asarray(reference_volume_fft, device=device)
     psf_rotated_fft = xp.asarray(psf_rotated_fft, device=device)

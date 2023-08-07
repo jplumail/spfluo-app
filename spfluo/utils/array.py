@@ -1,11 +1,31 @@
 from typing import TypeVar
 
-import array_api_compat
-from cupy import ndarray as cupy_array
-from numpy import ndarray as numpy_array
-from torch import Tensor as torch_array
+import spfluo
+from spfluo._vendored.array_api_compat import (
+    array_namespace,
+    is_array_api_obj,
+    numpy,
+    to_device,
+)
 
-Array = TypeVar("Array", numpy_array, cupy_array, torch_array)
+arrays = [numpy.ndarray]
+libs = [numpy]
+
+if spfluo.has_cupy:
+    from spfluo._vendored.array_api_compat import cupy
+
+    arrays.append(cupy.ndarray)
+    libs.append(cupy)
+if spfluo.has_torch:
+    from spfluo._vendored.array_api_compat import torch
+
+    arrays.append(torch.Tensor)
+    libs.append(torch)
+
+if len(arrays) > 1:
+    Array = TypeVar("Array", *arrays)
+else:
+    Array = arrays[0]
 
 
 def cpu_only_compatibility(cpu_func):
@@ -14,23 +34,22 @@ def cpu_only_compatibility(cpu_func):
     cpu_func: Callable
         signature (*args, **kwargs) -> array like object
     """
-    is_array = array_api_compat.is_array_api_obj
 
     def func(*args, **kwargs) -> Array:
-        array_args = list(filter(is_array, args))
-        array_kwargs = list(filter(is_array, kwargs.values()))
-        xp = array_api_compat.array_namespace(*array_args, *array_kwargs)
+        array_args = list(filter(is_array_api_obj, args))
+        array_kwargs = list(filter(is_array_api_obj, kwargs.values()))
+        xp = array_namespace(*array_args, *array_kwargs)
         cpu_args = []
         for arg in args:
             arg_ = arg
-            if is_array(arg):
+            if is_array_api_obj(arg):
                 arg_ = xp.asarray(arg)
                 arg_ = xp.to_device(arg_, "cpu")
             cpu_args.append(arg_)
         cpu_kwargs = {}
         for k, arg in kwargs.items():
             arg_ = arg
-            if is_array(arg):
+            if is_array_api_obj(arg):
                 arg_ = xp.asarray(arg)
                 arg_ = xp.to_device(arg_, "cpu")
             cpu_kwargs[k] = arg_
@@ -43,3 +62,12 @@ def cpu_only_compatibility(cpu_func):
         return xp.asarray(cpu_func(*cpu_args, **cpu_kwargs), device=device)
 
     return func
+
+
+__all__ = [
+    Array,
+    *libs,
+    array_namespace,
+    is_array_api_obj,
+    to_device,
+]

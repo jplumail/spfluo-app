@@ -15,7 +15,6 @@ dependencies = [
   "albumentations",
   "psutil",
   "matplotlib",
-  "array_api_compat",
   "pooch",
 ]
 dynamic = ["version"]
@@ -68,3 +67,7 @@ known-first-party = ["spfluo"]
 "spfluo/picking/*" = ["E501"]
 "spfluo/segmentation/unet_3d.py" = ["E501"]
 "spfluo/segmentation/losses.py" = ["E501"]
+"spfluo/_vendored/*" = ["ALL"]
+
+[tool.black]
+exclude = "spfluo/_vendored/*"
