@@ -26,4 +26,4 @@ if __name__ == "__main__":
         root_dir: Path = DATA_DIR / "generated" / id
         root_dir.mkdir(exist_ok=True, parents=True)
         np.random.seed(123)
-        generate_particles(pointcloud_path, root_dir, D, N, anisotropic_param, 20)
+        generate_particles(pointcloud_path, root_dir, D, N, anisotropic_param, 25)
