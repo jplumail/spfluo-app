@@ -226,6 +226,7 @@ def test_refine_shapes():
     assert poses.shape == guessed_poses.shape
 
 
+@pytest.mark.skipif(device == "cpu", reason="Too long if done on CPU.")
 def test_refine_easy(generated_data_all_pytorch, poses_with_noise):
     poses = poses_with_noise
     volumes, groundtruth_poses, psf, groundtruth = generated_data_all_pytorch
@@ -247,5 +248,5 @@ def test_refine_easy(generated_data_all_pytorch, poses_with_noise):
         poses, groundtruth_poses, symmetry=9
     )
 
-    assert rot_dist_deg1.sum() < rot_dist_deg2.sum()
-    assert trans_dist_pix1.sum() < trans_dist_pix2.sum()
+    assert rot_dist_deg1.mean() < rot_dist_deg2.mean()
+    assert trans_dist_pix1.mean() < trans_dist_pix2.mean()

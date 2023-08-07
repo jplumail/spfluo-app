@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 
+import spfluo
 from spfluo.ab_initio_reconstruction.api import AbInitioReconstruction
 from spfluo.utils.volume import interpolate_to_size
 
@@ -60,18 +61,27 @@ def test_ab_initio_files_exist(generated_data_anisotropic, tmpdir):
     assert ab_initio._num_iter == len(ab_initio._energies)
 
 
+@pytest.mark.skipif(not spfluo.has_cupy, reason="skipping cupy test")
 def test_ab_initio_same_results_cucim(generated_data_anisotropic, tmpdir):
     ab_initio_numpy, _ = minimal_run(None, generated_data_anisotropic, tmpdir)
     ab_initio, _ = minimal_run("cucim", generated_data_anisotropic, tmpdir)
     assert np.isclose(ab_initio_numpy._energies, ab_initio._energies).all()
 
 
+@pytest.mark.skipif(
+    not (spfluo.has_torch and spfluo.has_torch_cuda),
+    reason="Cannot run ab initio pytorch without gpu",
+)
 def test_ab_initio_same_results_pytorch(generated_data_anisotropic, tmpdir):
     ab_initio_numpy, _ = minimal_run(None, generated_data_anisotropic, tmpdir)
     ab_initio, _ = minimal_run("pytorch", generated_data_anisotropic, tmpdir)
     assert np.isclose(ab_initio_numpy._energies, ab_initio._energies, rtol=0.001).all()
 
 
+@pytest.mark.skipif(
+    not (spfluo.has_torch and spfluo.has_torch_cuda),
+    reason="Too long to test if CUDA is not available",
+)
 def test_long_run(generated_data_all, tmpdir):
     ab_initio, _ = long_run("pytorch", generated_data_all, tmpdir)
     assert ab_initio._energies[-1] < 200
