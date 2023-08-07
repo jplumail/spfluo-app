@@ -6,7 +6,7 @@ import numpy as np
 from napari.layers import Points
 from napari.utils.events import Event
 
-from spfluo.visualisation import add_orthoviewer_widget, init_qt
+from spfluo.visualisation.multiple_viewer_widget import add_orthoviewer_widget, init_qt
 
 
 def annotate(im_path, output_path, size=10):
