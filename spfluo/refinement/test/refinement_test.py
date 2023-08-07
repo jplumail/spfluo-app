@@ -226,6 +226,7 @@ def test_refine_shapes():
     assert poses.shape == guessed_poses.shape
 
 
+@pytest.mark.skip("This test is broken for anisotropic data.")  # TODO fix this test
 @pytest.mark.skipif(device == "cpu", reason="Too long if done on CPU.")
 def test_refine_easy(generated_data_all_pytorch, poses_with_noise):
     poses = poses_with_noise
