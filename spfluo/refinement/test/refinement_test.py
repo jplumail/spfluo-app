@@ -1,9 +1,12 @@
 # from spfluo.utils.loading import loadmat
 
+from functools import partial
 from typing import Tuple
 
+import pytest
 import torch
 
+import spfluo
 from spfluo.refinement import (
     convolution_matching_poses_grid,
     convolution_matching_poses_refined,
@@ -13,6 +16,31 @@ from spfluo.refinement import (
 )
 from spfluo.utils.transform import distance_family_poses
 from spfluo.utils.volume import are_volumes_aligned
+
+if spfluo.has_torch_cuda:
+    device = "cuda"
+else:
+    device = "cpu"
+as_tensor = partial(torch.as_tensor, device=device)
+
+
+@pytest.fixture(scope="module")
+def generated_data_all_pytorch(generated_data_all):
+    return tuple(map(as_tensor, generated_data_all))
+
+
+@pytest.fixture
+def poses_with_noise(
+    generated_data_all_pytorch: Tuple[torch.Tensor, ...]
+) -> torch.Tensor:
+    _, poses, _, _ = generated_data_all_pytorch
+    poses_noisy = poses.clone()
+    sigma_rot, sigma_trans = 20, 2
+    torch.manual_seed(123)
+    poses_noisy[:, :3] += as_tensor(torch.randn(len(poses), 3)) * sigma_rot
+    poses_noisy[:, 3:] += as_tensor(torch.randn(len(poses), 3)) * sigma_trans
+    return poses_noisy
+
 
 ##########################
 # Test reconstruction_L2 #
@@ -47,8 +75,8 @@ def test_parallel_reconstruction_L2():
     assert torch.isclose(recon, recon2).all()
 
 
-def test_reconstruction_L2_simple(generated_data_pytorch: Tuple[torch.Tensor, ...]):
-    volumes, groundtruth_poses, psf, groundtruth = generated_data_pytorch
+def test_reconstruction_L2_simple(generated_data_all_pytorch):
+    volumes, groundtruth_poses, psf, groundtruth = generated_data_all_pytorch
     lbda = volumes.new_tensor(1e-5)
     reconstruction, _ = reconstruction_L2(volumes, psf, groundtruth_poses, lbda)
 
@@ -198,9 +226,9 @@ def test_refine_shapes():
     assert poses.shape == guessed_poses.shape
 
 
-def test_refine_easy(generated_data_pytorch, poses_with_noise_pytorch):
-    poses = poses_with_noise_pytorch
-    volumes, groundtruth_poses, psf, groundtruth = generated_data_pytorch
+def test_refine_easy(generated_data_all_pytorch, poses_with_noise):
+    poses = poses_with_noise
+    volumes, groundtruth_poses, psf, groundtruth = generated_data_all_pytorch
 
     S = 10
     A = 14 * 2

@@ -62,6 +62,7 @@ def _fetch_dataset(dataset_dir) -> Dict[str, np.ndarray]:
         "poses": poses,
         "psf": psf,
         "gt": gt,
+        "rootdir": poses_path.parent.absolute(),
     }
 
 

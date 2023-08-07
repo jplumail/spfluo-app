@@ -1,10 +1,13 @@
 import tempfile
 from pathlib import Path
 
+from spfluo import data
 from spfluo.refinement.__main__ import create_parser, main
 
 
-def test_main_refinement(generated_root_dir: Path):
+def test_main_refinement():
+    generated_root_dir = data.generated_anisotropic()["rootdir"]
+    print(generated_root_dir)
     parser = create_parser()
     with tempfile.TemporaryDirectory() as tmpdirname:
         tmpdir = Path(tmpdirname)

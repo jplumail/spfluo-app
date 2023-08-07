@@ -1,9 +1,11 @@
 from pathlib import Path
 
+from spfluo import data
 from spfluo.ab_initio_reconstruction.__main__ import create_parser, main
 
 
-def test_main_ab_initio(generated_root_dir: Path, tmpdir):
+def test_main_ab_initio(tmpdir):
+    generated_root_dir = data.generated_anisotropic()["rootdir"]
     parser = create_parser()
     tmpdir = Path(tmpdir)
     args = parser.parse_args(
