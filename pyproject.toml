@@ -10,9 +10,6 @@ dependencies = [
   "scikit-image",
   "pandas",
   "tqdm",
-  "SimpleITK",
-  "connected-components-3d",
-  "albumentations",
   "psutil",
   "matplotlib",
   "pooch",
@@ -31,21 +28,43 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-figtree = ["pyfigtree"]
 gpu = [
   "cupy-wheel",
   "cucim",
   "torch",
-  "torchvision",
-  "tensorboard",
   "pynvml",
-]
-napari = [
-  "napari[all] >= 0.4.18",
 ]
 dev = [
   "pytest",
   "hypothesis",
+  "pyfigtree",
+  "scikit-image[data]",
+]
+manual-picking = [
+  "spfluo[visualisation]"
+]
+ab-initio-reconstruction = [
+  "SimpleITK",
+  "connected-components-3d",
+]
+picking = [
+  "spfluo[gpu]",
+  "tensorboard",
+  "albumentations",
+]
+refinement = [
+  "spfluo[gpu]"
+]
+visualisation = [
+  "napari[all]>=0.4.18",
+  "aicsimageio",
+]
+all = [
+  "spfluo[manual-picking]",
+  "spfluo[ab-initio-reconstruction]",
+  "spfluo[picking]",
+  "spfluo[refinement]",
+  "spfluo[visualisation]"
 ]
 
 [project.urls]
