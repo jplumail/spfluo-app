@@ -35,16 +35,19 @@ import pickle
 from enum import Enum
 
 import pyworkflow.object as pwobj
-from aicsimageio.aics_image import AICSImage
-from aicsimageio.transforms import reshape_data
-from pwfluo.objects import AverageParticle, Particle, PSFModel, SetOfParticles
+from pwfluo.objects import AverageParticle, PSFModel, SetOfParticles
 from pwfluo.protocols import ProtFluoBase
 from pyworkflow import BETA
 from pyworkflow.protocol import Form, Protocol, params
 
 from spfluo import Plugin
 from spfluo.constants import AB_INITIO_MODULE, UTILS_MODULE
-from spfluo.convert import getLastParticlesParams, updateSetOfParticles
+from spfluo.convert import (
+    getLastParticlesParams,
+    save_particles,
+    save_psf,
+    updateSetOfParticles,
+)
 
 
 class outputs(Enum):
@@ -147,51 +150,19 @@ class ProtSPFluoAbInitio(Protocol, ProtFluoBase):
         self._insertFunctionStep(self.createOutputStep)
 
     def prepareStep(self):
-        print("Creating particles directory")
-        if not os.path.exists(self.particlesDir):
-            os.makedirs(self.particlesDir, exist_ok=True)
-
         # Image links for particles
-        particles_paths = []
-        inputParticles: SetOfParticles = self.inputParticles.get()
-        max_dim = 0
-        for im in inputParticles:
-            im: Particle
-            max_dim = max(max_dim, max(im.getDim()))
-            im_path = os.path.abspath(im.getFileName())
-            ext = os.path.splitext(im_path)[1]
-            im_name = im.strId()
-            im_newPath = os.path.join(self.particlesDir, im_name + ".tif")
-            particles_paths.append(im_newPath)
-            if im.getNumChannels() > 1:
-                AICSImage(
-                    reshape_data(
-                        im.getData(), im.img.dims.order, "TCZYX", C=self.channel.get()
-                    )
-                ).save(im_newPath)
-            else:
-                if ext != ".tif" and ext != ".tiff":
-                    raise NotImplementedError(
-                        f"Found ext {ext} in particles: {im_path}."
-                        "Only tiff file are supported."
-                    )  # FIXME: allow formats accepted by AICSImageio
-                else:
-                    os.link(im_path, im_newPath)
+        particles: SetOfParticles = self.inputParticles.get()
+        channel = self.channel.get() if particles.getNumChannels() > 0 else None
+        particles_paths, max_dim = save_particles(
+            self.particlesDir, particles, channel=channel
+        )
 
         # PSF Path
         psf: PSFModel = self.inputPSF.get()
-        psf_path = os.path.abspath(psf.getFileName())
-        ext = os.path.splitext(psf_path)[1]
-        if ext != ".tif" and ext != ".tiff":
-            raise NotImplementedError(
-                f"Found ext {ext} in particles: {im_path}."
-                "Only tiff file are supported."
-            )
-        else:
-            os.link(psf_path, self.psfPath)
+        save_psf(self.psfPath, psf)
 
         # Make isotropic
-        vs = inputParticles.getVoxelSize()
+        vs = particles.getVoxelSize()
         if vs is None:
             raise RuntimeError("Input Particles don't have a voxel size.")
 
@@ -248,7 +219,7 @@ class ProtSPFluoAbInitio(Protocol, ProtFluoBase):
         print("Launching reconstruction")
         Plugin.runSPFluo(self, Plugin.getProgram(AB_INITIO_MODULE), args=args)
         os.link(
-            os.path.join(self.outputDir, "intermediar_results", "final_recons.tif"),
+            os.path.join(self.outputDir, "final_recons.tif"),
             self.final_reconstruction,
         )
 
@@ -268,7 +239,6 @@ class ProtSPFluoAbInitio(Protocol, ProtFluoBase):
         )
         outputSetOfParticles.copyInfo(inputSetOfParticles)
         outputSetOfParticles.setCoordinates3D(inputSetOfParticles.getCoordinates3D())
-        print(particleParams)
         updateSetOfParticles(inputSetOfParticles, outputSetOfParticles, particleParams)
         self._defineOutputs(**{outputs.particles.name: outputSetOfParticles})
         # Transform relation

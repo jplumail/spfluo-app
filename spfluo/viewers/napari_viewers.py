@@ -13,7 +13,7 @@ from pyworkflow.viewer import DESKTOP_TKINTER, View, Viewer
 
 from spfluo import Plugin
 from spfluo.constants import VISUALISATION_MODULE
-from spfluo.convert import save_coordinates3D
+from spfluo.convert import save_translations
 
 
 class NapariDataViewer(Viewer):
@@ -214,7 +214,7 @@ class SetOfCoordinates3DDialog(ToolbarListDialog):
     def lanchNapariForFluoImage(self, im: FluoImage, coords_im: SetOfCoordinates3D):
         path = im.getFileName()
         csv_path = self._protocol._getExtraPath("coords.csv")
-        save_coordinates3D(coords_im, csv_path)
+        save_translations(coords_im, csv_path)
         fullProgram = Plugin.getFullProgram(
             Plugin.getProgram([VISUALISATION_MODULE, "coords"])
         )

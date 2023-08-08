@@ -5,9 +5,12 @@ import os
 from typing import Dict, Iterator, List, Tuple
 
 import numpy as np
+from aicsimageio.aics_image import AICSImage
+from aicsimageio.transforms import reshape_data
 from pwfluo.objects import (
     Coordinate3D,
     Particle,
+    PSFModel,
     SetOfCoordinates3D,
     SetOfParticles,
     Transform,
@@ -16,23 +19,25 @@ from scipy.spatial.transform import Rotation
 
 
 def getLastParticlesParams(folder):
-    # Read rot_vecs
-    print(os.path.join(folder, "estimated_rot_vecs_epoch_*.csv"))
-    fpaths = glob.glob(os.path.join(folder, "estimated_rot_vecs_epoch_*.csv"))
+    # Read poses
+    print(os.path.join(folder, "estimated_poses_epoch_*.csv"))
+    fpaths = glob.glob(os.path.join(folder, "estimated_poses_epoch_*.csv"))
     print(fpaths)
-    rot_vecs_path = sorted(
-        fpaths, key=lambda x: int(x.split("_")[-1][:-4]), reverse=True
-    )[0]
-    print(f"Opening {rot_vecs_path}")
+    poses_path = sorted(fpaths, key=lambda x: int(x.split("_")[-1][:-4]), reverse=True)[
+        0
+    ]
+    print(f"Opening {poses_path}")
     output = {}
-    with open(rot_vecs_path, "r") as f:
+    with open(poses_path, "r") as f:
         data = csv.reader(f)
         next(data)
         for row in data:
-            rot_vec = np.array(list(map(float, row[1:])))
-            output[int(row[0])] = {
-                "matrix": Rotation.from_rotvec(rot_vec, degrees=True).as_matrix()
-            }
+            rot = np.array(list(map(float, row[1:4])))
+            trans = np.array(list(map(float, row[4:7])))
+            H = np.zeros((4, 4), dtype=float)
+            H[:3, :3] = Rotation.from_euler("XZX", rot, degrees=True).as_matrix()
+            H[:3, 3] = trans
+            output[int(row[0])] = {"homogeneous_transform": H}
     return output
 
 
@@ -52,10 +57,8 @@ def updateSetOfParticles(
         else:
             print("Got params for particle %d" % index)
             # Create 4x4 matrix from 4x3 e2spt_sgd align matrix and append row [0,0,0,1]
-            am = np.array(particleParams["matrix"])
-            matrix = np.row_stack((am, np.array([0, 0, 0])))
-            matrix = np.column_stack((matrix, np.array([0, 0, 0, 1])))
-            particle.setTransform(Transform(matrix))
+            H = np.array(particleParams["homogeneous_transform"])
+            particle.setTransform(Transform(H))
 
     outputSetOfParticles.copyItems(
         inputSetOfParticles,
@@ -92,7 +95,6 @@ def write_csv(filename, data):
 
 
 def read_coordinate3D(csv_file: str) -> Iterator[Tuple[Coordinate3D, int]]:
-    print(csv_file)
     with open(csv_file, "r") as f:
         data = csv.reader(f)
         next(data)
@@ -102,7 +104,7 @@ def read_coordinate3D(csv_file: str) -> Iterator[Tuple[Coordinate3D, int]]:
             yield coord, int(float(row[4]))
 
 
-def save_coordinates3D(coords: SetOfCoordinates3D, csv_file: str):
+def save_translations(coords: SetOfCoordinates3D, csv_file: str):
     box_size = coords.getBoxSize()
     with open(csv_file, "w") as f:
         csvwriter = csv.writer(f)
@@ -110,3 +112,96 @@ def save_coordinates3D(coords: SetOfCoordinates3D, csv_file: str):
         for i, coord in enumerate(coords.iterCoordinates()):
             x, y, z = coord.getPosition()
             csvwriter.writerow([i, x, y, z, box_size])
+
+
+def save_particles(
+    particles_dir: str, particles: SetOfParticles, channel: int = None
+) -> Tuple[List[str], int]:
+    print("Creating particles directory")
+    if not os.path.exists(particles_dir):
+        os.makedirs(particles_dir, exist_ok=True)
+    particles_paths = []
+    max_dim = 0
+    for im in particles:
+        im: Particle
+        max_dim = max(max_dim, max(im.getDim()))
+        im_path = os.path.abspath(im.getFileName())
+        ext = os.path.splitext(im_path)[1]
+        im_name = im.strId()
+        im_newPath = os.path.join(particles_dir, im_name + ".tif")
+        particles_paths.append(im_newPath)
+        if channel is not None and im.getNumChannels() > 1:
+            AICSImage(
+                reshape_data(im.getData(), im.img.dims.order, "TCZYX", C=channel)
+            ).save(im_newPath)
+        else:
+            if ext != ".tif" and ext != ".tiff":
+                raise NotImplementedError(
+                    f"Found ext {ext} in particles: {im_path}."
+                    "Only tiff file are supported."
+                )  # FIXME: allow formats accepted by AICSImageio
+            else:
+                os.link(im_path, im_newPath)
+
+    return particles_paths, max_dim
+
+
+def save_particles_and_poses(
+    root_dir: str, particles: SetOfParticles, channel: int = None
+) -> Tuple[List[str], int]:
+    print("Creating particles directory")
+    particles_dir = os.path.join(root_dir, "particles")
+    csv_path = os.path.join(root_dir, "poses.csv")
+    if not os.path.exists(root_dir):
+        os.makedirs(particles_dir, exist_ok=True)
+    particles_paths = []
+    max_dim = 0
+    with open(csv_path, "w") as f:
+        csvwriter = csv.writer(f)
+        csvwriter.writerow(["index", "axis-1", "axis-2", "axis-3", "size"])
+
+        for im in particles:
+            im: Particle
+            max_dim = max(max_dim, max(im.getDim()))
+            im_path = os.path.abspath(im.getFileName())
+            ext = os.path.splitext(im_path)[1]
+            im_name = im.strId()
+            im_newPath = os.path.join(particles_dir, im_name + ".tif")
+            particles_paths.append(im_newPath)
+            if channel is not None and im.getNumChannels() > 1:
+                AICSImage(
+                    reshape_data(im.getData(), im.img.dims.order, "TCZYX", C=channel)
+                ).save(im_newPath)
+            else:
+                if ext != ".tif" and ext != ".tiff":
+                    raise NotImplementedError(
+                        f"Found ext {ext} in particles: {im_path}."
+                        "Only tiff file are supported."
+                    )  # FIXME: allow formats accepted by AICSImageio
+                else:
+                    os.link(im_path, im_newPath)
+
+            # Write pose
+            coord = im.getCoordinate3D()
+            rotMat = coord.getMatrix()[:3, :3]
+            euler_angles = list(
+                map(
+                    str,
+                    Rotation.from_matrix(rotMat).as_euler("XZX", degrees=True).tolist(),
+                )
+            )
+            trans = list(map(str, coord.getPosition().tolist()))
+            csvwriter.writerow([im_newPath] + euler_angles + trans)
+
+    return particles_paths, max_dim
+
+
+def save_psf(new_psf_path: str, psf: PSFModel):
+    psf_path = os.path.abspath(psf.getFileName())
+    ext = os.path.splitext(psf_path)[1]
+    if ext != ".tif" and ext != ".tiff":
+        raise NotImplementedError(
+            f"Found ext {ext} in particles: {psf_path}." "Only tiff file are supported."
+        )
+    else:
+        os.link(psf_path, new_psf_path)
