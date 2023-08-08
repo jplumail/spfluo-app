@@ -11,6 +11,7 @@ from spfluo.protocols.protocol_extract_particles import ProtSPFluoExtractParticl
 from spfluo.protocols.protocol_picking import ProtSPFluoPickingNapari
 from spfluo.protocols.protocol_picking_predict import ProtSPFluoPickingPredict
 from spfluo.protocols.protocol_picking_train import ProtSPFluoPickingTrain
+from spfluo.protocols.protocol_refinement import ProtSPFluoRefinement
 from spfluo.protocols.protocol_utils import ProtSPFluoUtils
 
 __all__ = [
@@ -21,4 +22,5 @@ __all__ = [
     ProtSPFluoParticleAverage,
     ProtSPFluoUtils,
     ProtSPFluoExtractParticles,
+    ProtSPFluoRefinement,
 ]

@@ -182,15 +182,14 @@ def save_particles_and_poses(
                     os.link(im_path, im_newPath)
 
             # Write pose
-            coord = im.getCoordinate3D()
-            rotMat = coord.getMatrix()[:3, :3]
+            rotMat = im.getTransform().getRotationMatrix()
             euler_angles = list(
                 map(
                     str,
                     Rotation.from_matrix(rotMat).as_euler("XZX", degrees=True).tolist(),
                 )
             )
-            trans = list(map(str, coord.getPosition().tolist()))
+            trans = list(map(str, im.getTransform().getShifts().tolist()))
             csvwriter.writerow([im_newPath] + euler_angles + trans)
 
     return particles_paths, max_dim

@@ -15,6 +15,7 @@ REFINEMENT_MODULE = "refinement"
 UTILS_MODULE = "utils"
 MANUAL_PICKING_MODULE = "manual_picking"
 VISUALISATION_MODULE = "visualisation"
+REFINEMENT_MODULE = "refinement"
 
 PICKING_WORKING_DIR = "picking"
 CROPPING_SUBDIR = "cropped"
