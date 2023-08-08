@@ -33,9 +33,9 @@ import inspect
 import traceback
 from collections import OrderedDict
 
-from pwem.protocols import (Prot3D, Prot2D, ProtParticles,
+from pwfluo.protocols import (Prot3D, Prot2D, ProtParticles,
                             ProtMicrographs, ProtImport)
-from pwem import Domain
+from pwfluo import Domain
 from pyworkflow.protocol import Protocol
 import pyworkflow.utils as pwutils
 

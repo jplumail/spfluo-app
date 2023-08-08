@@ -247,17 +247,17 @@ def addVariablesToSection(cf, section, vars, exclude=[]):
 
     def cleanVarPath(varValue):
         """ Clean variable to avoid long paths and relate them to SCIPION_HOME or EM_ROOT"""
-        import pwem
+        import pwfluo
         import pyworkflow as pw
 
         # If it's EM_ROOT, just replace SCIPION_HOME to make it relative
-        if varValue == pwem.Config.EM_ROOT:
-            varValue = varValue.replace(pwem.Config.SCIPION_HOME, "")
+        if varValue == pwfluo.Config.EM_ROOT:
+            varValue = varValue.replace(pwfluo.Config.SCIPION_HOME, "")
             if varValue.startswith(os.path.sep):
                 varValue = varValue[1:]
 
-        elif varValue.startswith(pwem.Config.EM_ROOT):
-            varValue = varValue.replace(pwem.Config.EM_ROOT, "%(EM_ROOT)s")
+        elif varValue.startswith(pwfluo.Config.EM_ROOT):
+            varValue = varValue.replace(pwfluo.Config.EM_ROOT, "%(EM_ROOT)s")
 
         # duplicate %
         elif "%" in varValue:
@@ -265,7 +265,7 @@ def addVariablesToSection(cf, section, vars, exclude=[]):
 
         # If value contains SCIPION_HOME and is not scipion home
         if varValue.startswith(pw.Config.SCIPION_HOME) and varValue != pw.Config.SCIPION_HOME:
-            varValue = varValue.replace(pwem.Config.SCIPION_HOME, "${SCIPION_HOME}")
+            varValue = varValue.replace(pwfluo.Config.SCIPION_HOME, "${SCIPION_HOME}")
 
         # Replace HOME paths with ~
         home = str(Path.home())

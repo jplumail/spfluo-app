@@ -168,7 +168,7 @@ if not exists(hosts):
 # *********************** STORE VARIABLES ********************
 class Vars:
     """ Class to hold all the variables that are initialized here"""
-    SCIPION_DOMAIN = "pwem"
+    SCIPION_DOMAIN = "pwfluo"
 
     # Installation paths
     SCIPION_HOME = scipionHome
@@ -192,7 +192,7 @@ class Vars:
     SCIPION_TESTS_CMD = os.environ.get("SCIPION_TESTS_CMD", '%s %s' % (SCIPION_EP, MODE_TESTS))
 
     # Priority package list
-    SCIPION_PRIORITY_PACKAGE_LIST = "pwem tomo pwchem"
+    SCIPION_PRIORITY_PACKAGE_LIST = "pwfluo tomo pwchem"
 
 
 # *********************** READ CONFIG FILES ***********************
@@ -243,14 +243,14 @@ def main():
     # Set default VIEWERS value for scipion if not defined:
     if not os.environ.get("VIEWERS", None):
         defaultViewers = []
-        defaultViewers.append('"Volume":["pwem.viewers.DataViewer"]')
-        defaultViewers.append('"VolumeMask":["pwem.viewers.DataViewer"]')
+        defaultViewers.append('"Volume":["pwfluo.viewers.DataViewer"]')
+        defaultViewers.append('"VolumeMask":["pwfluo.viewers.DataViewer"]')
         defaultViewers.append('"SetOfTiltSeries":["imod.viewers.ImodViewer"]')
         defaultViewers.append('"SetOfLandmarkModels":["imod.viewers.ImodViewer"]')
         defaultViewers.append('"SetOfTomograms":["imod.viewers.ImodViewer"]')
-        defaultViewers.append('"SetOfSubTomograms":["pwem.viewers.DataViewer"]')
-        defaultViewers.append('"SetOfVolumes":["pwem.viewers.DataViewer"]')
-        defaultViewers.append('"SetOfParticles":["pwem.viewers.DataViewer"]')
+        defaultViewers.append('"SetOfSubTomograms":["pwfluo.viewers.DataViewer"]')
+        defaultViewers.append('"SetOfVolumes":["pwfluo.viewers.DataViewer"]')
+        defaultViewers.append('"SetOfParticles":["pwfluo.viewers.DataViewer"]')
 
         os.environ["VIEWERS"] = '{%s}' % ','.join(defaultViewers)
 
@@ -325,10 +325,10 @@ def main():
     elif mode == MODE_VERSION:
         # Print main packages version
         import pyworkflow
-        import pwem
+        import pwfluo
 
         print("pyworkflow - %s" % pyworkflow. __version__)
-        print("pwem - %s" % pwem.__version__)
+        print("pwfluo - %s" % pwfluo.__version__)
         # Just exit, Scipion version will be printed anyway
         sys.exit(0)
 
@@ -383,7 +383,7 @@ def main():
           mode.startswith('sx') or
           mode.startswith('b')):
         # To avoid Ghost activation warning
-        from pwem import EM_PROGRAM_ENTRY_POINT
+        from pwfluo import EM_PROGRAM_ENTRY_POINT
         runCmd(EM_PROGRAM_ENTRY_POINT, sys.argv[1:])
 
     elif mode == MODE_INSPECT:

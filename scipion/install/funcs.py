@@ -37,7 +37,7 @@ from os.path import join, exists, islink, abspath
 from subprocess import STDOUT, call
 
 from pyworkflow import Config
-import pwem
+import pwfluo
 from typing import List, Tuple, Dict
 
 # Then we get some OS vars
@@ -320,7 +320,7 @@ class Environment:
 
     @staticmethod
     def getEmFolder():
-        return mkdir(pwem.Config.EM_ROOT)
+        return mkdir(pwfluo.Config.EM_ROOT)
 
     @staticmethod
     def getEm(name):
@@ -791,8 +791,8 @@ class Environment:
         cudaBin = os.environ.get(packUpper + '_CUDA_BIN')
 
         if cudaLib is None:
-            cudaLib = pwem.Config.CUDA_LIB
-            cudaBin = pwem.Config.CUDA_BIN
+            cudaLib = pwfluo.Config.CUDA_LIB
+            cudaBin = pwfluo.Config.CUDA_BIN
 
         environ = os.environ.copy()
 

@@ -71,11 +71,11 @@ class UpdateManager:
     scipion-app if a higher version of these is released
     """
     import pyworkflow
-    import pwem
+    import pwfluo
     import scipion
 
     packageNames = [('scipion-pyworkflow', pyworkflow.__version__),
-                    ('scipion-em', pwem.__version__),
+                    ('scipion-em', pwfluo.__version__),
                     ('scipion-app', scipion.__version__)]
 
     @classmethod

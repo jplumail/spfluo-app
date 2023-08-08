@@ -39,7 +39,7 @@ developers:
     Added the variable SCIPION_PRIORITY_PACKAGE_LIST that is used in the view
     protocols in order to load first the plugins that contains the main
     protocols.conf sections. This variable is defined as string with the packages names separated by a space.
-    e.g: SCIPION_PRIORITY_PACKAGE_LIST = "pwem tomo cistem"
+    e.g: SCIPION_PRIORITY_PACKAGE_LIST = "pwfluo tomo cistem"
 
 v3.0.8
 
