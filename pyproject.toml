@@ -53,7 +53,7 @@ picking = [
   "albumentations",
 ]
 refinement = [
-  "spfluo[gpu]"
+  "torch"
 ]
 visualisation = [
   "napari[all]>=0.4.18",
