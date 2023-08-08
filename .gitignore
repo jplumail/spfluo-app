@@ -24,3 +24,5 @@ config/*
 /software/
 /data/
 /scipion3venv/
+
+build/
