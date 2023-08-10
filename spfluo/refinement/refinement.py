@@ -139,7 +139,7 @@ def convolution_matching_poses_grid(
     Params:
         reference (torch.Tensor) : reference 3D image of shape (D, H, W)
         volumes (torch.Tensor) : volumes to match of shape (N, D, H, W)
-        psf (torch.Tensor): 3D PSF of shape (D, H, W)
+        psf (torch.Tensor): 3D PSF of shape (d, h, w)
         poses_grid (torch.Tensor): poses to test of shape (M, 6)
     Returns:
         best_poses (torch.Tensor): best poses for each volume of shape (N, 6)
@@ -204,7 +204,7 @@ def convolution_matching_poses_refined(
     Params:
         reference (torch.Tensor) : reference 3D image of shape (D, H, W)
         volumes (torch.Tensor) : volumes to match of shape (N, D, H, W)
-        psf (torch.Tensor): 3D PSF of shape (D, H, W)
+        psf (torch.Tensor): 3D PSF of shape (d, h, w)
         potential_poses (torch.Tensor): poses to test of shape (N, M, 6)
     Returns:
         best_poses (torch.Tensor): best poses for each volume of shape (N, 6)
