@@ -14,7 +14,7 @@ import types
 from .constants import *
 
 HOME = os.path.abspath(os.path.dirname(__file__))
-PYTHON = os.environ.get(SCIPION_PYTHON, SCIPION_PYTHON_DEFAULT)
+PYTHON = sys.executable
 
 
 def join(*paths):
