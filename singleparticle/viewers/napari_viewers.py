@@ -11,9 +11,9 @@ from pyworkflow.protocol import Protocol
 from pyworkflow.utils.process import runJob
 from pyworkflow.viewer import DESKTOP_TKINTER, View, Viewer
 
-from spfluo import Plugin
-from spfluo.constants import VISUALISATION_MODULE
-from spfluo.convert import save_translations
+from singleparticle import Plugin
+from singleparticle.constants import VISUALISATION_MODULE
+from singleparticle.convert import save_translations
 
 
 class NapariDataViewer(Viewer):
@@ -85,10 +85,8 @@ class SetOfParticlesView(View):
 
     def lanchNapariForParticles(self, particles: pwfluoobj.SetOfParticles):
         filenames = [p.getFileName() for p in particles]
-        fullProgram = Plugin.getFullProgram(
-            Plugin.getProgram([VISUALISATION_MODULE, "particles"])
-        )
-        runJob(None, fullProgram, filenames, env=Plugin.getEnviron())
+        program = Plugin.getProgram([VISUALISATION_MODULE, "particles"])
+        runJob(None, program, filenames, env=Plugin.getEnviron())
 
 
 ###########
@@ -108,12 +106,11 @@ class ImageView(View):
 
     def lanchNapariForImage(self, im: pwfluoobj.Image):
         path = im.getFileName()
-        self.launchNapari(path)
+        self.launchNapari(os.path.abspath(path))
 
     @staticmethod
     def launchNapari(path: Union[str, List[str]]):
-        fullProgram = Plugin.getFullProgram(Plugin.getNapariProgram())
-        runJob(None, fullProgram, path, env=Plugin.getEnviron())
+        runJob(None, Plugin.getNapariProgram(), path, env=Plugin.getEnviron())
 
 
 ########################
@@ -215,7 +212,5 @@ class SetOfCoordinates3DDialog(ToolbarListDialog):
         path = im.getFileName()
         csv_path = self._protocol._getExtraPath("coords.csv")
         save_translations(coords_im, csv_path)
-        fullProgram = Plugin.getFullProgram(
-            Plugin.getProgram([VISUALISATION_MODULE, "coords"])
-        )
-        runJob(None, fullProgram, [path, "--coords", csv_path], env=Plugin.getEnviron())
+        program = Plugin.getProgram([VISUALISATION_MODULE, "coords"])
+        runJob(None, program, [path, "--coords", csv_path], env=Plugin.getEnviron())

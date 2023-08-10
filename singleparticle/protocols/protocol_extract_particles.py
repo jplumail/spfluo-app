@@ -14,7 +14,7 @@ from pyworkflow.protocol import Form, Protocol, params
 from scipy.ndimage import affine_transform
 
 
-class ProtSPFluoExtractParticles(Protocol, ProtFluoBase):
+class ProtSingleParticleExtractParticles(Protocol, ProtFluoBase):
     """Extract particles from a SetOfCoordinates"""
 
     OUTPUT_NAME = "SetOfParticles"

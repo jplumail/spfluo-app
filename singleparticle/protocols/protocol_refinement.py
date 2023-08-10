@@ -7,9 +7,9 @@ from pwfluo.protocols import ProtFluoBase
 from pyworkflow import BETA
 from pyworkflow.protocol import Protocol
 
-from spfluo import Plugin
-from spfluo.constants import REFINEMENT_MODULE
-from spfluo.convert import save_particles_and_poses, save_psf
+from singleparticle import Plugin
+from singleparticle.constants import REFINEMENT_MODULE
+from singleparticle.convert import save_particles_and_poses, save_psf
 
 
 class outputs(Enum):
@@ -17,7 +17,7 @@ class outputs(Enum):
     coordinates = SetOfCoordinates3D
 
 
-class ProtSPFluoRefinement(Protocol, ProtFluoBase):
+class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
     """
     Refinement
     """

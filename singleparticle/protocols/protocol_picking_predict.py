@@ -14,12 +14,14 @@ from pwfluo.protocols import ProtFluoPicking
 from pyworkflow import BETA
 from pyworkflow.protocol import params
 
-from spfluo import Plugin
-from spfluo.constants import PICKING_MODULE, PICKING_WORKING_DIR
-from spfluo.protocols.protocol_picking_train import ProtSPFluoPickingTrain
+from singleparticle import Plugin
+from singleparticle.constants import PICKING_MODULE, PICKING_WORKING_DIR
+from singleparticle.protocols.protocol_picking_train import (
+    ProtSingleParticlePickingTrain,
+)
 
 
-class ProtSPFluoPickingPredict(ProtFluoPicking):
+class ProtSingleParticlePickingPredict(ProtFluoPicking):
     """
     Picking for fluo data with deep learning
     """
@@ -36,7 +38,7 @@ class ProtSPFluoPickingPredict(ProtFluoPicking):
         form.addParam(
             "trainPicking",
             params.PointerParam,
-            pointerClass="ProtSPFluoPickingTrain",
+            pointerClass="ProtSingleParticlePickingTrain",
             label="Train run",
             important=True,
             help="Select the train run that contains the trained PyTorch model.",
@@ -65,7 +67,7 @@ class ProtSPFluoPickingPredict(ProtFluoPicking):
         )
 
     def _insertAllSteps(self):
-        self.trainRun: ProtSPFluoPickingTrain = self.trainPicking.get()
+        self.trainRun: ProtSingleParticlePickingTrain = self.trainPicking.get()
         self.output_dir = os.path.abspath(self._getExtraPath(PICKING_WORKING_DIR))
         self.test_dir = os.path.join(self.output_dir, "images")
         self.inputImages: SetOfFluoImages = self.inputFluoImages.get()

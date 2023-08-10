@@ -5,5 +5,5 @@ select = [
 ]
 
 [tool.ruff.isort]
-known-first-party = ["spfluo"]
+known-first-party = ["singleparticle"]
 known-third-party = ["pyworflow", "pwfluo"]

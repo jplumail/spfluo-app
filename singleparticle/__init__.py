@@ -14,6 +14,7 @@ from typing import List, Optional, Union
 
 import pyworkflow as pw
 import pyworkflow.utils as pwutils
+import spfluo
 from pwfluo.objects import FluoObject
 from pyworkflow import plugin
 from pyworkflow.protocol import Protocol
@@ -21,16 +22,9 @@ from pyworkflow.utils import getSubclasses
 from pyworkflow.viewer import Viewer
 from pyworkflow.wizard import Wizard
 
-from spfluo.constants import (
-    CUDA_LIB_VAR,
+from singleparticle.constants import (
     FLUO_ROOT_VAR,
-    GITHUB_TOKEN,
-    PYTHON_VERSION,
-    SPFLUO_ACTIVATION_CMD,
-    SPFLUO_CUDA_LIB,
-    SPFLUO_HOME,
-    SPFLUO_VERSION,
-    getSPFluoEnvName,
+    SINGLEPARTICLE_HOME,
 )
 
 _logo = "icon.png"
@@ -43,10 +37,6 @@ class Config(pw.Config):
 
     FLUO_ROOT = _join(_get(FLUO_ROOT_VAR, _join(pw.Config.SCIPION_SOFTWARE, "fluo")))
 
-    # CUDA
-    CUDA_LIB = _get(CUDA_LIB_VAR, "/usr/local/cuda/lib64")
-    CUDA_BIN = _get("CUDA_BIN", "/usr/local/cuda/bin")
-
 
 class Domain(plugin.Domain):
     _name = __name__
@@ -58,46 +48,26 @@ class Domain(plugin.Domain):
 
 
 class Plugin(plugin.Plugin):
-    _homeVar = SPFLUO_HOME
-
-    @classmethod
-    def _defineVariables(cls):
-        cls._defineVar(SPFLUO_CUDA_LIB, Config.CUDA_LIB)
+    _homeVar = SINGLEPARTICLE_HOME
 
     @classmethod
     def getDependencies(cls):
         """Return a list of dependencies. Include conda if
         activation command was not found."""
-        condaActivationCmd = cls.getCondaActivationCmd()
-        neededProgs = ["git"]
-        if not condaActivationCmd:
-            neededProgs.append("conda")
-
-        return neededProgs
+        return []
 
     @classmethod
     def getEnviron(cls):
         """Setup the environment variables needed to launch Relion."""
         environ = pwutils.Environ(os.environ)
 
-        # Take Scipion CUDA library path
-        environ.addLibrary(Config.CUDA_LIB)
-
         return environ
-
-    @classmethod
-    def getFullProgram(cls, program):
-        return (
-            f"{cls.getCondaActivationCmd().replace('&&','')}"
-            f"&& {SPFLUO_ACTIVATION_CMD}"
-            f"&& {program}"
-        )
 
     @classmethod
     def runSPFluo(cls, protocol: Protocol, program, args, cwd=None, useCpu=False):
         """Run SPFluo command from a given protocol."""
         protocol.runJob(
-            cls.getFullProgram(program),
+            program,
             args,
             env=cls.getEnviron(),
             cwd=cwd,
@@ -121,45 +91,17 @@ class Plugin(plugin.Plugin):
         return napari_cmd
 
     @classmethod
-    def addSPFluoPackage(cls, env):
-        SPFLUO_INSTALLED = f"spfluo_{SPFLUO_VERSION}_installed"
-        # Create environment for spfluo
-        ENV_NAME = getSPFluoEnvName(SPFLUO_VERSION)
-        # Install major dependencies
-        installCmd = [
-            cls.getCondaActivationCmd().replace("&&", ""),
-            f"conda create -y -n {ENV_NAME} python={PYTHON_VERSION}",
-            SPFLUO_ACTIVATION_CMD,
-        ]
-
-        # Download and install spfluo
-        installCmd.append(
-            f"git clone https://jplumail:{GITHUB_TOKEN}@github.com/jplumail/SPFluo_stage_reconstruction_symmetryC.git"
-        )
-        installCmd.append("mv SPFluo_stage_reconstruction_symmetryC spfluo")
-        installCmd.append("cd spfluo && pip install .")
-
-        # Temporary solution until
-        # https://github.com/AllenCellModeling/aicsimageio/issues/495 is fixed
-        installCmd.append('pip install "napari-aicsimageio"')
-        installCmd.append('pip install "tifffile>=2023.3.15"')
-
-        installCmd.append(f"touch ../{SPFLUO_INSTALLED}")
-
-        pyem_commands = [(" && ".join(installCmd), [SPFLUO_INSTALLED])]
-
-        envPath = os.environ.get("PATH", "")
-        installEnvVars = {"PATH": envPath} if envPath else None
+    def addSingleParticlePackage(cls, env):
         env.addPackage(
-            "spfluo",
-            version=SPFLUO_VERSION,
+            "singleparticle",
+            version=spfluo.__version__,
             tar="void.tgz",
-            commands=pyem_commands,
+            commands=[],
             neededProgs=cls.getDependencies(),
             default=True,
-            vars=installEnvVars,
+            vars=None,
         )
 
     @classmethod
     def defineBinaries(cls, env):
-        cls.addSPFluoPackage(env)
+        cls.addSingleParticlePackage(env)

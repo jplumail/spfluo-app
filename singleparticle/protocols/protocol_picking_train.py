@@ -37,12 +37,12 @@ from pwfluo.objects import SetOfCoordinates3D
 from pyworkflow import BETA
 from pyworkflow.protocol import Protocol, params
 
-from spfluo import Plugin
-from spfluo.constants import PICKING_MODULE, PICKING_WORKING_DIR
-from spfluo.convert import write_csv
+from singleparticle import Plugin
+from singleparticle.constants import PICKING_MODULE, PICKING_WORKING_DIR
+from singleparticle.convert import write_csv
 
 
-class ProtSPFluoPickingTrain(Protocol):
+class ProtSingleParticlePickingTrain(Protocol):
     """
     Picking for fluo data with deep learning
     """

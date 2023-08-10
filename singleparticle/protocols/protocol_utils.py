@@ -7,11 +7,11 @@ from pyworkflow import BETA
 from pyworkflow.protocol import Form, Protocol
 from pyworkflow.protocol.params import EnumParam, FloatParam, PointerParam
 
-from spfluo import Plugin
-from spfluo.constants import UTILS_MODULE
+from singleparticle import Plugin
+from singleparticle.constants import UTILS_MODULE
 
 
-class ProtSPFluoUtils(Protocol, ProtFluoBase):
+class ProtSingleParticleUtils(Protocol, ProtFluoBase):
     """
     Use SPFluo utils functions.
     """

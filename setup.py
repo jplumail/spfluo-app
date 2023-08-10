@@ -25,19 +25,19 @@ with open("requirements.txt") as f:
 # Fields marked as "Optional" may be commented out.
 
 setup(
-    name="scipion-fluo-spfluo",  # Required
+    name="scipion-fluo-singleparticle",  # Required
     version="0.1",  # Required
-    description="Scipion plugin spfluo.",  # Required
+    description="Scipion plugin for single particle reconstruction.",  # Required
     long_description=long_description,  # Optional
-    url="https://github.com/jplumail/scipion-fluo-spfluo",  # Optional
+    url="https://github.com/jplumail/scipion-fluo-singleparticle",  # Optional
     author="you",  # Optional
     author_email="jplumail@unistra.fr",  # Optional
     keywords="scipion fluorescence imageprocessing scipion-3.0",  # Optional
     packages=find_packages(),
     install_requires=[requirements],
-    entry_points={"pyworkflow.plugin": "spfluo = spfluo"},
+    entry_points={"pyworkflow.plugin": "singleparticle = singleparticle"},
     package_data={  # Optional
-        "spfluo": ["icon.png", "protocols.conf"],
+        "singleparticle": ["icon.png", "protocols.conf"],
     },
     extra_require={"dev": ["black", "pre-commit", "ruff"]},
 )

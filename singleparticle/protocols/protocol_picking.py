@@ -9,11 +9,11 @@ from pyworkflow.gui.dialog import askYesNo
 from pyworkflow.protocol import Form
 from pyworkflow.utils.properties import Message
 
-from spfluo.convert import read_coordinate3D
-from spfluo.viewers.view_picking import PickingView
+from singleparticle.convert import read_coordinate3D
+from singleparticle.viewers.view_picking import PickingView
 
 
-class ProtSPFluoPickingNapari(ProtFluoPicking):
+class ProtSingleParticlePickingNapari(ProtFluoPicking):
     """
     Picking with the Napari plugin.
     """

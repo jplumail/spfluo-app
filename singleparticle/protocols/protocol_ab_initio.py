@@ -31,7 +31,6 @@ Describe your python module here:
 This module will provide the traditional Hello world example
 """
 import os
-import pickle
 from enum import Enum
 
 import pyworkflow.object as pwobj
@@ -40,9 +39,9 @@ from pwfluo.protocols import ProtFluoBase
 from pyworkflow import BETA
 from pyworkflow.protocol import Form, Protocol, params
 
-from spfluo import Plugin
-from spfluo.constants import AB_INITIO_MODULE, UTILS_MODULE
-from spfluo.convert import (
+from singleparticle import Plugin
+from singleparticle.constants import AB_INITIO_MODULE, UTILS_MODULE
+from singleparticle.convert import (
     getLastParticlesParams,
     save_particles,
     save_psf,
@@ -55,7 +54,7 @@ class outputs(Enum):
     particles = SetOfParticles
 
 
-class ProtSPFluoAbInitio(Protocol, ProtFluoBase):
+class ProtSingleParticleAbInitio(Protocol, ProtFluoBase):
     """
     Ab initio reconstruction
     """
@@ -261,70 +260,3 @@ class ProtSPFluoAbInitio(Protocol, ProtFluoBase):
     def _methods(self):
         methods = []
         return methods
-
-
-class ProtSPFluoParticleAverage(Protocol):
-    _label = "Particle average test"
-    _devStatus = BETA
-    _possibleOutputs = outputs
-
-    # -------------------------- DEFINE param functions ----------------------
-    def _defineParams(self, form):
-        form.addSection(label="Input")
-        form.addParam(
-            "inputParticle",
-            params.PointerParam,
-            pointerClass="SetOfParticles",
-            label="Input Particle",
-            important=True,
-            help="Select the input particles.",
-        )
-
-    def _insertAllSteps(self):
-        self.particlesDir = os.path.abspath(self._getExtraPath("particles"))
-        self.outputDir = os.path.abspath(self._getExtraPath("working_dir"))
-        self.final_reconstruction = self._getExtraPath("final_recon.tif")
-        self._insertFunctionStep(self.prepareStep)
-        self._insertFunctionStep(self.launchStep)
-        self._insertFunctionStep(self.createOuputStep)
-
-    def prepareStep(self):
-        print("Creating particles directory")
-        if not os.path.exists(self.particlesDir):
-            os.makedirs(self.particlesDir, exist_ok=True)
-
-        inputParticles: SetOfParticles = self.inputParticle.get()
-
-        # Image links for particles
-        matrices = {}
-        for im in inputParticles:
-            im_path = os.path.abspath(im.getFileName())
-            ext = os.path.splitext(im_path)[1]
-            im_name = im.strId()
-            im_newPath = os.path.join(self.particlesDir, im_name + ".tif")
-            if ext != ".tif" and ext != ".tiff":
-                raise NotImplementedError(
-                    f"Found ext {ext} in particles: {im_path}. "
-                    "Only tiff file are supported."
-                )
-            else:
-                os.link(im_path, im_newPath)
-
-            # transformations
-            matrices[im_name] = im.getTransform().getMatrix()
-
-        with open(self._getExtraPath("trans_mat.pickle"), "wb") as f:
-            pickle.dump(matrices, f)
-
-    def launchStep(self):
-        args = ["--particles_dir", f"{self.particlesDir}"]
-        args += ["--transformations_path", f"{self._getExtraPath('trans_mat.pickle')}"]
-        args += ["--average_path", f"{self._getExtraPath('average.tif')}"]
-        Plugin.runSPFluo(
-            self, "python -m spfluo.ab_initio_reconstruction.tests", args=args
-        )
-
-    def createOuputStep(self):
-        avrg_path = self._getExtraPath("average.tif")
-        average_output = AverageParticle(data=avrg_path)
-        self._defineOutputs(**{"output": average_output})

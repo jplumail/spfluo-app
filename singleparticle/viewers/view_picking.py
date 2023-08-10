@@ -113,8 +113,8 @@ class PickingDialog(ToolbarListDialog):
         self.after(1000, self.refresh_gui)
 
     def lanchNapariForFluoImage(self, im: FluoImage):
-        from spfluo import Plugin
-        from spfluo.constants import MANUAL_PICKING_MODULE
+        from singleparticle import Plugin
+        from singleparticle.constants import MANUAL_PICKING_MODULE
 
         path, csv_path = self._protocol.getCsvPath(im)
         args = [path, csv_path, "--size", f"{self.size}"]
