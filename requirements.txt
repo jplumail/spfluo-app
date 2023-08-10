@@ -1,2 +1,2 @@
-scipion-fluo @ file:///home/plumail/code/scipion-fluo
+scipion-fluo @ git+https://github.com/jplumail/scipion-fluo
 outdated==0.2.2
