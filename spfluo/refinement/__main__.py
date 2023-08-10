@@ -76,6 +76,9 @@ def create_parser():
     parser.add_argument("-l", "--lambda_", type=float, required=False, default=100.0)
     parser.add_argument("--symmetry", type=int, required=False, default=1)
 
+    # GPU
+    parser.add_argument("--gpu", action="store_true")
+
     return parser
 
 
@@ -86,7 +89,7 @@ def main(args):
 
     # Transfer to GPU
     def as_tensor(arr):
-        device = "cuda" if torch.cuda.is_available() else "cpu"
+        device = "cuda" if torch.cuda.is_available() and args.gpu else "cpu"
         return torch.as_tensor(arr, dtype=torch.float32, device=device)
 
     particles, psf, guessed_poses = map(as_tensor, (particles, psf, guessed_poses))
