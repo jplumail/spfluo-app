@@ -52,6 +52,14 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
             label="Reconstruct on channel?",
             help="This protocol reconstruct an average particle in one channel only.",
         )
+        form.addParam(
+            "gpu",
+            params.BooleanParam,
+            default=False,
+            expertLevel=params.LEVEL_ADVANCED,
+            label="Use GPU?",
+            help="This protocol can use the GPU but it's unstable.",
+        )
         form.addSection(label="Reconstruction params")
         form.addParam(
             "ranges",
@@ -129,6 +137,8 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
             "--output_poses_path",
             self.final_poses,
         ]
+        if self.gpu:
+            args += "--gpu"
         Plugin.runSPFluo(self, Plugin.getProgram(REFINEMENT_MODULE), args=args)
 
     def createOutputStep(self):
