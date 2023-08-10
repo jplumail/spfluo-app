@@ -2376,21 +2376,7 @@ def runProtocolMain(projectPath, protDbPath, protId):
     nThreads = max(protocol.numberOfThreads.get(), 1)
 
     if protocol.stepsExecutionMode == STEPS_PARALLEL:
-        if protocol.numberOfMpi > 1:
-            # Handle special case to execute in parallel
-            # We run "scipion run pyworkflow/...mpirun.py blah" instead of
-            # calling directly "$SCIPION_PYTHON ...mpirun.py blah", so that
-            # when it runs on a MPI node, it *always* has the scipion env.
-            params = ['-m', 'scipion', 'runprotocol', pw.getPwProtMpiRunScript(),
-                      projectPath, protDbPath, protId]
-            # 'scipion' is treated now as an entry point, but if there is an alias with that name, the alias has higher
-            # priority
-            retcode = pwutils.runJob(None, pw.PYTHON, params,
-                                     numberOfMpi=protocol.numberOfMpi.get(),
-                                     hostConfig=hostConfig)
-            sys.exit(retcode)
-
-        elif nThreads > 1:
+        if nThreads > 1:
             if protocol.useQueueForSteps():
                 executor = QueueStepExecutor(hostConfig,
                                              protocol.getSubmitDict(),
