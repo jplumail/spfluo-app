@@ -57,7 +57,7 @@ refinement = [
 ]
 visualisation = [
   "napari[all]>=0.4.18",
-  "aicsimageio",
+  "napari-aicsimageio @ git+https://github.com/jplumail/napari-aicsimageio",
 ]
 all = [
   "spfluo[manual-picking]",
