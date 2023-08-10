@@ -262,7 +262,7 @@ def getExtraLogInfo(measurement, status, project_name=None, prot_id=None, prot_n
     try:
         # Add TS!! optionally
         if dbfilename:
-            splitDb = dbfilename.split("/")
+            splitDb = os.path.split(dbfilename)
             dbName = splitDb[-1]
             runName = ""
             # project.sqlite and settings.sqlite may not have elements
