@@ -32,9 +32,10 @@ gpu = [
   "cupy-wheel",
   "cucim",
   "pynvml",
-  
+
   # Conditional
   "torch; sys_platform == 'linux'", # GPU version of torch on PyPI by default on Linux
+  # needs to install torch manually on Windows (see pytorch docs) 
 ]
 dev = [
   "pytest",
@@ -54,7 +55,9 @@ picking = [
   "tensorboard",
   "albumentations",
 ]
-refinement = [] # User should install torch cpu version by hand
+refinement = [
+  "torch; sys_platform == 'win32'", # torch cpu on PyPI by default on windows
+] # User should install torch cpu version by hand on linux
 visualisation = [
   "napari[all]>=0.4.18",
   "napari-aicsimageio @ git+https://github.com/jplumail/napari-aicsimageio",
