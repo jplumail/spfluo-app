@@ -31,8 +31,10 @@ classifiers = [
 gpu = [
   "cupy-wheel",
   "cucim",
-  "torch", # GPU version of torch on PyPI by default
   "pynvml",
+  
+  # Conditional
+  "torch; sys_platform == 'linux'", # GPU version of torch on PyPI by default on Linux
 ]
 dev = [
   "pytest",
