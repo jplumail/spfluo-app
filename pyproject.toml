@@ -29,11 +29,11 @@ classifiers = [
 
 [project.optional-dependencies]
 gpu = [
-  "cupy-wheel",
-  "cucim",
   "pynvml",
 
   # Conditional
+  "cucim; sys_platform == 'linux'", # not available on other systems
+  "cupy-wheel; sys_platform == 'linux'", # needed to use cucim
   "torch; sys_platform == 'linux'", # GPU version of torch on PyPI by default on Linux
   # needs to install torch manually on Windows (see pytorch docs) 
 ]
@@ -48,7 +48,6 @@ manual-picking = [
 ]
 ab-initio-reconstruction = [
   "SimpleITK",
-  "connected-components-3d",
   "torch; sys_platform == 'win32'", # torch cpu on PyPI by default on windows
 ]
 picking = [
