@@ -10,7 +10,6 @@ import torch
 
 try:
     import cupy as cp
-    from cupy._core import ndarray
     from cupyx.scipy import ndimage
 
     use_cupy = True
@@ -31,7 +30,7 @@ def get_cupy_array(image):
 
 
 def get_numpy_array(image):
-    if isinstance(image, ndarray):
+    if not isinstance(image, np.ndarray):
         return image.get()
     else:
         return image
