@@ -1,3 +1,5 @@
+import atexit
+import os
 import tempfile
 from typing import List
 
@@ -55,13 +57,11 @@ def show_particles(im_paths: List[str]):
             [im_paths.index(p), 0, 0, 0], index=["C", "S", "T", "Z"]
         ).astype(int)
 
-    with tempfile.NamedTemporaryFile(suffix=".tif") as f:
-        AICSImage(im_paths, indexer=indexer, single_file_dims=("Z", "Y", "X")).save(
-            f.name
-        )
-        viewer.open(
-            f.name, colormap="gray", name="particle", plugin="napari-aicsimageio"
-        )
+    f = tempfile.NamedTemporaryFile(suffix=".tif", delete=False)
+    f.close()
+    atexit.register(lambda: os.remove(f.name))
+    AICSImage(im_paths, indexer=indexer, single_file_dims=("Z", "Y", "X")).save(f.name)
+    viewer.open(f.name, colormap="gray", name="particle", plugin="napari-aicsimageio")
     link_layers(viewer.layers)
     unlink_layers(viewer.layers, attributes=("visible",))
     viewer.grid.enabled = True
