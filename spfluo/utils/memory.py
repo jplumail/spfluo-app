@@ -7,8 +7,15 @@ from typing import Generator, Tuple
 import numpy as np
 import psutil
 import torch
-from pynvml.smi import nvidia_smi
 from torch import cuda
+
+try:
+    from pynvml.smi import nvidia_smi
+
+    pynvml_installed = True
+except ModuleNotFoundError:
+    pynvml_installed = False
+
 
 NVSMI = None
 
@@ -77,7 +84,7 @@ def free_memory_gpu() -> int | None:
     Unused GPU memory, or None if no GPUs are available.
     """
 
-    if cuda.is_available():
+    if pynvml_installed and cuda.is_available():
         return nvidia_free_memory() + torch_free_memory()
     else:
         return None
