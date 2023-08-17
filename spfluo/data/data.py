@@ -27,13 +27,13 @@ POOCH.load_registry(registry_file)
 
 def _fetch_dataset(dataset_dir) -> Dict[str, np.ndarray]:
     root_dir = Path(f"generated/{dataset_dir}")
-    poses_path = Path(POOCH.fetch(str(root_dir / "poses.csv")))
+    poses_path = Path(POOCH.fetch((root_dir / "poses.csv").as_posix()))
     content = csv.reader(poses_path.read_text().split("\n"))
     next(content)  # skip header
     data = {}
     for row in content:
         if len(row) == 7:
-            particle_path = POOCH.fetch(str(root_dir / row[0]))
+            particle_path = POOCH.fetch((root_dir / row[0]).as_posix())
             data[row[0]] = {
                 "array": tifffile.imread(particle_path),
                 "rot": np.array(row[1:4], dtype=float),
@@ -54,8 +54,8 @@ def _fetch_dataset(dataset_dir) -> Dict[str, np.ndarray]:
         poses[i, 3:] = trans
         volumes[i] = p["array"]
 
-    psf = tifffile.imread(POOCH.fetch(str(root_dir / "psf.tiff")))
-    gt = tifffile.imread(POOCH.fetch(str(root_dir / "gt.tiff")))
+    psf = tifffile.imread(POOCH.fetch((root_dir / "psf.tiff").as_posix()))
+    gt = tifffile.imread(POOCH.fetch((root_dir / "gt.tiff").as_posix()))
 
     return {
         "volumes": volumes,
