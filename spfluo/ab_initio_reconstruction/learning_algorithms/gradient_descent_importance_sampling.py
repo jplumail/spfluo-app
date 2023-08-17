@@ -163,12 +163,13 @@ def gd_importance_sampling_3d(
 
                 view = views[v]
                 try:
-                    if gpu == "pytorch":
+                    if gpu == "pytorch" or gpu is None:
                         import torch
 
                         inverse_transforms, view = map(
                             lambda x: torch.as_tensor(
-                                x.astype(params_learning_alg.dtype), device="cuda"
+                                x.astype(params_learning_alg.dtype),
+                                device=gpu == "pytorch",
                             ),
                             [inverse_transforms, view],
                         )
@@ -181,7 +182,7 @@ def gd_importance_sampling_3d(
                         )
                 except ImportError as e:
                     raise ImportError(
-                        "Install spfluo[gpu] to use the --gpu option"
+                        "Install appropriate libs to use the --gpu option"
                     ) from e
 
                 # Compute shifts
@@ -370,7 +371,7 @@ def gd_importance_sampling_3d(
             sub_dir,
             f"recons_epoch_{itr}.tif",
             ground_truth=ground_truth,
-            one_component=False,
+            one_component=True,
             gpu=gpu,
         )
 

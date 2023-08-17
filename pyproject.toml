@@ -49,6 +49,7 @@ manual-picking = [
 ab-initio-reconstruction = [
   "SimpleITK",
   "connected-components-3d",
+  "torch; sys_platform == 'win32'", # torch cpu on PyPI by default on windows
 ]
 picking = [
   "spfluo[gpu]",
