@@ -169,7 +169,7 @@ def gd_importance_sampling_3d(
                         inverse_transforms, view = map(
                             lambda x: torch.as_tensor(
                                 x.astype(params_learning_alg.dtype),
-                                device=gpu == "pytorch",
+                                device="cuda" if gpu == "pytorch" else None,
                             ),
                             [inverse_transforms, view],
                         )
