@@ -1,4 +1,3 @@
-import cc3d
 import numpy as np
 import SimpleITK as sitk
 from numpy import pi
@@ -12,6 +11,8 @@ if spfluo.has_cupy:
     import cupy as cp
     from cupyx.scipy.ndimage import fourier_shift as fourier_shift_cupy
     from cupyx.scipy.ndimage import label as label_cupy
+else:
+    from scipy.ndimage import label
 
 
 def registration_exhaustive_search(
@@ -142,7 +143,7 @@ def translate_to_have_one_connected_component(
             ft_shifted = fourier_shift(ft, trans_vec)
             im_shifted = np.fft.ifftn(ft_shifted)
             im_shifted_thresholded = np.abs(im_shifted).real > t
-            _, N = cc3d.connected_components(im_shifted_thresholded, return_N=True)
+            _, N = label(im_shifted_thresholded)
         number_connected_components[i] = N
 
     indicices_one_component = np.where(number_connected_components == 1)
