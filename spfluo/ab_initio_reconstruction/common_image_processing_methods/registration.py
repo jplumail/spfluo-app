@@ -1,4 +1,5 @@
 import numpy as np
+import scipy.fft
 import SimpleITK as sitk
 from numpy import pi
 from scipy.ndimage import fourier_shift
@@ -141,7 +142,7 @@ def translate_to_have_one_connected_component(
             _, N = label_cupy(im_shifted_thresholded)
         else:
             ft_shifted = fourier_shift(ft, trans_vec)
-            im_shifted = np.fft.ifftn(ft_shifted)
+            im_shifted = scipy.fft.ifftn(ft_shifted)
             im_shifted_thresholded = np.abs(im_shifted).real > t
             _, N = label(im_shifted_thresholded)
         number_connected_components[i] = N
