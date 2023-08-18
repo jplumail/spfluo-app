@@ -1,18 +1,20 @@
 ### Install
 
 ```bash
-pip install -r requirements.txt 
+export AUTH_TOKEN=$(cat git_token.txt)
 ```
-
-#### On linux:
 ##### GPU
 ```bash
-pip install torch
+pip install -r requirements-gpu.txt
 ```
+On windows : install pytorch !! see pytorch docs
 ##### CPU only
 ```bash
-pip install -r requirements-cpu-linux.txt
+pip install -r requirements-cpu.txt
 ```
+- On linux: install pytorch !! see pytorch docs
 
-#### On windows:
-
+### Update
+```bash
+pip install --upgrade -r requirements-cpu.txt
+```

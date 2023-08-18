@@ -1,0 +1,2 @@
+-r requirements-cpu.txt
+spfluo[gpu] @ git+https://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@github.com/jplumail/spfluo#egg=spfluo
