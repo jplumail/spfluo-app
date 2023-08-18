@@ -2,10 +2,12 @@ import copy
 import json
 import os
 import shutil
+from functools import partial
 from typing import Tuple
 
 import numpy as np
 import pandas as pd
+import scipy.fft
 from scipy.spatial.transform import Rotation as R
 from skimage import io
 from skimage.metrics import structural_similarity as ssim
@@ -15,7 +17,7 @@ import spfluo
 from spfluo.ab_initio_reconstruction.volume_representation.pixel_representation import (
     Fourier_pixel_representation,
 )
-from spfluo.utils.array import Array, array_namespace, to_device, torch
+from spfluo.utils.array import Array, array_namespace, numpy, to_device, torch
 from spfluo.utils.transform import get_transform_matrix
 from spfluo.utils.volume import fourier_shift, phase_cross_correlation
 
@@ -475,6 +477,8 @@ def compute_shifts(
             return fftn_torch(x, s=s, dim=axes, norm=norm)
 
         fftn = pytorch_fftn_wrapper
+    elif xp == numpy:
+        fftn = partial(scipy.fft.fftn, overwrite_x=True)
     else:
         fftn = xp.fft.fftn
 
