@@ -36,7 +36,7 @@ def create_parser():
     parser.add_argument("--epochs_of_suppression", type=int, default=None)
     parser.add_argument("--proportion_of_views_suppressed", type=float, default=None)
     parser.add_argument("--convention", type=str, default="XZX")
-    parser.add_argument("--dtype", type=type, default=np.float64)
+    parser.add_argument("--dtype", type=np.dtype, default="float32")
     parser.add_argument("--reg_coeff", type=float, default=0)
     parser.add_argument("--beta_sampling", type=float, default=0)
     parser.add_argument("--epoch_length", type=int, default=None)

@@ -28,7 +28,13 @@ class Fourier_pixel_representation:
             volume_fourier = np.fft.fftn(
                 np.fft.ifftshift(crop_center(np.asarray(init_vol), (size, size, size)))
             )
-        self.volume_fourier = volume_fourier.astype(complex)
+        complex_type_promotion = {
+            np.dtype("float32"): np.complex64,
+            np.dtype("float64"): np.complex128,
+        }
+        self.volume_fourier = volume_fourier.astype(
+            complex_type_promotion[np.dtype(dtype)]
+        )
         self.nb_dim = nb_dim
         self.size = size
         self.psf = psf.astype(dtype)
