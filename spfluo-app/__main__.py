@@ -1,6 +1,10 @@
 import os
 
-os.environ["SCIPION_HOME"] = "/home/plumail/new_scipion"
+
+scipion_path = os.path.expanduser("~\\scipion")
+os.environ["SCIPION_HOME"] = scipion_path
+os.environ["SCIPION_USER_FLUO_DATA"] = os.path.expanduser("~\\ScipionUserFluoData")
+os.environ["SCIPION_USER_DATA"] = os.environ["SCIPION_USER_FLUO_DATA"]
 
 if not os.path.exists(os.environ["SCIPION_HOME"]):
     os.mkdir(os.environ["SCIPION_HOME"])
