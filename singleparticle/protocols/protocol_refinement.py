@@ -8,7 +8,7 @@ from pyworkflow import BETA
 from pyworkflow.protocol import Protocol
 
 from singleparticle import Plugin
-from singleparticle.constants import REFINEMENT_MODULE
+from singleparticle.constants import REFINEMENT_MODULE, UTILS_MODULE
 from singleparticle.convert import save_particles_and_poses, save_psf
 
 
@@ -60,7 +60,21 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
             label="Use GPU?",
             help="This protocol can use the GPU but it's unstable.",
         )
+        form.addParam(
+            "pad",
+            params.BooleanParam,
+            default=True,
+            expertLevel=params.LEVEL_ADVANCED,
+            label="Pad particles?",
+        )
         form.addSection(label="Reconstruction params")
+        form.addParam(
+            "lbda",
+            params.FloatParam,
+            default=100.,
+            label="Lambda",
+            help="Higher results in smoother results.",
+        )
         form.addParam(
             "ranges",
             params.StringParam,
@@ -118,6 +132,48 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
         psf: PSFModel = self.inputPSF.get()
         save_psf(self.psfPath, psf)
 
+        # Make isotropic
+        vs = particles.getVoxelSize()
+        if vs is None:
+            raise RuntimeError("Input Particles don't have a voxel size.")
+
+        input_paths = particles_paths + [self.psfPath]
+        args = ["-f", "isotropic_resample"]
+        args += ["-i"] + input_paths
+        folder_isotropic = os.path.abspath(self._getExtraPath("isotropic"))
+        if not os.path.exists(folder_isotropic):
+            os.makedirs(folder_isotropic, exist_ok=True)
+        args += ["-o", f"{folder_isotropic}"]
+        args += ["--spacing", f"{vs[1]}", f"{vs[0]}", f"{vs[0]}"]
+        Plugin.runSPFluo(self, Plugin.getProgram(UTILS_MODULE), args=args)
+
+        # Pad
+        input_paths = [
+            os.path.join(folder_isotropic, f) for f in os.listdir(folder_isotropic)
+        ]
+        if self.pad:
+            max_dim = int(max_dim * (2**0.5)) + 1
+        folder_resized = os.path.abspath(self._getExtraPath("isotropic_cropped"))
+        if not os.path.exists(folder_resized):
+            os.makedirs(folder_resized, exist_ok=True)
+        args = ["-f", "resize"]
+        args += ["-i"] + input_paths
+        args += ["--size", f"{max_dim}"]
+        args += ["-o", f"{folder_resized}"]
+        Plugin.runSPFluo(self, Plugin.getProgram(UTILS_MODULE), args=args)
+
+        # Links
+        os.remove(self.psfPath)
+        for p in particles_paths:
+            os.remove(p)
+        # Link to psf
+        os.link(
+            os.path.join(folder_resized, os.path.basename(self.psfPath)), self.psfPath
+        )
+        # Links to particles
+        for p in particles_paths:
+            os.link(os.path.join(folder_resized, os.path.basename(p)), p)
+
     def reconstructionStep(self):
         ranges = "0 " + str(self.ranges)
         args = [
@@ -136,9 +192,11 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
             self.final_reconstruction,
             "--output_poses_path",
             self.final_poses,
+            "-l",
+            self.lbda.get(),
         ]
         if self.gpu:
-            args += "--gpu"
+            args += ["--gpu"]
         Plugin.runSPFluo(self, Plugin.getProgram(REFINEMENT_MODULE), args=args)
 
     def createOutputStep(self):

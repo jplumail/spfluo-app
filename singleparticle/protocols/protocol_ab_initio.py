@@ -180,7 +180,7 @@ class ProtSingleParticleAbInitio(Protocol, ProtFluoBase):
             os.path.join(folder_isotropic, f) for f in os.listdir(folder_isotropic)
         ]
         if self.pad:
-            max_dim = int(max_dim * 2 * (2**0.5)) + 1
+            max_dim = int(max_dim * (2**0.5)) + 1
         folder_resized = os.path.abspath(self._getExtraPath("isotropic_cropped"))
         if not os.path.exists(folder_resized):
             os.makedirs(folder_resized, exist_ok=True)
