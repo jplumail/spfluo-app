@@ -1,3 +1,3 @@
 spfluo[manual-picking,visualisation,ab-initio-reconstruction,refinement] @ git+https://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@github.com/jplumail/spfluo@main#egg=spfluo
-scipion-fluo-singleparticle @ git+https://github.com/jplumail/scipion-fluo-spfluo@main#egg=scipion-fluo-singleparticle
+scipion-fluo-singleparticle @ git+https://github.com/jplumail/scipion-fluo-singleparticle@main#egg=scipion-fluo-singleparticle
 scipion-app @ git+https://github.com/jplumail/scipion-app@fluo#egg=scipion-app
