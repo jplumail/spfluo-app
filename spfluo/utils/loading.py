@@ -290,7 +290,7 @@ def isotropic_resample(
     for im_path, zoom in zip(im_paths, zooms):
         im = tifffile.imread(im_path)
         im = get_cupy_array(im)
-        ndimage.zoom(im, zoom[::-1], output=im)
+        im = ndimage.zoom(im, zoom)
         im = get_numpy_array(im)
         tifffile.imwrite(os.path.join(folder_path, os.path.basename(im_path)), im)
 
