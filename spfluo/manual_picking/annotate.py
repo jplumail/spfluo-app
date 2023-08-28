@@ -103,7 +103,8 @@ def annotate(im_path, output_path, size=10):
         f.tell()
 
     save_annotations()
-    points_layer.events.set_data.connect(save_annotations)
+    points_layer.events.data.connect(save_annotations)
+    points_layer.events.current_size.connect(save_annotations)
 
     points_layer.mode = "add"
     napari.run()
