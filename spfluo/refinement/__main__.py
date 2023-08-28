@@ -11,6 +11,7 @@ from spfluo.ab_initio_reconstruction.manage_files.read_save_files import (
     read_images_in_folder,
 )
 from spfluo.refinement import refine
+from spfluo.utils.logging import base_parser, set_logging_level
 
 
 def read_poses(path: str, alphabetic_order=True):
@@ -37,7 +38,10 @@ def save_poses(path: str, poses: np.ndarray):
 
 
 def create_parser():
-    parser = argparse.ArgumentParser("Refinement")
+    parser = argparse.ArgumentParser(
+        "Refinement",
+        parents=[base_parser],
+    )
 
     # Input files
     parser.add_argument("--particles_dir", type=str, required=True)
@@ -112,4 +116,7 @@ def main(args):
 
 
 if __name__ == "__main__":
-    main(create_parser().parse_args())
+    p = create_parser()
+    args = p.parse_args()
+    set_logging_level(args)
+    main(args)

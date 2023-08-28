@@ -8,6 +8,7 @@ from typing import List, Optional, Tuple, Union
 import numpy as np
 import torch
 
+import spfluo.utils.debug as debug
 from spfluo.utils._torch_functions.volume import fftn
 from spfluo.utils.memory import split_batch_func
 from spfluo.utils.transform import get_transform_matrix
@@ -19,11 +20,6 @@ from spfluo.utils.volume import (
 )
 
 refinement_logger = logging.getLogger("spfluo.refinement")
-if refinement_logger.isEnabledFor(logging.DEBUG):
-    from spfluo.utils.debug import DEBUG_DIR, save_image
-
-    DEBUG_DIR_REFINEMENT = DEBUG_DIR / __name__
-    DEBUG_DIR_REFINEMENT.mkdir(parents=True, exist_ok=False)
 
 
 def affine_transform_wrapper(volumes, poses, inverse=False):
@@ -382,7 +378,9 @@ def refine(
 
     if refinement_logger.isEnabledFor(logging.DEBUG):
         im = initial_reconstruction.cpu().numpy()
-        p = save_image(im, DEBUG_DIR_REFINEMENT, refine, "initial-reconstruction")
+        p = debug.save_image(
+            im, debug.DEBUG_DIR_REFINEMENT, refine, "initial-reconstruction"
+        )
         refinement_logger.debug("Saving current reconstruction at " + str(p))
         all_recons = [im]
 
@@ -411,7 +409,7 @@ def refine(
             refinement_logger.debug(
                 f"[convolution_matching_poses_grid] Done in {time.time()-t0:.3f}s"
             )
-        elif type(s) is int:  # Refinement around the current poses
+        elif isinstance(s, int):  # Refinement around the current poses
             refinement_logger.debug(
                 f"[refine_poses] Refining the poses. range={ranges[i]}, steps={s}"
             )
@@ -445,7 +443,7 @@ def refine(
                     + "]",
                 )
             im = current_reconstruction.cpu().numpy()
-            p = save_image(im, DEBUG_DIR_REFINEMENT, refine, f"step{i+1}")
+            p = debug.save_image(im, debug.DEBUG_DIR_REFINEMENT, refine, f"step{i+1}")
             refinement_logger.debug("Saving current reconstruction at " + str(p))
             all_recons.append(im)
 
@@ -454,9 +452,9 @@ def refine(
         )
 
     if refinement_logger.isEnabledFor(logging.DEBUG):
-        p = save_image(
+        p = debug.save_image(
             np.stack(all_recons, axis=0),
-            DEBUG_DIR_REFINEMENT,
+            debug.DEBUG_DIR_REFINEMENT,
             refine,
             "all-steps",
             sequence=True,
