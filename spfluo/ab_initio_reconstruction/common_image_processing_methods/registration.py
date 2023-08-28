@@ -1,19 +1,9 @@
 import numpy as np
-import scipy.fft
 import SimpleITK as sitk
 from numpy import pi
-from scipy.ndimage import fourier_shift
-from tqdm import tqdm
-
-import spfluo
-
-# Optional import
-if spfluo.has_cupy:
-    import cupy as cp
-    from cupyx.scipy.ndimage import fourier_shift as fourier_shift_cupy
-    from cupyx.scipy.ndimage import label as label_cupy
-else:
-    from scipy.ndimage import label
+from scipy.ndimage import fourier_shift, label
+from skimage.filters import threshold_otsu
+from skimage.measure import regionprops
 
 
 def registration_exhaustive_search(
@@ -116,43 +106,23 @@ def shift_registration_exhaustive_search(
     return grid_trans_vec[best_i], res.real.astype(im2.dtype)
 
 
-def translate_to_have_one_connected_component(
-    im, t_min=-20, t_max=20, t_step=4, gpu=None
-):
-    ft = np.fft.fftn(im)
-    if gpu == "cucim":
-        ft_cupy = cp.array(ft)
-    trans_vecs = np.arange(t_min, t_max, t_step)
-    grid_trans_vec = np.array(
-        np.meshgrid(trans_vecs, trans_vecs, trans_vecs)
-    ).T.reshape((len(trans_vecs) ** 3, 3))
-    number_connected_components = np.zeros(len(grid_trans_vec))
-    t = 1.0
-    for i, trans_vec in tqdm(
-        enumerate(grid_trans_vec),
-        leave=False,
-        total=len(grid_trans_vec),
-        desc="Translate to have one connected component",
-    ):
-        if gpu == "cucim":
-            trans_vec = cp.array(trans_vec)
-            ft_shifted = fourier_shift_cupy(ft_cupy, trans_vec)
-            im_shifted = cp.fft.ifftn(ft_shifted)
-            im_shifted_thresholded = cp.abs(im_shifted).real > t
-            _, N = label_cupy(im_shifted_thresholded)
-        else:
-            ft_shifted = fourier_shift(ft, trans_vec)
-            im_shifted = scipy.fft.ifftn(ft_shifted)
-            im_shifted_thresholded = np.abs(im_shifted).real > t
-            _, N = label(im_shifted_thresholded)
-        number_connected_components[i] = N
+def center_connected_component(image):
+    # Step 1: Find connected components
+    labeled_image, num_features = label(image > threshold_otsu(image))
 
-    indicices_one_component = np.where(number_connected_components == 1)
-    if len(indicices_one_component) == 1:
-        indicices_one_component = np.where(
-            number_connected_components == np.min(number_connected_components)
-        )
-    transvecs_one_components = grid_trans_vec[indicices_one_component]
-    avg_transvec_one_component = transvecs_one_components[0]
-    ft_shifted = fourier_shift(ft, avg_transvec_one_component)
-    return np.abs(np.fft.ifftn(ft_shifted)).real
+    if num_features < 2:
+        return image  # Already has only one component
+
+    # Step 2: Identify the largest connected component
+    component_props = regionprops(labeled_image)
+    largest_component = max(component_props, key=lambda prop: prop.area)
+
+    # Step 3: Calculate translation
+    center_of_mass = largest_component.centroid
+    shift = np.asarray(image.shape) / 2 - np.asarray(center_of_mass)
+    shift = np.rint(shift).astype(int)
+
+    # Step 4: Apply translation
+    translated_image = np.roll(image, tuple(shift), axis=tuple(range(image.ndim)))
+
+    return translated_image

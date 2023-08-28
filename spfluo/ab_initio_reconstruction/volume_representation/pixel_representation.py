@@ -6,9 +6,9 @@ from scipy.ndimage import center_of_mass, fourier_shift
 
 from ..common_image_processing_methods.others import crop_center
 from ..common_image_processing_methods.registration import (
+    center_connected_component,
     registration_exhaustive_search,
     shift_registration_exhaustive_search,
-    translate_to_have_one_connected_component,
 )
 from ..manage_files.read_save_files import save
 
@@ -64,7 +64,7 @@ class Fourier_pixel_representation:
         path = os.path.join(output_dir, output_name)
         im = self.get_image_from_fourier_representation()
         if one_component:
-            im = translate_to_have_one_connected_component(im, gpu=gpu)
+            im = center_connected_component(im)
 
         if ground_truth is not None:
             _, im = shift_registration_exhaustive_search(ground_truth, im)
