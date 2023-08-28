@@ -322,6 +322,8 @@ def gd_importance_sampling_3d(
             # Weighted gradient descent
             energies_batch = np.array(energies_batch)
             m = energies_batch.max()
+            if np.isinf(m):
+                raise ValueError("Ab initio reconstruction diverged")
             e = np.exp(-params_learning_alg.beta_grad * (energies_batch - m))
             grad_weights = e / e.sum()
             grad = (grad_weights * np.stack(gradients_batch, axis=-1)).sum(axis=-1)

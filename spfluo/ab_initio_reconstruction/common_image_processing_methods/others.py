@@ -32,7 +32,11 @@ def crop_center(image, size):
 
 
 def normalize(arr, min=0, max=1):
-    norm_0_1 = (arr - np.min(arr)) / (np.max(arr) - np.min(arr))
+    m, M = np.min(arr), np.max(arr)
+    if M > m:
+        norm_0_1 = (arr - m) / (M - m)
+    else:
+        norm_0_1 = np.zeros_like(arr)
     norm = (max - min) * norm_0_1 + min
     return norm
 
