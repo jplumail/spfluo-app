@@ -343,6 +343,16 @@ class MultipleViewerWidget(QSplitter):
             self.viewer_model2.layers[event.value.name].events.set_data.connect(
                 self._set_data_refresh
             )
+        if isinstance(event.value, Points):
+            event.value.events.current_edge_color.connect(
+                self._current_edge_color_refresh
+            )
+            self.viewer_model1.layers[
+                event.value.name
+            ].events.current_edge_color.connect(self._current_edge_color_refresh)
+            self.viewer_model2.layers[
+                event.value.name
+            ].events.current_edge_color.connect(self._current_edge_color_refresh)
         if event.value.name != ".cross":
             self.viewer_model1.layers[event.value.name].events.data.connect(
                 self._sync_data
@@ -388,6 +398,20 @@ class MultipleViewerWidget(QSplitter):
             try:
                 self._block = True
                 layer.refresh()
+            finally:
+                self._block = False
+
+    def _current_edge_color_refresh(self, event):
+        if self._block:
+            return
+        for model in [self.viewer, self.viewer_model1, self.viewer_model2]:
+            layer = model.layers[event.source.name]
+            source_layer = event.source
+            if layer is source_layer:
+                continue
+            try:
+                self._block = True
+                layer.selected_data = event.source.selected_data
             finally:
                 self._block = False
 
