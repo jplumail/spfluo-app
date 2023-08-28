@@ -38,6 +38,7 @@ class Fourier_pixel_representation:
         self.nb_dim = nb_dim
         self.size = size
         self.psf = psf.astype(dtype)
+        self.psf /= np.sum(self.psf)
 
     def gd_step(self, grad, lr, reg_coeff=0):
         self.volume_fourier -= lr * grad
