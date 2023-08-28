@@ -19,9 +19,8 @@ def generated_data_all(
 
 
 @pytest.fixture(scope="session")
-def generated_data_anisotropic(
-    request,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    return tuple(
-        data.generated_anisotropic()[k] for k in ["volumes", "poses", "psf", "gt"]
-    )
+def generated_data_anisotropic() -> (
+    Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]
+):
+    d = data.generated_anisotropic()
+    return tuple(d[k] for k in ["volumes", "poses", "psf", "gt"])
