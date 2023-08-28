@@ -90,7 +90,9 @@ def main(args):
     # Transfer to GPU
     def as_tensor(arr):
         device = "cuda" if torch.cuda.is_available() and args.gpu else "cpu"
-        return torch.as_tensor(arr, dtype=torch.float32, device=device)
+        return torch.as_tensor(
+            arr.astype(np.float32), dtype=torch.float32, device=device
+        )
 
     particles, psf, guessed_poses = map(as_tensor, (particles, psf, guessed_poses))
 
