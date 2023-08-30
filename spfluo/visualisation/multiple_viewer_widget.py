@@ -13,7 +13,6 @@ current dims point (`viewer.dims.point`).
 """
 
 from copy import deepcopy
-from typing import Tuple
 
 import napari
 import numpy as np
@@ -456,9 +455,7 @@ def init_qt():
     # additional viewers
 
 
-def add_orthoviewer_widget(
-    view: napari.Viewer,
-) -> Tuple[napari.Viewer, MultipleViewerWidget, CrossWidget]:
+def add_orthoviewer_widget(view: napari.Viewer):
     dock_widget = MultipleViewerWidget(view)
     cross = CrossWidget(view)
 
