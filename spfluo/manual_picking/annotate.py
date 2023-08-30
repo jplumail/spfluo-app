@@ -36,6 +36,7 @@ def annotate(
         out_of_slice_display=True,
         size=size,
         scale=spacing,
+        name="Picking",
     )
 
     if os.path.exists(output_path):
@@ -112,6 +113,10 @@ def annotate(
     points_layer.events.current_size.connect(on_size_change)
 
     view.add_layer(points_layer)
+    qt_controls_container = view.window.qt_viewer.controls
+    qt_controls_container.widgets[points_layer].layout().itemAt(3).widget().setText(
+        "particle diameter (px)"
+    )
     view.scale_bar.visible = True
     view.scale_bar.unit = "um"
 
