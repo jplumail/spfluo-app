@@ -5,7 +5,6 @@ import math
 from typing import Generator, Tuple
 
 import numpy as np
-import psutil
 import torch
 from torch import cuda
 
@@ -16,6 +15,13 @@ try:
 except ModuleNotFoundError:
     pynvml_installed = False
 
+try:
+    import psutil
+
+    psutil_installed = True
+
+except ModuleNotFoundError:
+    psutil_installed = False
 
 NVSMI = None
 
@@ -91,7 +97,10 @@ def free_memory_gpu() -> int | None:
 
 
 def free_memory_cpu():
-    return psutil.virtual_memory().available
+    if psutil_installed:
+        return psutil.virtual_memory().available
+    else:
+        return 2 * 2**10  # assume 2GB available
 
 
 def maximum_batch(total_memory, func: str, *func_args):

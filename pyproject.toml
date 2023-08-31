@@ -10,7 +10,7 @@ dependencies = [
   "scikit-image",
   "pandas",
   "tqdm",
-  "psutil",
+  "psutil; sys_platform == 'linux'", # sometimes wheel don't build, see https://github.com/giampaolo/psutil/issues/2301
   "matplotlib",
   "pooch",
 ]
