@@ -59,7 +59,7 @@ refinement = [
 ] # User should install torch cpu version by hand on linux
 visualisation = [
   "napari[all]>=0.4.18",
-  "napari-aicsimageio @ git+https://github.com/jplumail/napari-aicsimageio",
+  "napari-aicsimageio", # need jplumail branch on github
 ]
 all = [
   "spfluo[manual-picking]",
