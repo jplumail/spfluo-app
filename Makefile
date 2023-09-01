@@ -9,6 +9,9 @@ DOCS_SOURCE_DIR = ../spfluo-docs
 # Build directory
 BUILD_DIR = build
 
+# Output zip file
+ZIP_FILE = spfluo-app.zip
+
 .PHONY: build
 
 build:
@@ -21,3 +24,12 @@ build:
 	cp -r $(DOCS_SOURCE_DIR)/build/html $(BUILD_DIR)/docs
 	cp $(DOCS_SOURCE_DIR)/build/latex/spfluo-app.pdf $(BUILD_DIR)/docs
 	@echo "Build completed in $(BUILD_DIR)/"
+
+zip: build
+	zip -r $(ZIP_FILE) $(BUILD_DIR)
+	@echo "Build zipped to $(ZIP_FILE)"
+
+clean:
+	rm -r $(BUILD_DIR)
+	rm -f $(ZIP_FILE)
+	@echo "Cleaned build directory and zip file"
