@@ -17,7 +17,7 @@ build:
 	. $(DOCS_SOURCE_DIR)/.venv/bin/activate && $(MAKE) -C $(DOCS_SOURCE_DIR) clean
 	. $(DOCS_SOURCE_DIR)/.venv/bin/activate && $(MAKE) -C $(DOCS_SOURCE_DIR) html
 	. $(DOCS_SOURCE_DIR)/.venv/bin/activate && $(MAKE) -C $(DOCS_SOURCE_DIR) latexpdf
-	mkdir $(BUILD_DIR)/docs
+	mkdir -p $(BUILD_DIR)/docs
 	cp -r $(DOCS_SOURCE_DIR)/build/html $(BUILD_DIR)/docs
 	cp $(DOCS_SOURCE_DIR)/build/latex/spfluo-app.pdf $(BUILD_DIR)/docs
 	@echo "Build completed in $(BUILD_DIR)/"
