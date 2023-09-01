@@ -7,6 +7,7 @@ from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import torch
+from tqdm import tqdm
 
 import spfluo.utils.debug as debug
 from spfluo.utils._torch_functions.volume import fftn
@@ -386,7 +387,7 @@ def refine(
 
     current_reconstruction = initial_reconstruction
     current_poses = guessed_poses
-    for i in range(len(steps)):
+    for i in tqdm(range(len(steps)), desc="refine"):
         refinement_logger.debug(f"STEP {i+1}/{len(steps)}")
         t1 = time.time()
         # Poses estimation
