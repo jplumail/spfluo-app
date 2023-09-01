@@ -61,7 +61,6 @@ class ProtSingleParticleAbInitio(Protocol, ProtFluoBase):
 
     _label = "ab initio reconstruction"
     _devStatus = BETA
-    _GPU_libraries = ["no", "cucim", "pytorch"]
     _possibleOutputs = outputs
 
     # -------------------------- DEFINE param functions ----------------------
@@ -92,10 +91,9 @@ class ProtSingleParticleAbInitio(Protocol, ProtFluoBase):
         )
         form.addParam(
             "gpu",
-            params.EnumParam,
-            choices=self._GPU_libraries,
-            display=params.EnumParam.DISPLAY_LIST,
-            label="GPU Library",
+            params.BooleanParam,
+            default=False,
+            label="Use GPU?",
         )
         form.addParam(
             "pad",
@@ -229,9 +227,8 @@ class ProtSingleParticleAbInitio(Protocol, ProtFluoBase):
         args += ["--N_axes", f"{self.N_axes.get()}"]
         args += ["--N_rot", f"{self.N_rot.get()}"]
         args += ["--eps", self.eps.get()]
-        gpu = self._GPU_libraries[self.gpu.get()]
-        if gpu != "no":
-            args += ["--gpu", gpu]
+        if self.gpu.get():
+            args += ["--gpu", "pytorch"]
             args += ["--interp_order", str(1)]
         print("Launching reconstruction")
         Plugin.runSPFluo(self, Plugin.getProgram(AB_INITIO_MODULE), args=args)
