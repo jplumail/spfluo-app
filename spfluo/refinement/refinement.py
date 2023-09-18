@@ -51,9 +51,16 @@ def reconstruction_L2(
         recon (torch.Tensor): reconstruction(s) of shape (D, H, W) or (M, D, H, W)
         den (torch.Tensor): something of shape (D, H, W) or (M, D, H, W)
     """
+    refinement_logger.info("Calling function reconstruction_L2")
     dtype, device = volumes.dtype, volumes.device
     N, D, H, W = volumes.size(-4), volumes.size(-3), volumes.size(-2), volumes.size(-1)
     d, h, w = psf.size(-3), psf.size(-2), psf.size(-1)
+    refinement_logger.info(
+        "Arguments:"
+        f" {N} volumes of size {D}x{H}x{W}"
+        f" PSF of size {d}x{h}x{w}"
+        f" "
+    )
     batch_dims = torch.as_tensor(poses.shape[:-2])
     batched = True
     if len(batch_dims) == 0:
@@ -61,6 +68,10 @@ def reconstruction_L2(
         lambda_ = lambda_.view(1)
         batched = False
         batch_dims = (1,)
+    else:
+        refinement_logger.info(
+            f"Running in batch mode: {batch_dims} reconstructions will be done"
+        )
 
     recon = torch.empty(tuple(batch_dims) + (D, H, W), dtype=dtype, device=device)
     den = torch.empty_like(recon)
@@ -122,6 +133,16 @@ def reconstruction_L2(
 
     if not batched:
         recon, den = recon[0], den[0]
+
+    if refinement_logger.isEnabledFor(logging.DEBUG):
+        p = debug.save_image(
+            recon.cpu().numpy(),
+            debug.DEBUG_DIR_REFINEMENT,
+            reconstruction_L2,
+            "reconstruction",
+            sequence=batched,
+        )
+        refinement_logger.debug("Saving reconstruction(s) at " + str(p))
 
     return recon, den
 
