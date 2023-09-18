@@ -212,6 +212,9 @@ def interpolate_to_size(
     batch=False,
     multichannel=False,
 ) -> Array:
+    """
+    Used for padding. The zoom matrix will zoom-out from the image.
+    """
     xp = array_namespace(volume)
     volume = xp.asarray(volume)
     d, h, w = volume.shape[-3:]
