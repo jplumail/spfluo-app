@@ -526,6 +526,8 @@ def refine(
             f"STEP {i+1}/{len(steps)} done in {time.time()-t1:.3f}s"
         )
 
+        torch.cuda.empty_cache()
+
     if refinement_logger.isEnabledFor(logging.DEBUG):
         p = debug.save_image(
             np.stack(all_recons, axis=0),
