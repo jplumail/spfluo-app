@@ -78,6 +78,56 @@ def get_transform_matrix(
     return H
 
 
+def symmetrize_angles(
+    euler_angles: Array, symmetry: int, convention: str = "XZX", degrees: bool = False
+) -> Array:
+    """
+    axis of symmetry is around the X-axis (see get_transform_matrix)
+    the euler_angles are in the XZX convention, so that the third angle is purely the
+    angle of symmetry.
+    Params:
+        - euler_angles: Array of shape (..., 3)
+        - symmetry: int
+            degree of the symmetry
+    Returns:
+        euler_angles_sym: Array of shape (..., symmetry, 3)
+    """
+    assert convention == "XZX"
+    xp = array_namespace(euler_angles)
+    full_range = 360 if degrees else 2 * xp.pi
+    symmetry_offset = xp.asarray(
+        [i * full_range / symmetry for i in range(symmetry)],
+        device=xp.device(euler_angles),
+        dtype=euler_angles.dtype,
+    )  # shape (symmetry,)
+    euler_angles_sym = xp.asarray(euler_angles, copy=True)
+    euler_angles_sym = xp.stack(
+        (euler_angles,) * symmetry, axis=-2
+    )  # shape (..., symmetry, 3)
+    euler_angles_sym[..., 2] += symmetry_offset
+    return euler_angles_sym
+
+
+def symmetrize_poses(
+    poses: Array, symmetry: int, convention: str = "XZX", degrees: bool = False
+) -> Array:
+    """
+    Params:
+        - poses: Array of shape (..., 6)
+        - symmetry: int
+            degree of the symmetry
+    """
+    euler_angles_sym = symmetrize_angles(
+        poses[..., :3], symmetry=symmetry, degrees=degrees
+    )  # shape (..., k, 3)
+    xp = array_namespace(euler_angles_sym)
+    poses_sym = xp.concat(
+        (euler_angles_sym, xp.zeros_like(euler_angles_sym)), axis=-1
+    )  # shape (..., k, 6)
+    poses_sym[..., 3:] = poses[..., None, 3:]
+    return poses_sym
+
+
 def distance_poses(
     p1: Array, p2: Array, convention: str = "XZX"
 ) -> Tuple[Array, Array]:

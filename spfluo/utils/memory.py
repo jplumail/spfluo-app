@@ -169,7 +169,7 @@ def maximum_batch(total_memory, func: str, *func_args):
     if func == "reconstruction_L2":
         volumes, psf, poses, lambda_ = func_args
         D, H, W = volumes.size()[-3:]
-        M, N, _ = poses.size()
+        M, k, N, _ = poses.size()
         dtype_bytes = torch.finfo(poses.dtype).bits / 8
         total_batch = (
             total_memory
@@ -179,8 +179,8 @@ def maximum_batch(total_memory, func: str, *func_args):
             * 8
             / (5000 * (2**20) * dtype_bytes * N * H * W * D)
         )
-        max_batch = (math.floor(total_batch),)
-        shape = (M,)
+        max_batch = (math.floor(total_batch**0.5), math.floor(total_batch**0.5))
+        shape = (M, k)
 
     if func == "affine_transform":
         volumes, transforms = func_args

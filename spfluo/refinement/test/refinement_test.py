@@ -14,7 +14,7 @@ from spfluo.refinement import (
     reconstruction_L2,
     refine,
 )
-from spfluo.utils.transform import distance_family_poses
+from spfluo.utils.transform import distance_family_poses, symmetrize_angles
 from spfluo.utils.volume import are_volumes_aligned
 
 if spfluo.has_torch_cuda:
@@ -66,7 +66,7 @@ def test_parallel_reconstruction_L2():
     psf = torch.randn((D, H, W))
     poses = torch.randn((M, N, 6))
     lambda_ = torch.randn((M,))
-    recon, _ = reconstruction_L2(volumes, psf, poses, lambda_)
+    recon, _ = reconstruction_L2(volumes, psf, poses, lambda_, batch=True)
     recon2 = torch.stack(
         [reconstruction_L2(volumes, psf, poses[i], lambda_[i])[0] for i in range(M)]
     )
@@ -75,10 +75,47 @@ def test_parallel_reconstruction_L2():
     assert torch.isclose(recon, recon2).all()
 
 
+def test_symmetry_reconstruction_L2():
+    k = 9
+    N, D, H, W = 10, 32, 32, 32
+    volumes = torch.randn((N, D, H, W))
+    psf = torch.randn((D, H, W))
+    poses = torch.randn((N, 6)).repeat(
+        k, 1, 1
+    )  # k times the same poses, useless symmetry
+    lambda_ = torch.tensor(1.0)
+    recon_sym, den_sym = reconstruction_L2(volumes, psf, poses, lambda_, symmetry=True)
+    recon, den = reconstruction_L2(volumes, psf, poses[0], lambda_, symmetry=False)
+
+    assert recon_sym.shape == (D, H, W)
+    assert torch.isclose(recon_sym, recon, atol=1e-4).all()
+
+
 def test_reconstruction_L2_simple(generated_data_all_pytorch):
     volumes, groundtruth_poses, psf, groundtruth = generated_data_all_pytorch
     lbda = volumes.new_tensor(1e-5)
     reconstruction, _ = reconstruction_L2(volumes, psf, groundtruth_poses, lbda)
+
+    assert are_volumes_aligned(
+        reconstruction.cpu().numpy(), groundtruth.cpu().numpy(), atol=1
+    )
+
+
+def test_reconstruction_L2_symmetry(generated_data_all_pytorch):
+    volumes, groundtruth_poses, psf, groundtruth = generated_data_all_pytorch
+    lbda = volumes.new_tensor(1e-5)
+    euler_angles_sym = symmetrize_angles(
+        groundtruth_poses[:, :3], symmetry=9, degrees=True
+    )
+    gt_poses_sym = torch.cat((euler_angles_sym, torch.zeros_like(euler_angles_sym)), 2)
+    gt_poses_sym[:, :, 3:] = groundtruth_poses[:, None, 3:]  # shape (N, k, 6)
+    gt_poses_sym = torch.permute(
+        gt_poses_sym, (1, 0, 2)
+    ).contiguous()  # shape (k, N, 6)
+
+    reconstruction, _ = reconstruction_L2(
+        volumes, psf, gt_poses_sym, lbda, symmetry=True
+    )
 
     assert are_volumes_aligned(
         reconstruction.cpu().numpy(), groundtruth.cpu().numpy(), atol=1
@@ -226,7 +263,6 @@ def test_refine_shapes():
     assert poses.shape == guessed_poses.shape
 
 
-@pytest.mark.skip("This test is broken for anisotropic data.")  # TODO fix this test
 @pytest.mark.skipif(device == "cpu", reason="Too long if done on CPU.")
 def test_refine_easy(generated_data_all_pytorch, poses_with_noise):
     poses = poses_with_noise
