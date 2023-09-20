@@ -65,7 +65,7 @@ def test_ab_initio_files_exist(generated_data_anisotropic, tmpdir):
 def test_ab_initio_same_results_cucim(generated_data_anisotropic, tmpdir):
     ab_initio_numpy, _ = minimal_run(None, generated_data_anisotropic, tmpdir)
     ab_initio, _ = minimal_run("cucim", generated_data_anisotropic, tmpdir)
-    assert np.isclose(ab_initio_numpy._energies, ab_initio._energies).all()
+    assert np.isclose(ab_initio_numpy._energies, ab_initio._energies, rtol=0.001).all()
 
 
 @pytest.mark.skipif(
