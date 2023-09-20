@@ -2,6 +2,7 @@ import argparse
 import os
 
 from .loading import isotropic_resample, resample, resize
+from .rotate_symmetry_axis import main as rotate_symmetry_axis_main
 
 
 def parse_args() -> argparse.ArgumentParser:
@@ -13,7 +14,11 @@ def parse_args() -> argparse.ArgumentParser:
         "-i", "--input", type=str, help="The image(s) to process", nargs="+"
     )
     parser.add_argument(
-        "-o", "--output", type=str, help="The path to the output image/directory"
+        "-o",
+        "--output",
+        type=str,
+        help="The path to the output image/directory",
+        default=None,
     )
 
     # isotropic_resample args
@@ -27,6 +32,12 @@ def parse_args() -> argparse.ArgumentParser:
     # resample args
     parser.add_argument("--factor", type=float, help="Resampling factor", default=1.0)
 
+    # rotate_symmetry_axis args
+    parser.add_argument(
+        "--convention", type=str, help="scipy rotation convention", default="XZX"
+    )
+    parser.add_argument("--poses", type=str, help="path to poses", default=None)
+
     return parser
 
 
@@ -36,7 +47,7 @@ def main(parser: argparse.ArgumentParser) -> None:
         parser.print_help()
         return
     image_paths = list(map(os.path.abspath, args.input))
-    output_path = os.path.abspath(args.output)
+    output_path = os.path.abspath(args.output) if args.output else None
     print("Function :", args.function)
     print("Images :", image_paths)
     if args.function == "isotropic_resample":
@@ -45,6 +56,8 @@ def main(parser: argparse.ArgumentParser) -> None:
         resize(image_paths, args.size, output_path)
     if args.function == "resample":
         resample(image_paths, output_path, factor=args.factor)
+    if args.function == "rotate_symmetry_axis":
+        rotate_symmetry_axis_main(args.input, args.convention, args.poses, args.output)
 
 
 if __name__ == "__main__":

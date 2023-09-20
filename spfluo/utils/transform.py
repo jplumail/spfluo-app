@@ -10,6 +10,35 @@ def euler_to_matrix(convention: str, euler_angles: Array, degrees=False) -> Arra
     return Rotation.from_euler(convention, euler_angles, degrees=degrees).as_matrix()
 
 
+def get_transform_matrix_around_center(
+    shape: Tuple[int, int, int], rotation_matrix: Array
+):
+    """
+    Params:
+        - shape
+        - rotation_matrix: Array of shape (..., 3, 3)
+    Returns:
+        Array of shape (..., 4, 4)
+    """
+    xp = array_namespace(rotation_matrix)
+    array_kwargs = {
+        "dtype": rotation_matrix.dtype,
+        "device": xp.device(rotation_matrix),
+    }
+    center = (xp.asarray(shape, **array_kwargs) - 1) / 2
+    H_rot = xp.zeros((rotation_matrix.shape[:-2]) + (4, 4), **array_kwargs)
+    H_rot[..., 3, 3] = 1.0
+    H_center = xp.asarray(H_rot, copy=True)
+    H_center[..., :3, 3] = -center  # 1. translation to (0,0,0)
+    H_center[..., [0, 1, 2], [0, 1, 2]] = 1.0  # diag to 1
+    H_rot[..., :3, :3] = rotation_matrix  # 2. rotation
+    H_rot[..., :3, 3] = center  # 3. translation to center of image.
+
+    #   3-2 <- 1
+    H = H_rot @ H_center
+    return H
+
+
 def get_transform_matrix(
     shape: Tuple[int, int, int],
     euler_angles: Array,
@@ -56,26 +85,12 @@ def get_transform_matrix(
         np.ndarray of shape ((N), 4, 4)
         An (or N) affine tranformation(s) in homogeneous coordinates.
     """
-    xp = array_namespace(euler_angles, translation)
-    array_kwargs = {"dtype": euler_angles.dtype, "device": xp.device(euler_angles)}
+    array_namespace(euler_angles, translation)
     rot = euler_to_matrix(convention, euler_angles, degrees=degrees)
-    center = (xp.asarray(shape, **array_kwargs) - 1) / 2
-    if len(euler_angles.shape) == 1:
-        H_rot = xp.zeros((4, 4), **array_kwargs)
-    elif len(euler_angles.shape) == 2:
-        H_rot = xp.zeros((euler_angles.shape[0], 4, 4), **array_kwargs)
-    H_rot[..., 3, 3] = 1.0
-    H_center = xp.asarray(H_rot, copy=True)
-    H_center[..., :3, 3] = -center  # 1. translation to (0,0,0)
-    H_center[..., [0, 1, 2], [0, 1, 2]] = 1.0  # diag to 1
-    H_rot[..., :3, :3] = rot  # 2. rotation
-    H_rot[..., :3, 3] = (
-        translation + center
-    )  # 3. translation to center of image. 4. translation
+    H_rot = get_transform_matrix_around_center(shape, rot)
+    H_rot[..., :3, 3] += translation  # adds the translation
 
-    #   4-3-2 <- 1
-    H = H_rot @ H_center
-    return H
+    return H_rot
 
 
 def symmetrize_angles(
