@@ -1,3 +1,4 @@
+import csv
 import os
 import pickle
 import random
@@ -315,3 +316,26 @@ def resample(im_paths: str, folder_path: str, factor: float = 1.0) -> None:
         tifffile.imwrite(
             os.path.join(folder_path, os.path.basename(im_path)), im_resampled
         )
+
+
+def save_poses(path: str, poses: np.ndarray):
+    with open(path, "w") as f:
+        f.write("name,rot1,rot2,rot3,t1,t2,t3\n")
+        for p in poses:
+            pose = list(map(str, p.tolist()))
+            f.write(",".join([""] + pose))
+            f.write("\n")
+
+
+def read_poses(path: str, alphabetic_order=True):
+    content = csv.reader(open(path, "r").read().split("\n"))
+    next(content)
+    poses, fnames = [], []
+    for row in content:
+        if len(row) > 0:
+            poses.append(np.array(row[1:], dtype=float))
+            fnames.append(os.path.basename(row[0]))
+    if alphabetic_order:
+        _, poses = zip(*sorted(zip(fnames, poses), key=lambda x: x[0]))
+    poses = np.stack(poses)
+    return poses

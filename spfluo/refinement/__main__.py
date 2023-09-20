@@ -1,6 +1,4 @@
 import argparse
-import csv
-import os
 
 import numpy as np
 import tifffile
@@ -11,30 +9,8 @@ from spfluo.ab_initio_reconstruction.manage_files.read_save_files import (
     read_images_in_folder,
 )
 from spfluo.refinement import refine
-from spfluo.utils.logging import base_parser, set_logging_level
-
-
-def read_poses(path: str, alphabetic_order=True):
-    content = csv.reader(open(path, "r").read().split("\n"))
-    next(content)
-    poses, fnames = [], []
-    for row in content:
-        if len(row) > 0:
-            poses.append(np.array(row[1:], dtype=float))
-            fnames.append(os.path.basename(row[0]))
-    if alphabetic_order:
-        _, poses = zip(*sorted(zip(fnames, poses), key=lambda x: x[0]))
-    poses = np.stack(poses)
-    return poses
-
-
-def save_poses(path: str, poses: np.ndarray):
-    with open(path, "w") as f:
-        f.write("name,rot1,rot2,rot3,t1,t2,t3\n")
-        for p in poses:
-            pose = list(map(str, p.tolist()))
-            f.write(",".join([""] + pose))
-            f.write("\n")
+from spfluo.utils.loading import read_poses, save_poses
+from spfluo.utils.log import base_parser, set_logging_level
 
 
 def create_parser():
@@ -78,7 +54,14 @@ def create_parser():
         "--ranges", nargs="+", action="append", type=float, required=True
     )
     parser.add_argument("-l", "--lambda_", type=float, required=False, default=100.0)
-    parser.add_argument("--symmetry", type=int, required=False, default=1)
+    parser.add_argument(
+        "--symmetry",
+        type=int,
+        required=False,
+        default=1,
+        help="Adds a constraint to the refinement. "
+        "The symmetry is cylindrical around the X-axis.",
+    )
 
     # GPU
     parser.add_argument("--gpu", action="store_true")
