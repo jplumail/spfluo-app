@@ -5,7 +5,7 @@ from .loading import isotropic_resample, resample, resize
 from .rotate_symmetry_axis import main as rotate_symmetry_axis_main
 
 
-def parse_args() -> argparse.ArgumentParser:
+def create_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     parser.add_argument("-f", "--function", type=str)
 
@@ -41,8 +41,7 @@ def parse_args() -> argparse.ArgumentParser:
     return parser
 
 
-def main(parser: argparse.ArgumentParser) -> None:
-    args = parser.parse_args()
+def main(args: argparse.Namespace) -> None:
     if args.input is None:
         parser.print_help()
         return
@@ -61,4 +60,5 @@ def main(parser: argparse.ArgumentParser) -> None:
 
 
 if __name__ == "__main__":
-    main(parse_args())
+    parser = create_parser()
+    main(parser.parse_args())
