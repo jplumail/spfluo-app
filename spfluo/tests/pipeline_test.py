@@ -66,6 +66,8 @@ def test_ab_initio_refinement(tmpdir):
             str(20),
             "--eps",
             "-10",
+            "--lr",
+            str(0.2),
         ]
     )
     ab_initio_main.main(ab_initio_args)
@@ -111,7 +113,7 @@ def test_ab_initio_refinement(tmpdir):
             "--symmetry",
             str(9),
             "--steps",
-            "(20,15)",
+            "(1024,10)",
             "10",
             "10",
             "10",
