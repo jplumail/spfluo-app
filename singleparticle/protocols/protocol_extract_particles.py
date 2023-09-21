@@ -72,12 +72,15 @@ class ProtSingleParticleExtractParticles(Protocol, ProtFluoBase):
 
     @staticmethod
     def extract_particle(
-        im: FluoImage, coord: Coordinate3D, box_size: int, subpixel: bool = False
+        im: FluoImage, coord: Coordinate3D, box_size: float, subpixel: bool = False
     ) -> Particle:
         vs_xy, vs_z = im.getVoxelSize()
-        world_to_data_coord = lambda pos: pos / np.asarray([vs_z, vs_xy, vs_xy])
+
+        def world_to_data_coord(pos):
+            return pos / np.asarray([vs_z, vs_xy, vs_xy])
+
         mat = coord.getMatrix()
-        mat[:3, 3] = world_to_data_coord(mat[:3, 3]) # World coordinates to data coords
+        mat[:3, 3] = world_to_data_coord(mat[:3, 3])  # World coordinates to data coords
         box_size_world = np.asarray([box_size, box_size, box_size], dtype=float)
         box_size_data = np.rint(world_to_data_coord(box_size_world)).astype(int)
         mat[:3, 3] -= box_size_data / 2
