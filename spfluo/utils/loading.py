@@ -321,9 +321,9 @@ def resample(im_paths: str, folder_path: str, factor: float = 1.0) -> None:
 def save_poses(path: str, poses: np.ndarray):
     with open(path, "w") as f:
         f.write("name,rot1,rot2,rot3,t1,t2,t3\n")
-        for p in poses:
+        for i, p in enumerate(poses):
             pose = list(map(str, p.tolist()))
-            f.write(",".join([""] + pose))
+            f.write(",".join([str(i)] + pose))
             f.write("\n")
 
 
