@@ -94,7 +94,7 @@ def write_csv(filename, data):
         csvwriter.writerows(data)
 
 
-def read_coordinate3D(csv_file: str) -> Iterator[Tuple[Coordinate3D, float]]:
+def read_translations(csv_file: str) -> Iterator[Tuple[Coordinate3D, float]]:
     with open(csv_file, "r") as f:
         data = csv.reader(f)
         next(data)

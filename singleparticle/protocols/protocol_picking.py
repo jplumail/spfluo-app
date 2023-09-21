@@ -9,7 +9,7 @@ from pyworkflow.gui.dialog import askYesNo
 from pyworkflow.protocol import Form
 from pyworkflow.utils.properties import Message
 
-from singleparticle.convert import read_coordinate3D
+from singleparticle.convert import read_translations
 from singleparticle.viewers.view_picking import PickingView
 
 
@@ -77,7 +77,7 @@ class ProtSingleParticlePickingNapari(ProtFluoPicking):
             # get csv filename
             _, csv_path = self.getCsvPath(imfluo)
             if os.path.exists(csv_path):
-                for coord, box_size in read_coordinate3D(csv_path):
+                for coord, box_size in read_translations(csv_path):
                     coord.setFluoImage(imfluo)
                     coord.setImageId(imfluo.getImgId())
                     coords3D.append(coord)
