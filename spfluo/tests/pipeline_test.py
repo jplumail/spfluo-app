@@ -3,7 +3,9 @@
 from pathlib import Path
 
 import numpy as np
+import pytest
 
+import spfluo
 import spfluo.ab_initio_reconstruction.__main__ as ab_initio_main
 import spfluo.refinement.__main__ as refinement_main
 import spfluo.utils.__main__ as utils_main
@@ -43,6 +45,12 @@ def get_energy(
     return energy
 
 
+@pytest.mark.skipif(not spfluo.has_torch, reason="This test requires torch installed")
+@pytest.mark.skipif(
+    not spfluo.has_torch_cuda,
+    reason="This test requires torch CUDA installed."
+    "It would be too long without a GPU.",
+)
 def test_ab_initio_refinement(tmpdir):
     tmpdir = Path(tmpdir)
     generated_root_dir = Path(data.generated_anisotropic()["rootdir"])
