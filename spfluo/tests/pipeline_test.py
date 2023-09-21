@@ -6,6 +6,7 @@ import numpy as np
 
 import spfluo.ab_initio_reconstruction.__main__ as ab_initio_main
 import spfluo.refinement.__main__ as refinement_main
+import spfluo.utils.__main__ as utils_main
 from spfluo import data
 from spfluo.ab_initio_reconstruction.learning_algorithms.gradient_descent_importance_sampling import (  # noqa: E501
     compute_energy,
@@ -14,7 +15,7 @@ from spfluo.ab_initio_reconstruction.manage_files.read_save_files import (
     read_image,
     read_images_in_folder,
 )
-from spfluo.refinement.__main__ import read_poses
+from spfluo.utils.loading import read_poses
 from spfluo.utils.transform import get_transform_matrix
 from spfluo.utils.volume import affine_transform, interpolate_to_size
 
@@ -73,6 +74,23 @@ def test_ab_initio_refinement(tmpdir):
     assert guessed_poses_path.exists()
     assert reconstruction_ab_initio_path.exists()
 
+    # Symmetry axis aligned with the X-axis
+    poses_aligned = tmpdir / "poses_aligned.csv"
+    utils_parser = utils_main.create_parser()
+    utils_args = utils_parser.parse_args(
+        [
+            "-f",
+            "rotate_symmetry_axis",
+            "-i",
+            str(reconstruction_ab_initio_path),
+            "-o",
+            str(poses_aligned),
+            "--poses",
+            str(guessed_poses_path),
+        ]
+    )
+    utils_main.main(utils_args)
+
     # Refinement main
     refinement_parser = refinement_main.create_parser()
     reconstruction_refined_path = tmpdir / "reconstruction_refined.tiff"
@@ -84,7 +102,7 @@ def test_ab_initio_refinement(tmpdir):
             "--psf_path",
             str(psf_path),
             "--guessed_poses_path",
-            str(guessed_poses_path),
+            str(poses_aligned),
             "--output_reconstruction_path",
             str(reconstruction_refined_path),
             "--output_poses_path",
