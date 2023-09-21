@@ -1,6 +1,7 @@
 import argparse
 import logging
 
+logging.basicConfig()
 spfluo_logger = logging.getLogger("spfluo")
 
 base_parser = argparse.ArgumentParser(
