@@ -6,6 +6,7 @@
 from singleparticle.protocols.protocol_ab_initio import (
     ProtSingleParticleAbInitio,
 )
+from singleparticle.protocols.protocol_align_axis import ProtSingleParticleAlignAxis
 from singleparticle.protocols.protocol_extract_particles import (
     ProtSingleParticleExtractParticles,
 )
@@ -27,4 +28,5 @@ __all__ = [
     ProtSingleParticleUtils,
     ProtSingleParticleExtractParticles,
     ProtSingleParticleRefinement,
+    ProtSingleParticleAlignAxis,
 ]
