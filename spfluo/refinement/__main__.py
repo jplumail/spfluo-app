@@ -72,7 +72,7 @@ def create_parser():
 def main(args):
     particles, _ = read_images_in_folder(args.particles_dir, alphabetic_order=True)
     psf = read_image(args.psf_path)
-    guessed_poses = read_poses(args.guessed_poses_path, alphabetic_order=True)
+    guessed_poses, names = read_poses(args.guessed_poses_path, alphabetic_order=True)
 
     # Transfer to GPU
     def as_tensor(arr):
@@ -95,7 +95,7 @@ def main(args):
 
     reconstruction, poses = reconstruction.cpu().numpy(), poses.cpu().numpy()
     tifffile.imwrite(args.output_reconstruction_path, reconstruction)
-    save_poses(args.output_poses_path, poses)
+    save_poses(args.output_poses_path, poses, names)
 
 
 if __name__ == "__main__":

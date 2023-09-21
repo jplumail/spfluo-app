@@ -2,7 +2,7 @@ import csv
 import os
 import pickle
 import random
-from typing import Dict, Tuple
+from typing import Dict, Optional, Tuple
 
 import imageio
 import numpy as np
@@ -318,12 +318,13 @@ def resample(im_paths: str, folder_path: str, factor: float = 1.0) -> None:
         )
 
 
-def save_poses(path: str, poses: np.ndarray):
+def save_poses(path: str, poses: np.ndarray, names: Optional[list[str]] = None):
     with open(path, "w") as f:
         f.write("name,rot1,rot2,rot3,t1,t2,t3\n")
         for i, p in enumerate(poses):
             pose = list(map(str, p.tolist()))
-            f.write(",".join([str(i)] + pose))
+            name = names[i] if names else str(i)
+            f.write(",".join([name] + pose))
             f.write("\n")
 
 
@@ -336,6 +337,6 @@ def read_poses(path: str, alphabetic_order=True):
             poses.append(np.array(row[1:], dtype=float))
             fnames.append(os.path.basename(row[0]))
     if alphabetic_order:
-        _, poses = zip(*sorted(zip(fnames, poses), key=lambda x: x[0]))
+        fnames, poses = zip(*sorted(zip(fnames, poses), key=lambda x: x[0]))
     poses = np.stack(poses)
-    return poses
+    return poses, list(fnames)

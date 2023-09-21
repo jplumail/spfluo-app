@@ -77,7 +77,7 @@ def main(
     rotation_to_axis_from_volume = R.from_matrix(rot)
     print(tuple(rotation_to_axis_from_volume.as_euler(convention, degrees=True)))
     if poses_path:
-        poses = read_poses(poses_path)
+        poses, names = read_poses(poses_path)
         new_poses = poses.copy()
         rotations_to_particles_from_volume = R.from_euler(
             convention, poses[:, :3], degrees=True
@@ -88,4 +88,4 @@ def main(
         new_poses[:, :3] = rotations_to_particles_from_axis.as_euler(
             convention, degrees=True
         )
-        save_poses(output_poses_path, new_poses)
+        save_poses(output_poses_path, new_poses, names)

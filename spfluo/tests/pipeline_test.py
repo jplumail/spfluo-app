@@ -147,14 +147,14 @@ def test_ab_initio_refinement(tmpdir):
 
     # Compute ab initio energy
     reconstruction_ab_initio = read_image(str(reconstruction_ab_initio_path))
-    poses_ab_initio = read_poses(str(guessed_poses_path))
+    poses_ab_initio, _ = read_poses(str(guessed_poses_path))
     energy_ab_initio = get_energy(
         reconstruction_ab_initio, psf, poses_ab_initio, particles
     )
 
     # Compute refinement energy
     reconstruction_refined = read_image(str(reconstruction_refined_path))
-    poses_refined = read_poses(str(poses_refined_path))
+    poses_refined, _ = read_poses(str(poses_refined_path))
     energy_refined = get_energy(reconstruction_refined, psf, poses_refined, particles)
 
     assert energy_ab_initio > energy_refined
