@@ -1,10 +1,12 @@
 # Makefile for building the project
 
 # Source directories and files from the main repository
-MAIN_SOURCE_DIRS = spfluo-app
+MAIN_SOURCE_DIRS = app
 
 # Source directories and files from the docs repository
 DOCS_SOURCE_DIR = ../spfluo-docs
+
+DATA_DIR = data
 
 # Build directory
 BUILD_DIR = build
@@ -25,8 +27,13 @@ build:
 	cp $(DOCS_SOURCE_DIR)/build/latex/spfluo-app.pdf $(BUILD_DIR)/docs
 	@echo "Build completed in $(BUILD_DIR)/"
 
-zip: build
-	zip -r $(ZIP_FILE) $(BUILD_DIR)
+zip: clean build
+	mkdir $(BUILD_DIR)/spfluo-app
+	cp -r $(BUILD_DIR)/docs $(BUILD_DIR)/spfluo-app/docs
+	cp -r $(BUILD_DIR)/app $(BUILD_DIR)/spfluo-app/app
+	cp -r $(DATA_DIR) $(BUILD_DIR)/spfluo-app/data
+	cd $(BUILD_DIR) && zip -9 -r $(ZIP_FILE) spfluo-app
+	rm -r $(BUILD_DIR)/spfluo-app
 	@echo "Build zipped to $(ZIP_FILE)"
 
 clean:
