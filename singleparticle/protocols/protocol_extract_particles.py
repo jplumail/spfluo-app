@@ -74,22 +74,30 @@ class ProtSingleParticleExtractParticles(Protocol, ProtFluoBase):
     def extract_particle(
         im: FluoImage, coord: Coordinate3D, box_size: int, subpixel: bool = False
     ) -> Particle:
+        vs_xy, vs_z = im.getVoxelSize()
+
+        def world_to_data_coord(pos):
+            return pos / np.asarray([vs_z, vs_xy, vs_xy])
+
         mat = coord.getMatrix()
-        mat[:3, 3] -= float(box_size) / 2
+        mat[:3, 3] = world_to_data_coord(mat[:3, 3])  # World coordinates to data coords
+        box_size_world = np.asarray([box_size, box_size, box_size], dtype=float)
+        box_size_data = np.rint(world_to_data_coord(box_size_world)).astype(int)
+        mat[:3, 3] -= box_size_data / 2
         mat[:3, :3] = np.eye(3)
         image_data = im.getData()
         C = im.getNumChannels()
-        particle_data = np.empty((1, C) + (box_size,) * 3, dtype=image_data.dtype)
+        particle_data = np.empty((1, C) + tuple(box_size_data), dtype=image_data.dtype)
         if not subpixel:
             top_left_corner = np.rint(mat[:3, 3]).astype(int)
-            bottom_right_corner = top_left_corner + box_size
+            bottom_right_corner = top_left_corner + box_size_data
             xmin, ymin, zmin = top_left_corner
             xmax, ymax, zmax = bottom_right_corner
         for c in range(C):
             im_array_c = image_data[0, c]  # T=0,C=c in AICS model
             if subpixel:
                 particle_data[0, c] = affine_transform(
-                    im_array_c, mat, output_shape=(box_size,) * 3
+                    im_array_c, mat, output_shape=tuple(box_size_data)
                 )
             else:
                 particle_data[0, c] = im_array_c[xmin:xmax, ymin:ymax, zmin:zmax]
