@@ -138,7 +138,7 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
             self.final_poses,
         ]
         if self.gpu:
-            args += "--gpu"
+            args += ["--gpu"]
         Plugin.runSPFluo(self, Plugin.getProgram(REFINEMENT_MODULE), args=args)
 
     def createOutputStep(self):
