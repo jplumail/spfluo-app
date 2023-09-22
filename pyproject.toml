@@ -1,11 +1,34 @@
 [build-system]
 requires = [
     "setuptools>=60",
-    "setuptools-scm>=8.0"
+    "setuptools-scm[toml]>=8.0"
 ]
+build-backend = "setuptools.build_meta"
 
 [project]
+name = "scipion-fluo-singleparticle"
+description = "Scipion plugin for single particle reconstruction."
+readme = "README.rst"
+authors = [{name = "Jean Plumail", email = "jplumail@unistra.fr"}]
+keywords = ["scipion", "fluorescence", "imageprocessing", "scipion-3.0"]
 dynamic = ["version"]
+dependencies = [
+    "scipion-pyworkflow",
+    "scipion-fluo",
+    "numpy",
+    "scipy",
+    "aicsimageio",
+]
+
+[project.urls]
+Repository = "https://github.com/jplumail/scipion-fluo-singleparticle"
+
+[project.optional-dependencies]
+dev = ["ruff", "black", "pre-commit"]
+
+[project.entry-points."pyworkflow.plugin"]
+singleparticle = "singleparticle"
+
 [tool.setuptools_scm]
 
 [tool.ruff]

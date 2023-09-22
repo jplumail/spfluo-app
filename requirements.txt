@@ -1,5 +1,0 @@
-scipion-pyworkflow
-scipion-fluo
-numpy
-scipy
-aicsimageio
