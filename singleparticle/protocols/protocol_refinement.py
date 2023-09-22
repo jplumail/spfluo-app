@@ -62,6 +62,13 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
         )
         form.addSection(label="Reconstruction params")
         form.addParam(
+            "lbda",
+            params.FloatParam,
+            default=100.0,
+            label="Lambda",
+            help="Higher results in smoother results.",
+        )
+        form.addParam(
             "ranges",
             params.StringParam,
             label="Ranges",
@@ -136,6 +143,8 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
             self.final_reconstruction,
             "--output_poses_path",
             self.final_poses,
+            "-l",
+            self.lbda.get(),
         ]
         if self.gpu:
             args += ["--gpu"]
