@@ -65,9 +65,23 @@ class PickingDialog(ToolbarListDialog):
     def __init__(
         self, parent, provider: PickingTreeProvider, protocol: Protocol, **kwargs
     ):
-        self.provider = provider
         self.size = 10
+        self.spacing = None
+        for im in provider.fluoimagesList:
+            ps = im.getVoxelSize()
+            if ps is not None:
+                if self.spacing is None:
+                    self.spacing = ps
+                else:
+                    if self.spacing == ps:
+                        continue
+                    else:
+                        raise ValueError(
+                            f"Images from {provider.fluoimagesList} don't have"
+                            f"the same pixel size. Got {self.spacing} and {ps}."
+                        )
         self._protocol = protocol
+        self.provider = provider
         self.refresh_gui(initialized=False)
         ToolbarListDialog.__init__(
             self,
@@ -117,7 +131,16 @@ class PickingDialog(ToolbarListDialog):
         from singleparticle.constants import MANUAL_PICKING_MODULE
 
         path, csv_path = self._protocol.getCsvPath(im)
-        args = [path, csv_path, "--size", f"{self.size}"]
+        args = [
+            path,
+            csv_path,
+            "--size",
+            f"{self.size}",
+            "--spacing",
+            str(self.spacing[1]),
+            str(self.spacing[0]),
+            str(self.spacing[0]),
+        ]
         Plugin.runSPFluo(self._protocol, Plugin.getProgram(MANUAL_PICKING_MODULE), args)
 
 
