@@ -37,6 +37,9 @@ def create_parser() -> argparse.ArgumentParser:
         "--convention", type=str, help="scipy rotation convention", default="XZX"
     )
     parser.add_argument("--poses", type=str, help="path to poses", default=None)
+    parser.add_argument(
+        "--rotated-volume", type=str, help="path to the rotated volume", default=None
+    )
 
     return parser
 
@@ -56,7 +59,9 @@ def main(args: argparse.Namespace) -> None:
     if args.function == "resample":
         resample(image_paths, output_path, factor=args.factor)
     if args.function == "rotate_symmetry_axis":
-        rotate_symmetry_axis_main(args.input, args.convention, args.poses, args.output)
+        rotate_symmetry_axis_main(
+            args.input, args.convention, args.rotated_volume, args.poses, args.output
+        )
 
 
 if __name__ == "__main__":

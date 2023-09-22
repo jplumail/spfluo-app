@@ -69,6 +69,7 @@ def rotate_centriole_to_have_symmetry_axis_along_z_axis(centriole_im, axis_indic
 def main(
     volume_path: str,
     convention: str = "XZX",
+    output_volume_path: Optional[str] = None,
     poses_path: Optional[str] = None,
     output_poses_path: Optional[str] = None,
 ):
@@ -76,6 +77,12 @@ def main(
     rot = find_rot_mat_between_centriole_axis_and_z_axis(volume)
     rotation_to_axis_from_volume = R.from_matrix(rot)
     print(tuple(rotation_to_axis_from_volume.as_euler(convention, degrees=True)))
+    if output_volume_path:
+        rotated_volume = affine_transform(
+            volume,
+            np.linalg.inv(get_transform_matrix_around_center(volume.shape, rot)),
+        )
+        tifffile.imwrite(output_volume_path, rotated_volume)
     if poses_path:
         poses, names = read_poses(poses_path)
         new_poses = poses.copy()
