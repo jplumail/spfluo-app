@@ -69,6 +69,13 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
         )
         form.addSection(label="Reconstruction params")
         form.addParam(
+            "sym",
+            params.IntParam,
+            default=1,
+            label="Symmetry degree",
+            help="Adds a cylindrical symmetry constraint.",
+        )
+        form.addParam(
             "lbda",
             params.FloatParam,
             default=100.0,
@@ -194,6 +201,8 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
             self.final_poses,
             "-l",
             self.lbda.get(),
+            "--symmetry",
+            self.sym.get(),
         ]
         if self.gpu:
             args += ["--gpu"]
