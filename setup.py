@@ -26,7 +26,6 @@ with open("requirements.txt") as f:
 
 setup(
     name="scipion-fluo-singleparticle",  # Required
-    version="0.1",  # Required
     description="Scipion plugin for single particle reconstruction.",  # Required
     long_description=long_description,  # Optional
     url="https://github.com/jplumail/scipion-fluo-singleparticle",  # Optional
