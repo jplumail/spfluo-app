@@ -61,7 +61,6 @@ class ProtSingleParticleAbInitio(Protocol, ProtFluoBase):
 
     _label = "ab initio reconstruction"
     _devStatus = BETA
-    _GPU_libraries = ["no", "cucim", "pytorch"]
     _possibleOutputs = outputs
 
     # -------------------------- DEFINE param functions ----------------------
@@ -92,10 +91,9 @@ class ProtSingleParticleAbInitio(Protocol, ProtFluoBase):
         )
         form.addParam(
             "gpu",
-            params.EnumParam,
-            choices=self._GPU_libraries,
-            display=params.EnumParam.DISPLAY_LIST,
-            label="GPU Library",
+            params.BooleanParam,
+            default=False,
+            label="Use GPU?",
         )
         form.addParam(
             "pad",
@@ -103,10 +101,18 @@ class ProtSingleParticleAbInitio(Protocol, ProtFluoBase):
             default=True,
             expertLevel=params.LEVEL_ADVANCED,
             label="Pad particles?",
+            help="Disable only if all of your particles have enough blank space around"
+            "them.",
         )
         form.addSection(label="Reconstruction params")
         form.addParam(
-            "numIterMax", params.IntParam, default=20, label="Max number of epochs"
+            "numIterMax",
+            params.IntParam,
+            default=20,
+            label="Max number of epochs",
+            help="The algorithm will perform better with more epochs."
+            "It can stop earlier, if it stagnates."
+            "See the eps parameter in advanced mode.",
         )
         form.addParam(
             "N_axes",
@@ -114,6 +120,10 @@ class ProtSingleParticleAbInitio(Protocol, ProtFluoBase):
             default=25,
             label="N axes",
             expertLevel=params.LEVEL_ADVANCED,
+            help="N_axes*N_rot is the number of rotations the algorithm"
+            "will test at each epoch."
+            "Increasing this parameter can lead to longer epochs"
+            "and to out of memory errors.",
         )
         form.addParam(
             "N_rot",
@@ -121,6 +131,9 @@ class ProtSingleParticleAbInitio(Protocol, ProtFluoBase):
             default=20,
             label="N rot",
             expertLevel=params.LEVEL_ADVANCED,
+            help="N_axes*N_rot is the number of rotations the algorithm will test."
+            "Increasing this parameter can lead to longer epochs"
+            "and to out of memory errors.",
         )
         form.addParam(
             "lr",
@@ -128,6 +141,8 @@ class ProtSingleParticleAbInitio(Protocol, ProtFluoBase):
             default=0.1,
             label="learning rate",
             expertLevel=params.LEVEL_ADVANCED,
+            help="Increase to get faster results. "
+            "However, a value too high can break the algorithm.",
         )
         form.addParam(
             "eps",
@@ -135,7 +150,8 @@ class ProtSingleParticleAbInitio(Protocol, ProtFluoBase):
             default=-100,
             label="eps",
             expertLevel=params.LEVEL_ADVANCED,
-            help="minimum gain in energy before stopping",
+            help="minimum gain in energy before stopping"
+            "a negative value allows for eventual losses in energy",
         )
 
     # --------------------------- STEPS functions ------------------------------
@@ -211,9 +227,8 @@ class ProtSingleParticleAbInitio(Protocol, ProtFluoBase):
         args += ["--N_axes", f"{self.N_axes.get()}"]
         args += ["--N_rot", f"{self.N_rot.get()}"]
         args += ["--eps", self.eps.get()]
-        gpu = self._GPU_libraries[self.gpu.get()]
-        if gpu != "no":
-            args += ["--gpu", gpu]
+        if self.gpu.get():
+            args += ["--gpu", "pytorch"]
             args += ["--interp_order", str(1)]
         print("Launching reconstruction")
         Plugin.runSPFluo(self, Plugin.getProgram(AB_INITIO_MODULE), args=args)

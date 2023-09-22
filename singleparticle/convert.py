@@ -94,14 +94,29 @@ def write_csv(filename, data):
         csvwriter.writerows(data)
 
 
-def read_coordinate3D(csv_file: str) -> Iterator[Tuple[Coordinate3D, int]]:
+def read_translations(csv_file: str) -> Iterator[Tuple[Coordinate3D, float]]:
     with open(csv_file, "r") as f:
         data = csv.reader(f)
         next(data)
         for row in data:
             coord = Coordinate3D()
             coord.setPosition(float(row[1]), float(row[2]), float(row[3]))
-            yield coord, int(float(row[4]))
+            yield coord, float(row[4])
+
+
+def read_poses(poses_csv: str):
+    with open(poses_csv, "r") as f:
+        data = csv.reader(f)
+        next(data)
+        for row in data:
+            coord = Coordinate3D()
+            matrix = np.eye(4)
+            matrix[:3, :3] = Rotation.from_euler(
+                "XZX", [float(row[1]), float(row[2]), float(row[3])]
+            ).as_matrix()
+            coord.setMatrix(matrix)
+            coord.setPosition(float(row[4]), float(row[5]), float(row[6]))
+            yield coord, row[0]
 
 
 def save_translations(coords: SetOfCoordinates3D, csv_file: str):
@@ -144,6 +159,23 @@ def save_particles(
                 os.link(im_path, im_newPath)
 
     return particles_paths, max_dim
+
+
+def save_poses(path: str, particles: SetOfParticles):
+    with open(path, "w") as f:
+        csvwriter = csv.writer(f)
+        csvwriter.writerow(["index", "axis-1", "axis-2", "axis-3", "size"])
+        for p in particles:
+            p: Particle
+            rotMat = p.getTransform().getRotationMatrix()
+            euler_angles = list(
+                map(
+                    str,
+                    Rotation.from_matrix(rotMat).as_euler("XZX", degrees=True).tolist(),
+                )
+            )
+            trans = list(map(str, p.getTransform().getShifts().tolist()))
+            csvwriter.writerow([str(p.getObjId())] + euler_angles + trans)
 
 
 def save_particles_and_poses(

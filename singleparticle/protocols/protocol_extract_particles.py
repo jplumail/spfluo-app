@@ -72,7 +72,7 @@ class ProtSingleParticleExtractParticles(Protocol, ProtFluoBase):
 
     @staticmethod
     def extract_particle(
-        im: FluoImage, coord: Coordinate3D, box_size: int, subpixel: bool = False
+        im: FluoImage, coord: Coordinate3D, box_size: float, subpixel: bool = False
     ) -> Particle:
         vs_xy, vs_z = im.getVoxelSize()
 
