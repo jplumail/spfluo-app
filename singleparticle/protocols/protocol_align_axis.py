@@ -1,4 +1,5 @@
 import os
+from enum import Enum
 
 from pwfluo.objects import (
     Particle,
@@ -6,11 +7,17 @@ from pwfluo.objects import (
 )
 from pwfluo.protocols import ProtFluoBase
 from pyworkflow import BETA
+from pyworkflow.object import RELATION_TRANSFORM
 from pyworkflow.protocol import Form, Protocol, params
 
 from singleparticle import Plugin
 from singleparticle.constants import UTILS_MODULE
 from singleparticle.convert import read_poses, save_poses
+
+
+class outputs(Enum):
+    aligned_volume = Particle
+    aligned_particles = SetOfParticles
 
 
 class ProtSingleParticleAlignAxis(Protocol, ProtFluoBase):
@@ -19,7 +26,7 @@ class ProtSingleParticleAlignAxis(Protocol, ProtFluoBase):
     OUTPUT_NAME = "aligned SetOfParticles"
     _label = "align axis"
     _devStatus = BETA
-    _possibleOutputs = {OUTPUT_NAME: SetOfParticles}
+    _possibleOutputs = outputs
 
     def _defineParams(self, form: Form):
         form.addSection(label="Input")
@@ -34,13 +41,13 @@ class ProtSingleParticleAlignAxis(Protocol, ProtFluoBase):
             "inputParticles",
             params.PointerParam,
             pointerClass="SetOfParticles",
-            label="coordinates associated",
-            important=True,
+            label="particles to rotate",
         )
 
     def _insertAllSteps(self):
         self.poses_csv = self._getExtraPath("poses.csv")
         self.rotated_poses_csv = self._getExtraPath("new_poses.csv")
+        self.rotated_particle_path = self._getExtraPath("rotated-volume.tiff")
         self._insertFunctionStep(self.prepareStep)
         self._insertFunctionStep(self.alignStep)
         self._insertFunctionStep(self.createOuputStep)
@@ -50,8 +57,8 @@ class ProtSingleParticleAlignAxis(Protocol, ProtFluoBase):
         save_poses(self.poses_csv, self.input_particles)
 
     def alignStep(self):
-        particle: Particle = self.inputParticle.get()
-        particle_path = particle.getFileName()
+        self.particle: Particle = self.inputParticle.get()
+        particle_path = self.particle.getFileName()
 
         args = [
             "-f",
@@ -62,11 +69,20 @@ class ProtSingleParticleAlignAxis(Protocol, ProtFluoBase):
             str(self.rotated_poses_csv),
             "--poses",
             str(self.poses_csv),
+            "--rotated-volume",
+            str(self.rotated_particle_path),
         ]
 
         Plugin.runSPFluo(self, Plugin.getProgram(UTILS_MODULE), args=args)
 
     def createOuputStep(self):
+        # Rotated volume
+        rotated_particle = Particle()
+        rotated_particle.setFileName(self.rotated_particle_path)
+        self._defineOutputs(**{outputs.aligned_volume.name: rotated_particle})
+        self._defineRelation(RELATION_TRANSFORM, self.particle, rotated_particle)
+
+        # Rotated particles
         output_particles = self._createSetOfParticles()
 
         coords = {
@@ -92,4 +108,7 @@ class ProtSingleParticleAlignAxis(Protocol, ProtFluoBase):
 
         output_particles.write()
 
-        self._defineOutputs(**{self.OUTPUT_NAME: output_particles})
+        self._defineOutputs(
+            **{self._possibleOutputs.aligned_particles.name: output_particles}
+        )
+        self._defineRelation(RELATION_TRANSFORM, self.input_particles, output_particles)
