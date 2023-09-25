@@ -1,10 +1,13 @@
 import numpy as np
 
+from spfluo import data
 from spfluo.utils.transform import (
     distance_family_poses,
     distance_poses,
     get_transform_matrix,
+    symmetrize_poses,
 )
+from spfluo.utils.volume import affine_transform, are_volumes_aligned
 
 
 def test_get_transform_matrix_simple():
@@ -77,3 +80,17 @@ def test_distance_family_poses_sym():
     angle, t = distance_family_poses(p1, p2, symmetry=9)
     assert np.isclose(angle, [error / 3, error * 2 / 3, error / 3], atol=1e-5).all()
     assert np.isclose(t, [0, 0, 2.0**0.5]).all()
+
+
+def test_symmetrize_poses():
+    poses, volume = (
+        data.generated_isotropic()["poses"],
+        data.generated_isotropic()["volumes"][0],
+    )
+    gt = data.generated_isotropic()["gt"]
+    poses_sym = symmetrize_poses(poses, 9, degrees=True)
+    mats = get_transform_matrix(
+        volume.shape, poses_sym[0, :, :3], poses_sym[0, :, 3:], degrees=True
+    )
+    volume_rotated = affine_transform(np.stack((volume,) * 9), mats, batch=True)
+    assert are_volumes_aligned(volume_rotated, gt).all()
