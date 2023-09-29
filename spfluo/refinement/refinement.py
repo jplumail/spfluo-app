@@ -10,7 +10,7 @@ import torch
 from tqdm import tqdm
 
 import spfluo.utils.debug as debug
-from spfluo.utils._torch_functions.volume import fftn
+from spfluo.utils._torch_functions.volume import fftn, pad_to_size
 from spfluo.utils.memory import split_batch_func
 from spfluo.utils.transform import get_transform_matrix, symmetrize_poses
 from spfluo.utils.volume import (
@@ -44,7 +44,7 @@ def reconstruction_L2(
     M reconstructions can be done at once.
 
     Args:
-        volumes (torch.Tensor): stack of N 3D images of shape (N, D, H, W)
+        volumes (torch.Tensor): stack of N 3D images of shape (N, D, D, D)
         psf (torch.Tensor) : 3D image of shape (d, h, w)
         poses (torch.Tensor):
             stack(s) of N poses of shape ((M), (k), N, 6)
@@ -66,18 +66,18 @@ def reconstruction_L2(
             poses must be of shape ((M), k, N, 6), the M dim is optional
 
     Returns:
-        recon (torch.Tensor): reconstruction(s) of shape (D, H, W) or (M, D, H, W)
-        den (torch.Tensor): something of shape (D, H, W) or (M, D, H, W)
+        recon (torch.Tensor):
+            reconstruction(s) of shape ((M), D, D, D) or ((M), D+1, D+1, D+1)
+        den (torch.Tensor):
+            something of shape ((M), D, D, D)  or ((M), D+1, D+1, D+1)
     """
     refinement_logger.info("Calling function reconstruction_L2")
     device = volumes.device
     N, D, H, W = volumes.size(-4), volumes.size(-3), volumes.size(-2), volumes.size(-1)
+    assert D == H == W
     d, h, w = psf.size(-3), psf.size(-2), psf.size(-1)
     refinement_logger.info(
-        "Arguments:"
-        f" {N} volumes of size {D}x{H}x{W}"
-        f" PSF of size {d}x{h}x{w}"
-        f" "
+        "Arguments:" f" {N} volumes of size {D}x{D}x{D}" f" PSF of size {d}x{h}x{w}"
     )
     if batch:
         assert poses.ndim > 2
@@ -92,16 +92,25 @@ def reconstruction_L2(
         lambda_ = lambda_.view(1)
 
     if symmetry:
-        assert poses.ndim > 2
-        if batch:
-            assert poses.ndim == 4
-        k = poses.shape[-3]
+        assert poses.ndim == 4
+        k = poses.shape[1]
         refinement_logger.info(f"Symmetry enabled, of degree k={k}")
     else:
         k = 1
-        poses = poses.unsqueeze(1)
+        poses = poses.unsqueeze(1)  # shape (1, 1, N, 6)
 
-    num = torch.zeros((M, D, H, W), dtype=torch.complex64, device=device)
+    new_poses = torch.clone(poses)
+    if D % 2 == 0:
+        # pad by 1 pixel on the right
+        volumes = pad_to_size(volumes, np.asarray((N, D + 1, D + 1, D + 1)))
+        assert volumes.shape == (N, D + 1, D + 1, D + 1)
+        D = D + 1
+        new_poses[..., 3:] -= 0.5
+        refinement_logger.info(f"Reshaped volumes to odd size {D}x{D}x{D}")
+
+    psf = interpolate_to_size(psf, (D, D, D))
+
+    num = torch.zeros((M, D, D, D), dtype=torch.complex64, device=device)
     den = torch.zeros_like(num)
 
     dxyz = torch.zeros((3, 2, 2, 2), device=volumes.device)
@@ -112,39 +121,33 @@ def reconstruction_L2(
     dxyz[2, 0, 0, 0] = 1
     dxyz[2, 0, 0, 1] = -1
 
-    dxyz_padded = interpolate_to_size(dxyz, (D, H, W), batch=True)
+    dxyz_padded = pad_to_size(dxyz, (3, D, D, D))
     DtD = (torch.fft.fftn(dxyz_padded, dim=(1, 2, 3)).abs() ** 2).sum(dim=0)
     den += lambda_[:, None, None, None] * DtD
     del DtD
 
-    poses_psf = torch.zeros_like(poses)
-    poses_psf[:, :, :3] = poses[:, :, :3]
+    poses_psf = torch.zeros_like(new_poses)
+    poses_psf[..., :3] = new_poses[..., :3]
 
     for (start1, end1), (start2, end2) in split_batch_func(
-        "reconstruction_L2", volumes, psf, poses, lambda_
+        "reconstruction_L2", volumes, psf, new_poses, lambda_
     ):
         size_batch = (end1 - start1) * (end2 - start2)
-        y = volumes.unsqueeze(1).repeat(
-            size_batch, 1, 1, 1, 1
-        )  # shape (size_batch, N, D, H, W)
+        y = volumes.unsqueeze(1).repeat(size_batch, 1, 1, 1, 1)
         y = affine_transform_wrapper(
-            y.view(size_batch * N, D, H, W),
-            poses[start1:end1, start2:end2].view(size_batch * N, 6),
+            y.view(size_batch * N, D, D, D),
+            new_poses[start1:end1, start2:end2, :, :].reshape(size_batch * N, 6),
             inverse=True,
-        ).view(end1 - start1, end2 - start2, N, D, H, W)
+        ).view(end1 - start1, end2 - start2, N, D, D, D)
         y = y.type(torch.complex64)
 
-        h_ = psf.unsqueeze(0).repeat(N * size_batch, 1, 1, 1)
-        h_ = affine_transform_wrapper(
-            h_,
-            poses_psf[start1:end1, start2:end2].view(size_batch * N, 6),
+        H_ = psf.unsqueeze(0).repeat(N * size_batch, 1, 1, 1)
+        H_ = affine_transform_wrapper(
+            H_,
+            poses_psf[start1:end1, start2:end2, :, :].reshape(size_batch * N, 6),
             inverse=True,
-        ).view(size_batch, N, d, h, w)
-        H_ = interpolate_to_size(h_.view(-1, d, h, w), (D, H, W), batch=True).view(
-            end1 - start1, end2 - start2, N, D, H, W
-        )
+        ).view(end1 - start1, end2 - start2, N, D, D, D)
         H_ = H_.type(torch.complex64)
-        del h_
 
         fftn(H_, dim=(-3, -2, -1), out=H_)
 
@@ -446,6 +449,9 @@ def refine(
     initial_reconstruction, _ = reconstruction_L2(
         patches, psf, guessed_poses_sym, lambda_, symmetry=True
     )
+    initial_reconstruction = interpolate_to_size(
+        initial_reconstruction, patches[0].shape
+    )
 
     if refinement_logger.isEnabledFor(logging.DEBUG):
         im = initial_reconstruction.cpu().numpy()
@@ -505,6 +511,9 @@ def refine(
         current_poses_sym = torch.permute(current_poses_sym, (1, 0, 2)).contiguous()
         current_reconstruction, _ = reconstruction_L2(
             patches, psf, current_poses_sym, lambda_, symmetry=True
+        )
+        current_reconstruction = interpolate_to_size(
+            current_reconstruction, patches[0].shape
         )
         refinement_logger.debug(f"[reconstruction_L2] Done in {time.time()-t0:.3f}s")
 
