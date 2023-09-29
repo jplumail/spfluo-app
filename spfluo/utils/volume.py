@@ -796,8 +796,14 @@ def pointcloud_intersect(self, corners1, corners2):
     return any(intersections)
 
 
-def are_volumes_aligned(vol1, vol2, atol=0.1):
+def are_volumes_aligned(vol1, vol2, atol=0.1, nb_spatial_dims=3):
     (dz, dy, dx), _, _ = phase_cross_correlation(
-        vol1, vol2, upsample_factor=10, disambiguate=True, normalization=None
+        vol1,
+        vol2,
+        upsample_factor=10,
+        disambiguate=True,
+        normalization=None,
+        nb_spatial_dims=nb_spatial_dims,
     )
-    return dz <= atol and dy <= atol and dx <= atol
+    n = (dz**2 + dy**2 + dx**2) ** 0.5
+    return n <= atol
