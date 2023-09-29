@@ -151,11 +151,11 @@ def reconstruction_L2(
         # Compute numerator
         fftn(torch.fft.fftshift(y, dim=(-3, -2, -1)), dim=(-3, -2, -1), out=y)
         y = H_.conj() * y
-        num[start1:end1] += torch.mean(y, dim=(-5, -4))  # reduce symmetry and N dims
+        num[start1:end1] += torch.sum(y, dim=(-5, -4))  # reduce symmetry and N dims
 
         # Compute denominator
         torch.abs(torch.mul(H_.conj(), H_, out=H_), out=H_)
-        den[start1:end1] += torch.mean(H_, dim=(-5, -4))
+        den[start1:end1] += torch.sum(H_, dim=(-5, -4))
         del H_
 
         torch.cuda.empty_cache()
