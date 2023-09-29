@@ -228,7 +228,7 @@ def distance_family_poses(
     traces = xp.sum(diff[:, :, :, [0, 1, 2], [0, 1, 2]], axis=-1)  # shape (s, N, N)
     traces[traces > 3.0] = 3.0
     angles = xp.acos((traces - 1) / 2)
-    angles = xp.min(angles, axis=0)  # shape (N, N, 3, 3)
+    angles = xp.min(angles, axis=0)  # shape (s, N, N)
     mean_angles = xp.mean(
         angles,
         axis=-1,
