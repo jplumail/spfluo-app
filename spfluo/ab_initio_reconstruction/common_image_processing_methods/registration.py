@@ -111,7 +111,7 @@ def center_connected_component(image):
     labeled_image, num_features = label(image > threshold_otsu(image))
 
     if num_features < 2:
-        return image  # Already has only one component
+        return image, np.array([0.0, 0.0, 0.0])  # Already has only one component
 
     # Step 2: Identify the largest connected component
     component_props = regionprops(labeled_image)
@@ -125,4 +125,4 @@ def center_connected_component(image):
     # Step 4: Apply translation
     translated_image = np.roll(image, tuple(shift), axis=tuple(range(image.ndim)))
 
-    return translated_image
+    return translated_image, shift.astype(float)

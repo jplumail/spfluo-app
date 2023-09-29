@@ -59,13 +59,9 @@ class Fourier_pixel_representation:
         path = f"{output_dir}/{output_name}.tif"
         save(path, self.get_image_from_fourier_representation())
 
-    def register_and_save(
-        self, output_dir, output_name, ground_truth=None, one_component=False, gpu=None
-    ):
+    def register_and_save(self, output_dir, output_name, ground_truth=None, gpu=None):
         path = os.path.join(output_dir, output_name)
         im = self.get_image_from_fourier_representation()
-        if one_component:
-            im = center_connected_component(im)
 
         if ground_truth is not None:
             _, im = shift_registration_exhaustive_search(ground_truth, im)
@@ -77,10 +73,11 @@ class Fourier_pixel_representation:
         return im
 
     def center(self):
-        volume_center_of_mass = np.asarray(
-            center_of_mass(self.get_image_from_fourier_representation())
+        vol, shift = center_connected_component(
+            self.get_image_from_fourier_representation()
         )
+        com = np.asarray(center_of_mass(vol))
         c = (np.asarray(self.volume_fourier.shape) - 1) / 2
-        shift = c - volume_center_of_mass
+        shift += c - com
         self.volume_fourier = fourier_shift(self.volume_fourier, shift)
         return shift
