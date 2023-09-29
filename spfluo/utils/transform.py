@@ -85,12 +85,13 @@ def get_transform_matrix(
         np.ndarray of shape ((N), 4, 4)
         An (or N) affine tranformation(s) in homogeneous coordinates.
     """
-    array_namespace(euler_angles, translation)
+    xp = array_namespace(euler_angles, translation)
+    (dtype,) = set((euler_angles.dtype, translation.dtype))
     rot = euler_to_matrix(convention, euler_angles, degrees=degrees)
     H_rot = get_transform_matrix_around_center(shape, rot)
     H_rot[..., :3, 3] += translation  # adds the translation
 
-    return H_rot
+    return xp.asarray(H_rot, dtype=dtype)
 
 
 def symmetrize_angles(
