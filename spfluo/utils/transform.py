@@ -131,6 +131,8 @@ def symmetrize_poses(
         - poses: Array of shape (..., 6)
         - symmetry: int
             degree of the symmetry
+    Returns:
+        - poses_sym: shape (..., k, 6)
     """
     euler_angles_sym = symmetrize_angles(
         poses[..., :3], symmetry=symmetry, degrees=degrees
