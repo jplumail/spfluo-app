@@ -86,7 +86,7 @@ def affine_transform_batched_multichannel_pytorch(
     if cval != 0:
         raise NotImplementedError()
 
-    if prefilter:
+    if order > 1 and prefilter:
         raise NotImplementedError()
 
     return _affine_transform(
