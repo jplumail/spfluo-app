@@ -1,3 +1,4 @@
+import functools
 from typing import TypeVar
 
 import spfluo
@@ -35,6 +36,7 @@ def cpu_only_compatibility(cpu_func):
         signature (*args, **kwargs) -> array like object
     """
 
+    @functools.wraps(cpu_func)
     def func(*args, **kwargs) -> Array:
         array_args = list(filter(is_array_api_obj, args))
         array_kwargs = list(filter(is_array_api_obj, kwargs.values()))
