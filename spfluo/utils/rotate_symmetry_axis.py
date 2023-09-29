@@ -66,6 +66,21 @@ def rotate_centriole_to_have_symmetry_axis_along_z_axis(centriole_im, axis_indic
     return rotated_im
 
 
+def apply_rot_to_poses(rot, poses, convention="XZX"):
+    rotation_to_axis_from_volume = R.from_matrix(rot)
+    rotations_to_particles_from_volume = R.from_euler(
+        convention, poses[:, :3], degrees=True
+    )
+    rotations_to_particles_from_axis = (
+        rotations_to_particles_from_volume * rotation_to_axis_from_volume.inv()
+    )
+    new_poses = poses.copy()
+    new_poses[:, :3] = rotations_to_particles_from_axis.as_euler(
+        convention, degrees=True
+    )
+    return new_poses
+
+
 def main(
     volume_path: str,
     convention: str = "XZX",
@@ -75,8 +90,7 @@ def main(
 ):
     volume = tifffile.imread(volume_path)
     rot = find_rot_mat_between_centriole_axis_and_z_axis(volume)
-    rotation_to_axis_from_volume = R.from_matrix(rot)
-    print(tuple(rotation_to_axis_from_volume.as_euler(convention, degrees=True)))
+    print(tuple(R.from_matrix(rot).as_euler(convention, degrees=True)))
     if output_volume_path:
         rotated_volume = affine_transform(
             volume,
@@ -84,15 +98,7 @@ def main(
         )
         tifffile.imwrite(output_volume_path, rotated_volume)
     if poses_path:
+        assert output_poses_path
         poses, names = read_poses(poses_path)
-        new_poses = poses.copy()
-        rotations_to_particles_from_volume = R.from_euler(
-            convention, poses[:, :3], degrees=True
-        )
-        rotations_to_particles_from_axis = (
-            rotations_to_particles_from_volume * rotation_to_axis_from_volume.inv()
-        )
-        new_poses[:, :3] = rotations_to_particles_from_axis.as_euler(
-            convention, degrees=True
-        )
+        new_poses = apply_rot_to_poses(rot, poses, convention=convention)
         save_poses(output_poses_path, new_poses, names)
