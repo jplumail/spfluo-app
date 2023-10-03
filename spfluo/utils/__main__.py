@@ -1,12 +1,17 @@
 import argparse
+import logging
 import os
+
+from spfluo.utils.log import base_parser, set_logging_level
 
 from .loading import isotropic_resample, resample, resize
 from .rotate_symmetry_axis import main as rotate_symmetry_axis_main
 
+utils_logger = logging.getLogger("spfluo.utils")
+
 
 def create_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser("Utils functions", parents=[base_parser])
     parser.add_argument("-f", "--function", type=str)
 
     # common args
@@ -50,8 +55,8 @@ def main(args: argparse.Namespace) -> None:
         return
     image_paths = list(map(os.path.abspath, args.input))
     output_path = os.path.abspath(args.output) if args.output else None
-    print("Function :", args.function)
-    print("Images :", image_paths)
+    utils_logger.info("Function : " + args.function)
+    utils_logger.debug("Images :", image_paths)
     if args.function == "isotropic_resample":
         isotropic_resample(image_paths, output_path, spacing=args.spacing)
     if args.function == "resize":
@@ -66,4 +71,6 @@ def main(args: argparse.Namespace) -> None:
 
 if __name__ == "__main__":
     parser = create_parser()
-    main(parser.parse_args())
+    args = parser.parse_args()
+    set_logging_level(args)
+    main(args)
