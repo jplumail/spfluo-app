@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.spatial.transform import Rotation as R
 
 from spfluo import data
 from spfluo.utils.transform import (
@@ -80,6 +81,34 @@ def test_distance_family_poses_sym():
     angle, t = distance_family_poses(p1, p2, symmetry=9)
     assert np.isclose(angle, [error / 3, error * 2 / 3, error / 3], atol=1e-5).all()
     assert np.isclose(t, [0, 0, 2.0**0.5]).all()
+
+
+def test_distance_family_poses_rotoffset():
+    p2 = np.asarray(
+        [[70, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [90, 90, 0, 0, 0, 0]], dtype=float
+    )
+    R_p2 = R.from_euler("XZX", p2[:, :3], degrees=True)
+    R0 = R.random(random_state=0)
+    R_p1 = R_p2 * R0
+    p1 = np.zeros_like(p2)
+    p1[:, :3] = R_p1.as_euler("XZX", degrees=True)
+    angle, t = distance_family_poses(p1, p2)
+    assert np.isclose(angle, [0, 0, 0], atol=1e-5).all()
+    assert np.isclose(t, [0, 0, 0]).all()
+
+
+def test_distance_family_poses_rotoffset_sym():
+    p2 = np.asarray(
+        [[70, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [90, 90, 0, 0, 0, 0]], dtype=float
+    )
+    R_p2 = R.from_euler("XZX", p2[:, :3], degrees=True)
+    R0 = R.random(random_state=0)
+    R_p1 = R_p2 * R0
+    p1 = np.zeros_like(p2)
+    p1[:, :3] = R_p1.as_euler("XZX", degrees=True)
+    angle, t = distance_family_poses(p1, p2)
+    assert np.isclose(angle, [0, 0, 0], atol=1e-5).all()
+    assert np.isclose(t, [0, 0, 0]).all()
 
 
 def test_symmetrize_poses():
