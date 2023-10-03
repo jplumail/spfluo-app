@@ -58,10 +58,10 @@ def find_rot_mat_between_centriole_axis_and_z_axis(centriole_im, axis_indice=0):
 
 
 def rotate_centriole_to_have_symmetry_axis_along_z_axis(centriole_im, axis_indice=0):
-    find_rot_mat_between_centriole_axis_and_z_axis(centriole_im, axis_indice)
+    rot = find_rot_mat_between_centriole_axis_and_z_axis(centriole_im, axis_indice)
     rotated_im = affine_transform(
         centriole_im,
-        np.linalg.inv(get_transform_matrix_around_center(centriole_im.shape, R)),
+        np.linalg.inv(get_transform_matrix_around_center(centriole_im.shape, rot)),
     )
     return rotated_im
 
