@@ -109,14 +109,14 @@ def read_poses(poses_csv: str):
         data = csv.reader(f)
         next(data)
         for row in data:
-            coord = Coordinate3D()
+            t = Transform()
             matrix = np.eye(4)
             matrix[:3, :3] = Rotation.from_euler(
                 "XZX", [float(row[1]), float(row[2]), float(row[3])]
             ).as_matrix()
-            coord.setMatrix(matrix)
-            coord.setPosition(float(row[4]), float(row[5]), float(row[6]))
-            yield coord, row[0]
+            t.setMatrix(matrix)
+            t.setShifts(float(row[4]), float(row[5]), float(row[6]))
+            yield t, row[0]
 
 
 def save_translations(coords: SetOfCoordinates3D, csv_file: str):

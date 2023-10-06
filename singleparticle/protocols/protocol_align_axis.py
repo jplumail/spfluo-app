@@ -85,13 +85,13 @@ class ProtSingleParticleAlignAxis(Protocol, ProtFluoBase):
         # Rotated particles
         output_particles = self._createSetOfParticles()
 
-        coords = {
-            int(img_id): coord for coord, img_id in read_poses(self.rotated_poses_csv)
+        transforms = {
+            int(img_id): t for t, img_id in read_poses(self.rotated_poses_csv)
         }
         for particle in self.input_particles:
             particle: Particle
 
-            rotated_coord = coords[particle.getObjId()]  # new coords
+            rotated_transform = transforms[particle.getObjId()]  # new coords
 
             # New file (link to particle)
             rotated_particle_path = self._getExtraPath(particle.getBaseName())
@@ -99,7 +99,7 @@ class ProtSingleParticleAlignAxis(Protocol, ProtFluoBase):
 
             # Creating the particle
             rotated_particle = Particle(data=rotated_particle_path)
-            rotated_particle.setCoordinate3D(rotated_coord)
+            rotated_particle.setTransform(rotated_transform)
             rotated_particle.setImageName(particle.getImageName())
             rotated_particle.setVoxelSize(particle.getVoxelSize())
             rotated_particle.setImgId(os.path.basename(rotated_particle_path))
