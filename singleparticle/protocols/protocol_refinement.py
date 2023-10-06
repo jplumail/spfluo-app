@@ -182,7 +182,7 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
             os.link(os.path.join(folder_resized, os.path.basename(p)), p)
 
     def reconstructionStep(self):
-        ranges = "0 " + str(self.ranges)
+        ranges = "0 " + str(self.ranges) if len(str(self.ranges)) > 0 else "0"
         args = [
             "--particles_dir",
             os.path.join(self.root_dir, "particles"),
@@ -194,7 +194,10 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
             *ranges.split(" "),
             "--steps",
             f"({self.N_axes},{self.N_rot})",
-            *str(self.steps).split(" "),
+        ]
+        if len(str(self.steps)) > 0:
+            args += str(self.steps).split(" ")
+        args += [
             "--output_reconstruction_path",
             self.final_reconstruction,
             "--output_poses_path",
