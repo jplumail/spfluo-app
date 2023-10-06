@@ -1,6 +1,6 @@
 import os
 import threading
-from typing import List, Union
+from typing import List, Tuple, Union
 
 from pwfluo import objects as pwfluoobj
 from pwfluo.objects import FluoImage, SetOfCoordinates3D
@@ -64,7 +64,11 @@ class SetOfImagesView(View):
 
     def lanchNapariForSetOfImages(self, images: pwfluoobj.SetOfImages):
         filenames = [p.getFileName() for p in images]
-        ImageView.launchNapari(filenames)
+        vs = images.getVoxelSize()
+        if vs:
+            vs_xy, vs_z = vs
+            vs = (vs_z, vs_xy, vs_xy)  # ZYX order
+        ImageView.launchNapari(filenames, scale=vs)
 
 
 ####################
@@ -106,11 +110,23 @@ class ImageView(View):
 
     def lanchNapariForImage(self, im: pwfluoobj.Image):
         path = im.getFileName()
-        self.launchNapari(os.path.abspath(path))
+        vs = im.getVoxelSize()
+        if vs:
+            vs_xy, vs_z = vs
+            vs = (vs_z, vs_xy, vs_xy)
+        self.launchNapari(os.path.abspath(path), scale=vs)
 
     @staticmethod
-    def launchNapari(path: Union[str, List[str]]):
-        runJob(None, Plugin.getNapariProgram(), path, env=Plugin.getEnviron())
+    def launchNapari(
+        path: Union[str, List[str]], scale: None | Tuple[float, float, float]
+    ):
+        args = ""
+        if scale:
+            args = f"--scale {scale[0]},{scale[1]},{scale[2]}"
+        if isinstance(path, str):
+            path = [path]
+        args = path + args.split(" ")
+        runJob(None, Plugin.getNapariProgram(), args, env=Plugin.getEnviron())
 
 
 ########################
@@ -177,7 +193,7 @@ class SetOfCoordinates3DDialog(ToolbarListDialog):
         provider: CoordinatesTreeProvider,
         coords: SetOfCoordinates3D,
         protocol: ProtFluoBase,
-        **kwargs
+        **kwargs,
     ):
         self.provider = provider
         self.coords = coords
@@ -190,7 +206,7 @@ class SetOfCoordinates3DDialog(ToolbarListDialog):
             allowsEmptySelection=False,
             itemDoubleClick=self.doubleClickOnFluoimage,
             allowSelect=False,
-            **kwargs
+            **kwargs,
         )
 
     def doubleClickOnFluoimage(self, e=None):
