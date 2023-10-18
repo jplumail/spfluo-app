@@ -218,7 +218,7 @@ class ProtSingleParticlePickingTrain(Protocol):
         args += ["--crop_output_dir", "cropped"]
         args += ["--make_u_masks"]
         args += ["--patch_size", f"{ps}"]
-        Plugin.runSPFluo(self, Plugin.getProgram(PICKING_MODULE), args=args)
+        Plugin.runJob(self, Plugin.getSPFluoProgram(PICKING_MODULE), args=args)
 
     def trainStep(self):
         inputCoordinates: SetOfCoordinates3D = self.inputCoordinates.get()
@@ -250,7 +250,7 @@ class ProtSingleParticlePickingTrain(Protocol):
             args += ["--shuffle"]
         if self.swa.get():
             args += ["--swa", "--swa_lr", f"{self.swa_lr.get()}"]
-        Plugin.runSPFluo(self, Plugin.getProgram(PICKING_MODULE), args=args)
+        Plugin.runJob(self, Plugin.getSPFluoProgram(PICKING_MODULE), args=args)
 
     # --------------------------- INFO functions -----------------------------------
     def _summary(self):

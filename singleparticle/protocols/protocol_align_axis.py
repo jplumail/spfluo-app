@@ -73,7 +73,7 @@ class ProtSingleParticleAlignAxis(Protocol, ProtFluoBase):
             str(self.rotated_particle_path),
         ]
 
-        Plugin.runSPFluo(self, Plugin.getProgram(UTILS_MODULE), args=args)
+        Plugin.runJob(self, Plugin.getSPFluoProgram(UTILS_MODULE), args=args)
 
     def createOuputStep(self):
         # Rotated volume

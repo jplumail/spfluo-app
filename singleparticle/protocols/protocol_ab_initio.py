@@ -189,7 +189,7 @@ class ProtSingleParticleAbInitio(Protocol, ProtFluoBase):
             os.makedirs(folder_isotropic, exist_ok=True)
         args += ["-o", f"{folder_isotropic}"]
         args += ["--spacing", f"{vs[1]}", f"{vs[0]}", f"{vs[0]}"]
-        Plugin.runSPFluo(self, Plugin.getProgram(UTILS_MODULE), args=args)
+        Plugin.runJob(self, Plugin.getSPFluoProgram(UTILS_MODULE), args=args)
 
         # Pad
         input_paths = [
@@ -204,7 +204,7 @@ class ProtSingleParticleAbInitio(Protocol, ProtFluoBase):
         args += ["-i"] + input_paths
         args += ["--size", f"{max_dim}"]
         args += ["-o", f"{folder_resized}"]
-        Plugin.runSPFluo(self, Plugin.getProgram(UTILS_MODULE), args=args)
+        Plugin.runJob(self, Plugin.getSPFluoProgram(UTILS_MODULE), args=args)
 
         # Links
         os.remove(self.psfPath)
@@ -231,7 +231,7 @@ class ProtSingleParticleAbInitio(Protocol, ProtFluoBase):
             args += ["--gpu", "pytorch"]
             args += ["--interp_order", str(1)]
         print("Launching reconstruction")
-        Plugin.runSPFluo(self, Plugin.getProgram(AB_INITIO_MODULE), args=args)
+        Plugin.runJob(self, Plugin.getSPFluoProgram(AB_INITIO_MODULE), args=args)
         os.link(
             os.path.join(self.outputDir, "final_recons.tif"),
             self.final_reconstruction,

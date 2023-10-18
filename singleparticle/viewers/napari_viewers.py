@@ -89,7 +89,7 @@ class SetOfParticlesView(View):
 
     def lanchNapariForParticles(self, particles: pwfluoobj.SetOfParticles):
         filenames = [p.getFileName() for p in particles]
-        program = Plugin.getProgram([VISUALISATION_MODULE, "particles"])
+        program = Plugin.getSPFluoProgram([VISUALISATION_MODULE, "particles"])
         runJob(None, program, filenames, env=Plugin.getEnviron())
 
 
@@ -228,5 +228,5 @@ class SetOfCoordinates3DDialog(ToolbarListDialog):
         path = im.getFileName()
         csv_path = self._protocol._getExtraPath("coords.csv")
         save_translations(coords_im, csv_path)
-        program = Plugin.getProgram([VISUALISATION_MODULE, "coords"])
+        program = Plugin.getSPFluoProgram([VISUALISATION_MODULE, "coords"])
         runJob(None, program, [path, "--coords", csv_path], env=Plugin.getEnviron())

@@ -64,7 +64,7 @@ class Plugin(plugin.Plugin):
         return environ
 
     @classmethod
-    def runSPFluo(cls, protocol: Protocol, program, args, cwd=None, useCpu=False):
+    def runJob(cls, protocol: Protocol, program, args, cwd=None, useCpu=False):
         """Run SPFluo command from a given protocol."""
         protocol.runJob(
             program,
@@ -75,7 +75,7 @@ class Plugin(plugin.Plugin):
         )
 
     @classmethod
-    def getProgram(cls, program: Union[str, List[str]]):
+    def getSPFluoProgram(cls, program: Union[str, List[str]]):
         if type(program) is str:
             program = [program]
         command = "python -m spfluo"

@@ -152,7 +152,7 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
             os.makedirs(folder_isotropic, exist_ok=True)
         args += ["-o", f"{folder_isotropic}"]
         args += ["--spacing", f"{vs[1]}", f"{vs[0]}", f"{vs[0]}"]
-        Plugin.runSPFluo(self, Plugin.getProgram(UTILS_MODULE), args=args)
+        Plugin.runJob(self, Plugin.getSPFluoProgram(UTILS_MODULE), args=args)
 
         # Pad
         input_paths = [
@@ -167,7 +167,7 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
         args += ["-i"] + input_paths
         args += ["--size", f"{max_dim}"]
         args += ["-o", f"{folder_resized}"]
-        Plugin.runSPFluo(self, Plugin.getProgram(UTILS_MODULE), args=args)
+        Plugin.runJob(self, Plugin.getSPFluoProgram(UTILS_MODULE), args=args)
 
         # Links
         os.remove(self.psfPath)
@@ -209,7 +209,7 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
         ]
         if self.gpu:
             args += ["--gpu"]
-        Plugin.runSPFluo(self, Plugin.getProgram(REFINEMENT_MODULE), args=args)
+        Plugin.runJob(self, Plugin.getSPFluoProgram(REFINEMENT_MODULE), args=args)
 
     def createOutputStep(self):
         # Output 1 : reconstruction Volume

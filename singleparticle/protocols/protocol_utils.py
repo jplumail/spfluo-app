@@ -68,7 +68,7 @@ class ProtSingleParticleUtils(Protocol, ProtFluoBase):
         if self.FUNCTION_CHOICES[self.function.get()] == "resample":
             args += ["--factor", str(self.factor.get())]
 
-        Plugin.runSPFluo(self, Plugin.getProgram(UTILS_MODULE), args=args)
+        Plugin.runJob(self, Plugin.getSPFluoProgram(UTILS_MODULE), args=args)
 
     def outputStep(self):
         imgSet = self._createSetOfFluoImages()

@@ -141,7 +141,9 @@ class PickingDialog(ToolbarListDialog):
             str(self.spacing[0]),
             str(self.spacing[0]),
         ]
-        Plugin.runSPFluo(self._protocol, Plugin.getProgram(MANUAL_PICKING_MODULE), args)
+        Plugin.runJob(
+            self._protocol, Plugin.getSPFluoProgram(MANUAL_PICKING_MODULE), args
+        )
 
 
 class PickingView(View):

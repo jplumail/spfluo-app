@@ -117,7 +117,7 @@ class ProtSingleParticlePickingPredict(ProtFluoPicking):
         args += ["--extension", "tif"]
         if self.trainRun.pu.get():
             args += ["--predict_on_u_mask"]
-        Plugin.runSPFluo(self, Plugin.getProgram(PICKING_MODULE), args=args)
+        Plugin.runJob(self, Plugin.getSPFluoProgram(PICKING_MODULE), args=args)
 
     def postprocessStep(self):
         checkpoint_path = os.path.abspath(
@@ -139,7 +139,7 @@ class ProtSingleParticlePickingPredict(ProtFluoPicking):
                 "--patch_size",
                 f"{self.trainRun.inputCoordinates.get().getBoxSize()}",
             ]
-        Plugin.runSPFluo(self, Plugin.getProgram(PICKING_MODULE), args=args)
+        Plugin.runJob(self, Plugin.getSPFluoProgram(PICKING_MODULE), args=args)
 
     def createOuputStep(self):
         for count in range(100):
