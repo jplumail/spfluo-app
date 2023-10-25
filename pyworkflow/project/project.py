@@ -146,7 +146,8 @@ class Project(object):
         return self._creationTime
 
     def getSettingsCreationTime(self):
-        return self.settings.getCreationTime()
+        return self.getSettings().getCreationTime()
+
 
     def getElapsedTime(self):
         """ Returns the time elapsed from the creation to the last
@@ -193,6 +194,16 @@ class Project(object):
         return self.getPath(PROJECT_LOGS, *paths)
 
     def getSettings(self):
+        """Returns settings. Populate self.settings if
+        settings are not loaded"""
+        if not self.settings:
+            settingsPath = os.path.join(self.path, self.settingsPath)
+            logger.debug("settingsPath: %s" % settingsPath)
+            if os.path.exists(settingsPath):
+                self.settings = config.ProjectSettings.load(settingsPath)
+            else:
+                logger.info("settings is None")
+                self.settings = None
         return self.settings
 
     def saveSettings(self):
@@ -256,15 +267,7 @@ class Project(object):
                 # It is possible that settings does not exists if
                 # we are loading a project after a Project.setDbName,
                 # used when running protocols
-                settingsPath = os.path.join(self.path, self.settingsPath)
-
-                logger.debug("settingsPath: %s" % settingsPath)
-
-                if os.path.exists(settingsPath):
-                    self.settings = config.ProjectSettings.load(settingsPath)
-                else:
-                    logger.info("settings is None")
-                    self.settings = None
+                self.getSettings()
 
             self._loadCreationTime()
 
