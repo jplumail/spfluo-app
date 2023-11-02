@@ -40,7 +40,7 @@ import importlib
 import inspect
 import traceback
 import types
-import pkg_resources
+import importlib.metadata
 from email import message_from_string
 from collections import OrderedDict
 from abc import ABCMeta, abstractmethod
@@ -126,7 +126,7 @@ class Domain:
     def _discoverPlugins(cls):
         # Get the list of plugins registered
         plugin_modules = []
-        for entry_point in pkg_resources.iter_entry_points('pyworkflow.plugin'):
+        for entry_point in importlib.metadata.entry_points().select(group='pyworkflow.plugin'):
             plugin_modules.append(entry_point.name)
 
         # Sort the list taking into account the priority
@@ -138,7 +138,7 @@ class Domain:
 
     @classmethod
     def _discoverGUIPlugins(cls):
-        for entry_point in pkg_resources.iter_entry_points('pyworkflow.guiplugin'):
+        for entry_point in importlib.metadata.entry_points().select(group='pyworkflow.guiplugin'):
             entry_point.load()
 
     @classmethod
@@ -697,9 +697,8 @@ class PluginInfo:
     """
     def __init__(self, name):
         try:
-            dist = pkg_resources.get_distribution(name)
-            lines = [l for l in dist._get_metadata(dist.PKG_INFO)]
-            tuples = message_from_string('\n'.join(lines))
+            dist = importlib.metadata.distribution(name)
+            tuples = {k: dist.metadata[k] for k in dist.metadata}
 
         except Exception:
             logger.info("Plugin %s seems is not a pip module yet. "
