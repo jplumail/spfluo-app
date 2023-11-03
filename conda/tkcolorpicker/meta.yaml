@@ -1,0 +1,41 @@
+{% set name = "tkcolorpicker" %}
+{% set version = "2.1.3" %}
+
+package:
+  name: {{ name|lower }}
+  version: {{ version }}
+
+source:
+  url: https://pypi.io/packages/source/{{ name[0] }}/{{ name }}/tkcolorpicker-{{ version }}.tar.gz
+  sha256: 2933f9781ced0a2b4d31f462dfd6883292a2a72c4dcb4f460026455a7644de99
+
+build:
+  noarch: python
+  script: {{ PYTHON }} -m pip install . -vv --no-deps --no-build-isolation
+  number: 0
+
+requirements:
+  host:
+    - python
+    - pip
+  run:
+    - python
+    - pillow
+
+test:
+  imports:
+    - tkcolorpicker
+  commands:
+    - pip check
+  requires:
+    - pip
+
+about:
+  home: https://github.com/j4321/tkColorPicker
+  summary: Color picker dialog for Tkinter
+  license: GPL-3.0
+  license_file: LICENSE.txt
+
+extra:
+  recipe-maintainers:
+    - jplumail

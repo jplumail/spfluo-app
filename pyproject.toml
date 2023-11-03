@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "spfluo-app"
+authors = [
+  { name="Jean Plumail", email="jplumail@unistra.fr" },
+]
+version = "0.1"
+
+[project.urls]
+Repository = "https://github.com/jplumail/spfluo-app.git"
+
+[project.gui-scripts]
+spfluo-app = "spfluo_app:main"

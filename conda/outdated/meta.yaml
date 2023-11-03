@@ -1,0 +1,43 @@
+{% set name = "outdated" %}
+{% set version = "0.2.2" %}
+
+package:
+  name: {{ name|lower }}
+  version: {{ version }}
+
+source:
+  url: http://vps-429048d2.vps.ovh.net/jean/dev/+f/198/5849f7d8f03e8/outdated-0.2.2.tar.gz
+  sha256: 1985849f7d8f03e89520d2e47e76bc84b70203491c7f2affd8117f10095df5ac
+
+build:
+  noarch: python
+  script: {{ PYTHON }} -m pip install . -vvv --no-deps --no-build-isolation
+  number: 0
+
+requirements:
+  host:
+    - python
+    - pip
+    - setuptools >=44
+  run:
+    - python >=3.5
+    - littleutils
+    - requests
+
+test:
+  imports:
+    - outdated
+  commands:
+    - pip check
+  requires:
+    - pip
+
+about:
+  home: http://github.com/alexmojaki/outdated
+  summary: Check if a version of a PyPI package is outdated
+  license: MIT License
+  license_file: LICENSE.txt
+
+extra:
+  recipe-maintainers:
+    - jplumail

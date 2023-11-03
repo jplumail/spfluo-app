@@ -1,0 +1,33 @@
+{% set name = "cucim" %}
+{% set version = "v23.12.00a" %}
+
+package:
+  name: {{ name|lower }}
+  version: {{ version }}
+
+source:
+  git_url: https://github.com/rapidsai/cucim.git
+  git_rev: v23.12.00a
+
+build:
+  noarch: python
+  script: cd python/cucim && {{ PYTHON }} -m pip install . -vv --no-deps --no-build-isolation
+  number: 0
+
+requirements:
+  host:
+    - python >=3.8,<3.12
+    - setuptools >=61.0
+    - pip
+  run:
+    - python >=3.8,<3.12
+    # -c conda-forge
+    - cupy
+    - numpy
+    - scipy
+    - scikit-image >=0.19,<0.22
+    - lazy_loader >=0.1
+
+test:
+  imports:
+    - cucim.skimage

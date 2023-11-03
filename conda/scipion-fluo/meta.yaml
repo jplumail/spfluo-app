@@ -1,0 +1,33 @@
+{% set name = "scipion-fluo" %}
+{% set version = "3!0.2b1.1" %}
+
+package:
+  name: {{ name|lower }}
+  version: {{ version }}
+
+source:
+  - url: http://vps-429048d2.vps.ovh.net/jean/dev/+f/b79/6acae1a8a3c04/scipion-fluo-3!0.2b1.tar.gz
+    sha256: b796acae1a8a3c04331a092022cf45bd9e781a2085fcdbf8ec82ec4ac57f8a3a
+
+build:
+  noarch: python
+  script: {{ PYTHON }} -m pip install . -vv --no-deps --no-build-isolation
+  number: 0
+
+requirements:
+  host:
+    - python >=3.7,<3.12
+    - setuptools >=61.0
+    - pip
+  run:
+    - python >=3.7,<3.12
+    # -c local
+    - scipion-pyworkflow
+    # -c conda-forge
+    - scipy
+    - numpy
+    - aicsimageio
+
+test:
+  imports:
+    - pwfluo

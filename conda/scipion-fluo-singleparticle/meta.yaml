@@ -1,0 +1,35 @@
+{% set name = "scipion-fluo-singleparticle" %}
+{% set version = "0.1.1" %}
+
+package:
+  name: {{ name|lower }}
+  version: {{ version }}
+
+source:
+  - url: http://vps-429048d2.vps.ovh.net/jean/dev/+f/4d1/d85a91a387d25/scipion-fluo-singleparticle-0.1.tar.gz
+    sha256: 4d1d85a91a387d2520bfab7dacdcb1c4cdd580be43f76ce79f9efa4498099aa1
+
+build:
+  noarch: python
+  script: {{ PYTHON }} -m pip install . -vv --no-deps --no-build-isolation
+  number: 0
+
+requirements:
+  host:
+    - python >=3.7,<3.12
+    - setuptools >=61.0
+    - pip
+  run:
+    - python >=3.7,<3.12
+    # -c local
+    - scipion-fluo
+    - scipion-pyworkflow
+    - spfluo
+    # -c conda-forge
+    - numpy
+    - scipy
+    - aicsimageio
+
+test:
+  imports:
+    - singleparticle

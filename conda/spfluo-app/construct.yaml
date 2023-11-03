@@ -1,0 +1,12 @@
+name: spfluo-app
+version: 0.0.1
+company: icube
+
+channels:
+  - jplumail
+  - conda-forge
+  - pytorch
+  - nvidia
+
+specs:
+  - spfluo-app
