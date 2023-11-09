@@ -1,0 +1,116 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "napari-spfluo"
+dynamic = ["version"]
+description = "A plugin to use spfluo within napari"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.8"
+authors = [
+    { name = "Jean Plumail", email = "jplumail@unistra.fr" },
+]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Framework :: napari",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Topic :: Scientific/Engineering :: Image Processing",
+]
+dependencies = [
+    "magicgui",
+    "numpy",
+    "qtpy",
+    "scikit-image",
+]
+
+[project.optional-dependencies]
+testing = [
+    "napari",
+    "pyqt5",
+    "pytest",
+    "pytest-cov",
+    "pytest-qt",
+    "tox",
+]
+
+[project.entry-points."napari.manifest"]
+napari-spfluo = "napari_spfluo:napari.yaml"
+
+[project.urls]
+"Bug Tracker" = "https://github.com/jplumail/napari-spfluo/issues"
+Documentation = "https://github.com/jplumail/napari-spfluo#README.md"
+Homepage = "https://github.com/jplumail/napari-spfluo"
+"Source Code" = "https://github.com/jplumail/napari-spfluo"
+"User Support" = "https://github.com/jplumail/napari-spfluo/issues"
+
+[tool.hatch.version]
+path = "napari_spfluo/__init__.py"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+]
+
+[tool.setuptools_scm]
+write_to = "src/napari_spfluo/_version.py"
+
+[tool.black]
+line-length = 79
+target-version = ['py38', 'py39', 'py310']
+
+
+[tool.ruff]
+line-length = 79
+select = [
+    "E", "F", "W", #flake8
+    "UP", # pyupgrade
+    "I", # isort
+    "BLE", # flake8-blind-exception
+    "B", # flake8-bugbear
+    "A", # flake8-builtins
+    "C4", # flake8-comprehensions
+    "ISC", # flake8-implicit-str-concat
+    "G", # flake8-logging-format
+    "PIE", # flake8-pie
+    "SIM", # flake8-simplify
+]
+ignore = [
+    "E501", # line too long. let black handle this
+    "UP006", "UP007", # type annotation. As using magicgui require runtime type annotation then we disable this.
+    "SIM117", # flake8-simplify - some of merged with statements are not looking great with black, reanble after drop python 3.9
+]
+
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".mypy_cache",
+    ".pants.d",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+    "*vendored*",
+    "*_vendor*",
+]
+
+target-version = "py38"
+fix = true
