@@ -1,6 +1,7 @@
 # Python compilation files
 *.pyc
 build/
+dist/
 
 # Ignore temporary packaging folder
 *.egg-info
@@ -11,3 +12,6 @@ build/
 
 stubs/
 typings/
+
+# java
+singleparticle/_vendored/TiPi/target

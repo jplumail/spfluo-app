@@ -1,3 +1,5 @@
+import os
+
 FLUO_ROOT_VAR = "FLUO_ROOT"
 CUDA_LIB_VAR = "CUDA_LIB"
 
@@ -18,3 +20,8 @@ CROPPING_SUBDIR = "cropped"
 PYTHON_VERSION = "3.10"
 
 SPFLUO_CUDA_LIB = "SINGLEPARTICLE_CUDA_LIB"
+
+target_dir = os.path.join(
+    os.path.abspath(os.path.dirname(__file__)), "_vendored", "TiPi", "target"
+)
+TIPI_JAR = os.path.join(target_dir, "TiPi-for-spfluo-1.0.jar")

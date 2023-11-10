@@ -25,6 +25,7 @@ from pyworkflow.wizard import Wizard
 from singleparticle.constants import (
     FLUO_ROOT_VAR,
     SINGLEPARTICLE_HOME,
+    TIPI_JAR,
 )
 
 _logo = "icon.png"
@@ -89,6 +90,14 @@ class Plugin(plugin.Plugin):
         if plugin:
             napari_cmd += f" --plugin {plugin}"
         return napari_cmd
+
+    @classmethod
+    def getMicroTipiProgram(cls, program: str):
+        microtipi_cmd = f"java -jar {TIPI_JAR}"
+        programs = ["deconv", "blinddeconv"]
+        assert program in programs, f"{program} should be one of {programs}."
+        microtipi_cmd += " " + program
+        return microtipi_cmd
 
     @classmethod
     def addSingleParticlePackage(cls, env):
