@@ -1,5 +1,0 @@
-include *.txt
-include *.rst
-include LICENSE
-include singleparticle/protocols.conf
-include singleparticle/icon.png
