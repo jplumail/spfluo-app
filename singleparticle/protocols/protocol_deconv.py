@@ -29,6 +29,15 @@ class ProtSingleParticleDeconv(Protocol, ProtFluoBase):
             label="Image",
             important=True,
         )
+
+        form.addParam(
+            "paddingMethod",
+            params.StringParam,
+            label="Padding size (in pixels)",
+            default="30",
+            help="padding in xyz directions",
+            expertLevel=params.LEVEL_ADVANCED,
+        )
         form.addParam(
             "usePSF",
             params.BooleanParam,
@@ -79,25 +88,6 @@ class ProtSingleParticleDeconv(Protocol, ProtFluoBase):
             params.BooleanParam,
             label="Crop result to the same size as input",
             default=False,
-        )
-
-        group = form.addGroup("Padding", expertLevel=params.LEVEL_ADVANCED)
-        group.addParam(
-            "paddingMethod",
-            params.StringParam,
-            label="Padding size",
-            default="min",
-            help="auto, min or a number",
-            expertLevel=params.LEVEL_ADVANCED,
-        )
-
-        group.addParam(
-            "fillValue",
-            params.FloatParam,
-            label="Value for padding",
-            help="If empty, a value will be automatically computed from the data.",
-            expertLevel=params.LEVEL_ADVANCED,
-            allowsNull=True,
         )
 
         form.addSection(label="Parameters")
@@ -314,57 +304,16 @@ class ProtSingleParticleBlindDeconv(Protocol, ProtFluoBase):
             default=1.518,
         )
 
-        group.addParam(
-            "nPhase",
-            params.IntParam,
-            label="Number of phase coefs Nα",
-            help="Number of zernike describing the pupil phase",
-            default=19,
-            expertLevel=params.LEVEL_ADVANCED,
-        )
-
-        group.addParam(
-            "nModulus",
-            params.IntParam,
-            label="Number of modulus coefs Nβ",
-            help="Number of zernike describing the pupil modulus",
-            default=0,
-            expertLevel=params.LEVEL_ADVANCED,
-        )
-
-        group.addParam(
-            "radial",
-            params.BooleanParam,
-            label="Radially symmetric PSF",
-            default=False,
-            expertLevel=params.LEVEL_ADVANCED,
-        )
-
-        group.addParam(
-            "maxIterDefocus",
-            params.IntParam,
-            label="Max nb. of iterations for defocus",
-            default=20,
-            expertLevel=params.LEVEL_ADVANCED,
-        )
-
-        group.addParam(
-            "maxIterPhase",
-            params.IntParam,
-            label="Max nb. of iterations for phase",
-            default=20,
-            expertLevel=params.LEVEL_ADVANCED,
-        )
-
-        group.addParam(
-            "maxIterModulus",
-            params.IntParam,
-            label="Max nb. of iterations for modulus",
-            default=0,
-            expertLevel=params.LEVEL_ADVANCED,
-        )
-
         form.addSection(label="Parameters")
+
+        form.addParam(
+            "nbloops",
+            params.IntParam,
+            label="number of loops",
+            default=2,
+            help="The number of loops of the algorithm\n"
+            "The higher, the potentially longer ",
+        )
 
         group = form.addGroup("Noise params")
         group.addParam(
@@ -432,6 +381,57 @@ class ProtSingleParticleBlindDeconv(Protocol, ProtFluoBase):
             label="Force single precision",
             expertLevel=params.LEVEL_ADVANCED,
             default=False,
+        )
+
+        group.addParam(
+            "maxIterDefocus",
+            params.IntParam,
+            label="Max nb. of iterations for defocus",
+            default=20,
+            expertLevel=params.LEVEL_ADVANCED,
+        )
+
+        group.addParam(
+            "maxIterPhase",
+            params.IntParam,
+            label="Max nb. of iterations for phase",
+            default=20,
+            expertLevel=params.LEVEL_ADVANCED,
+        )
+
+        group.addParam(
+            "maxIterModulus",
+            params.IntParam,
+            label="Max nb. of iterations for modulus",
+            default=0,
+            expertLevel=params.LEVEL_ADVANCED,
+        )
+
+        group = form.addGroup("PSF model", expertLevel=params.LEVEL_ADVANCED)
+        group.addParam(
+            "nPhase",
+            params.IntParam,
+            label="Number of phase coefs Nα",
+            help="Number of zernike describing the pupil phase",
+            default=19,
+            expertLevel=params.LEVEL_ADVANCED,
+        )
+
+        group.addParam(
+            "nModulus",
+            params.IntParam,
+            label="Number of modulus coefs Nβ",
+            help="Number of zernike describing the pupil modulus",
+            default=0,
+            expertLevel=params.LEVEL_ADVANCED,
+        )
+
+        group.addParam(
+            "radial",
+            params.BooleanParam,
+            label="Radially symmetric PSF",
+            default=False,
+            expertLevel=params.LEVEL_ADVANCED,
         )
 
     def _insertAllSteps(self):
