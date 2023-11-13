@@ -245,8 +245,6 @@ class ProtSingleParticleDeconv(Protocol, ProtFluoBase):
         args += ["-maxeval", f"{self.maxeval.get()}"]
         args += ["-pad", f"{self.paddingMethod.get()}"]
         args += ["-debug"]
-        if self.fillValue.get():
-            args += ["-fill", f"{self.fillValue.get()}"]
         if self.crop.get():
             args += ["-crop"]
 
