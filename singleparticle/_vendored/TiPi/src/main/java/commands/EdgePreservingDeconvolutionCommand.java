@@ -40,7 +40,6 @@ import org.mitiv.TiPi.array.ShapedArray;
 import org.mitiv.TiPi.base.Shape;
 import org.mitiv.TiPi.invpb.EdgePreservingDeconvolution;
 import org.mitiv.TiPi.optim.OptimTask;
-import org.mitiv.TiPi.utils.FFTUtils;
 import org.mitiv.microTiPi.epifluorescence.WideFieldModel;
 
 import loci.common.services.DependencyException;
@@ -229,36 +228,7 @@ public class EdgePreservingDeconvolutionCommand {
             // Compute dimensions of result.
             Shape dataShape = solver.getData().getShape();
             Shape psfShape = solver.getPSF().getShape();
-            int rank = dataShape.rank();
-            int[] objDims = new int[rank];
-            if (job.paddingMethod.equals("auto")) {
-                for (int k = 0; k < rank; ++k) {
-                    int dataDim = dataShape.dimension(k);
-                    int psfDim = psfShape.dimension(k);
-                    objDims[k] = FFTUtils.bestDimension(dataDim + psfDim - 1);
-                }
-            } else if (job.paddingMethod.equals("min")) {
-                for (int k = 0; k < rank; ++k) {
-                    int dataDim = dataShape.dimension(k);
-                    int psfDim = psfShape.dimension(k);
-                    objDims[k] = FFTUtils.bestDimension(Math.max(dataDim, psfDim));
-                }
-            } else {
-                int pad;
-                try {
-                    pad = Integer.parseInt(job.paddingMethod);
-                } catch (NumberFormatException ex) {
-                    throw new IllegalArgumentException("Invalid value for option `-pad`, must be \"auto\", \"min\" or an integer");
-                }
-                if (pad < 0) {
-                    throw new IllegalArgumentException("Padding value must be nonnegative");
-                }
-                for (int k = 0; k < rank; ++k) {
-                    int dataDim = dataShape.dimension(k);
-                    int psfDim = psfShape.dimension(k);
-                    objDims[k] = FFTUtils.bestDimension(Math.max(dataDim, psfDim) + pad);
-                }
-            }
+            int[] objDims = MainCommand.getPaddingShape(job.paddingMethod, dataShape, psfShape);
             solver.setObjectShape(objDims);
             solver.setFillValue(job.fillValue);
 

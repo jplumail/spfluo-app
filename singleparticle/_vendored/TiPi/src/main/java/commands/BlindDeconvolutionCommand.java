@@ -28,7 +28,7 @@ import org.mitiv.TiPi.jobs.DeconvolutionJob;
 import org.mitiv.TiPi.linalg.shaped.DoubleShapedVectorSpace;
 import org.mitiv.TiPi.linalg.shaped.FloatShapedVectorSpace;
 import org.mitiv.TiPi.linalg.shaped.ShapedVectorSpace;
-import org.mitiv.TiPi.utils.FFTUtils;
+import org.mitiv.TiPi.utils.HistoMap;
 import org.mitiv.io.DeconvHook;
 import org.mitiv.io.NullImager;
 import org.mitiv.TiPi.weights.WeightFactory;
@@ -52,6 +52,10 @@ public class BlindDeconvolutionCommand {
 
     @Option(name = "-maxIterModulus", usage = "Max number of iterations for modulus", metaVar = "N")
     private int maxIterModulus = 0;
+
+    // Padding
+    @Option(name = "-pad", usage = "Padding method.", metaVar = "\"auto\"|\"min\"|NUMBER")
+    private String paddingMethod = "30";
 
     // WidefieldModel args
     @Option(name = "-nPhase", usage = "Number of zernike describing the pupil phase", metaVar = "N")
@@ -151,18 +155,14 @@ public class BlindDeconvolutionCommand {
             throw new IllegalArgumentException("bad data is not yet implemented");
         } 
         // IF dataArray has saturated pixels, do something...?
-        // if (WeightFactory.flagBads(dataArray,badpixArray,dataSeq.getChannelTypeMax(channelEV.getValue()))){
-        //     if (!isHeadLess()) {
-        //         new AnnounceFrame("Warning, saturated pixel detected, accounting them as dead pixels", "show", new Runnable() {
-        //             @Override
-        //             public void run() {
-        //                 Sequence deadSequence = new Sequence("Saturations map");
-        //                 deadSequence.copyMetaDataFrom(dataSeq, false);
-        //                 IcyImager.show(badpixArray, deadSequence, "saturations map", isHeadLess());
-        //             }
-        //         }, 3);
-        //     }
-        // }
+        
+        if (job.single){
+            float maxi = dataArray.toFloat().max();
+            WeightFactory.flagBads(dataArray, badpixArray, maxi);
+        } else {
+            double maxi = dataArray.toDouble().max();
+            WeightFactory.flagBads(dataArray, badpixArray, maxi);
+        }
 
         if (job.weighting == WeightingMethod.INVERSE_VAR_MAP) {
             // A map of weights is provided.
@@ -200,22 +200,11 @@ public class BlindDeconvolutionCommand {
             }
             wgtArray = WeightFactory.computeWeightsFromData(dataArray, alpha, beta);
         } else if (job.weighting == WeightingMethod.AUTOMATIC_VAR_MAP) {
-            // FIXME: not implemented
             // Weights are computed from the current estimate of the data modelArray =object * PSF
-            //  the gain and the readout noise of the detector are automatically estimated from the variance of the data given the modelArray
-            // if (modelArray==null) { // without modelArray (before any deconvolution) rely on the"compute variance" method
-            //     double gamma = gain.getValue();
-            //     double sigma = noise.getValue();
-            //     double alpha = gamma;
-            //     double beta = (sigma/gamma)*(sigma/gamma);
-            //     wgtArray = WeightFactory.computeWeightsFromData(dataArray,   alpha,  beta);
-            // }else {
-            //     // wgtArray = WeightFactory.computeWeightsFromModel(dataArray,modelArray,badpixArray);
-            //     HistoMap hm = new HistoMap(modelArray, dataArray, badpixArray);
-            //     gain.setValue(hm.getAlpha());
-            //     noise.setValue(Math.sqrt(hm.getBeta())/gain.getValue());
-            //     wgtArray = hm.computeWeightMap(modelArray);
-            // }
+            // the gain and the readout noise of the detector are automatically estimated from the variance of the data given the modelArray
+            ShapedArray modelArray = MainCommand.loadData(job.mapPath, job.single);
+            HistoMap hm = new HistoMap(modelArray, dataArray, badpixArray);
+            wgtArray = hm.computeWeightMap(modelArray);
             throw new IllegalArgumentException("automatic_var_map is not yet implemented.");
         } else {
             // variance = 1
@@ -271,20 +260,17 @@ public class BlindDeconvolutionCommand {
 
         // Compute output shape
         ShapedVectorSpace dataSpace, objectSpace;
-        int Nx, Ny, Nz;
-        Nx = FFTUtils.bestDimension(dataArray.getDimension(0));
-        Ny = FFTUtils.bestDimension(dataArray.getDimension(1));
-        Nz = FFTUtils.bestDimension(dataArray.getDimension(2));
-        int Nxy = Math.max(Nx, Ny);
-        int[] shape = {Nxy, Nxy, Nz};
-        Shape outputShape = new Shape(shape);
+        int[] shape = MainCommand.getPaddingShape(job.paddingMethod, dataArray.getShape());
+        int Nxy = Math.max(shape[0], shape[1]);
+        int Nz = shape[2];
+        Shape psfShape = new Shape(Nxy, Nxy, Nz);
+        Shape outputShape = new Shape(Nxy, Nxy, Nz);
 
         // build objArray, the deconvolved image
         ShapedArray objArray = dataArray.copy();
         objArray = ArrayUtils.extract(objArray, outputShape, 0.); //Padding to the right size
 
         // build pupil, psf
-        Shape psfShape = new Shape(shape);
         WideFieldModel pupil = buildPupil(job, psfShape);
         PSF_Estimation psfEstimation = new PSF_Estimation(pupil);
         ShapedArray psfArray = ArrayUtils.roll( pupil.getPsf() );

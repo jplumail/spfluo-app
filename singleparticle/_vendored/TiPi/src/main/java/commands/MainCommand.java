@@ -12,8 +12,10 @@ import org.kohsuke.args4j.Option;
 import org.mitiv.TiPi.array.Array3D;
 import org.mitiv.TiPi.array.ArrayFactory;
 import org.mitiv.TiPi.array.ShapedArray;
+import org.mitiv.TiPi.base.Shape;
 import org.mitiv.TiPi.base.Traits;
 import org.mitiv.TiPi.io.ColorModel;
+import org.mitiv.TiPi.utils.FFTUtils;
 
 import loci.common.services.DependencyException;
 import loci.common.services.ServiceException;
@@ -234,5 +236,44 @@ public class MainCommand {
                     ? ColorModel.filterImageAsFloat(arr, ColorModel.GRAY)
                             : ColorModel.filterImageAsDouble(arr, ColorModel.GRAY));
         }
+    }
+
+    static int[] getPaddingShape(String paddingMethod, Shape dataShape) {
+        Shape nullShape = new Shape(1, 1, 1);
+        return getPaddingShape(paddingMethod, dataShape, nullShape);
+    }
+
+    static int[] getPaddingShape(String paddingMethod, Shape dataShape, Shape psfShape) {
+        int rank = dataShape.rank();
+        int[] objDims = new int[rank];
+        if (paddingMethod.equals("auto")) {
+            for (int k = 0; k < rank; ++k) {
+                int dataDim = dataShape.dimension(k);
+                int psfDim = psfShape.dimension(k);
+                objDims[k] = FFTUtils.bestDimension(dataDim + psfDim - 1);
+            }
+        } else if (paddingMethod.equals("min")) {
+            for (int k = 0; k < rank; ++k) {
+                int dataDim = dataShape.dimension(k);
+                int psfDim = psfShape.dimension(k);
+                objDims[k] = FFTUtils.bestDimension(Math.max(dataDim, psfDim));
+            }
+        } else {
+            int pad;
+            try {
+                pad = Integer.parseInt(paddingMethod);
+            } catch (NumberFormatException ex) {
+                throw new IllegalArgumentException("Invalid value for option `-pad`, must be \"auto\", \"min\" or an integer");
+            }
+            if (pad < 0) {
+                throw new IllegalArgumentException("Padding value must be nonnegative");
+            }
+            for (int k = 0; k < rank; ++k) {
+                int dataDim = dataShape.dimension(k);
+                int psfDim = psfShape.dimension(k);
+                objDims[k] = FFTUtils.bestDimension(Math.max(dataDim, psfDim) + pad);
+            }
+        }
+        return objDims;
     }
 }
