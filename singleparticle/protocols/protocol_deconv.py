@@ -287,12 +287,12 @@ class ProtSingleParticleBlindDeconv(Protocol, ProtFluoBase):
         )
 
         form.addParam(
-            "nbloops",
-            params.IntParam,
-            label="number of loops",
-            default=2,
-            help="The number of loops of the algorithm\n"
-            "The higher, the potentially longer ",
+            "paddingMethod",
+            params.StringParam,
+            label="Padding size (in pixels)",
+            default="30",
+            help="padding in xyz directions",
+            expertLevel=params.LEVEL_ADVANCED,
         )
 
         group = form.addGroup("Widefield params")
@@ -492,6 +492,7 @@ class ProtSingleParticleBlindDeconv(Protocol, ProtFluoBase):
         eps = self.epsilon.get()
         args += ["-epsilon", f"{eps if eps else self.epsilon_default_value}"]
         args += ["-debug"]
+        args += ["-pad", f"{self.paddingMethod.get()}"]
         if not self.nonneg.get():
             args += ["-negativity"]
         if self.single.get():
