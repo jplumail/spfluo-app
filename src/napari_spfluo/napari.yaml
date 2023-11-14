@@ -1,13 +1,13 @@
 name: napari-spfluo
 display_name: single particle
 # use 'hidden' to remove plugin from napari hub search results
-visibility: public
+visibility: hidden
 # see https://napari.org/stable/plugins/manifest.html for valid categories
 categories: ["Annotation", "Segmentation", "Acquisition"]
 contributions:
   commands:
-    - id: napari-spfluo.make_sample_data
-      python_name: napari_spfluo._sample_data:make_sample_data
+    - id: napari-spfluo.make_generated_anisotropic
+      python_name: napari_spfluo._sample_data:make_generated_anisotropic
       title: Load sample data from single particle
     - id: napari-spfluo.make_container_widget
       python_name: napari_spfluo:ImageThreshold
@@ -18,10 +18,13 @@ contributions:
     - id: napari-spfluo.make_function_widget
       python_name: napari_spfluo:threshold_autogenerate_widget
       title: Make threshold function widget
+    - id: napari-spfluo.make_ab_initio_widget
+      python_name: napari_spfluo:AbInitioWidget
+      title: Make ab initio Container widget
   sample_data:
-    - command: napari-spfluo.make_sample_data
-      display_name: single particle
-      key: unique_id.1
+    - command: napari-spfluo.make_generated_anisotropic
+      display_name: generate anisotropic data
+      key: anisotropic
   widgets:
     - command: napari-spfluo.make_container_widget
       display_name: Container Threshold
@@ -32,3 +35,5 @@ contributions:
       display_name: Autogenerate Threshold
     - command: napari-spfluo.make_qwidget
       display_name: Example QWidget
+    - command: napari-spfluo.make_ab_initio_widget
+      display_name: Container Ab initio reconstruction
