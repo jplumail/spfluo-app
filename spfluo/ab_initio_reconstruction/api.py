@@ -1,3 +1,6 @@
+from spfluo.ab_initio_reconstruction.common_image_processing_methods.others import (
+    normalize,
+)
 from spfluo.utils.array import numpy as np
 from spfluo.utils.volume import (
     discretize_sphere_uniformly,
@@ -32,6 +35,8 @@ class AbInitioReconstruction:
         )
 
         N = X.shape[0]
+        # normalize views
+        X = np.stack([normalize(X[i]) for i in range(N)])
 
         uniform_sphere_discretization = discretize_sphere_uniformly(
             np,
