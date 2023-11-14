@@ -16,6 +16,9 @@ from .volume_representation.pixel_representation import Fourier_pixel_representa
 class AbInitioReconstruction:
     def __init__(self, **params):
         self.params = params
+        self._volume = None
+        self._energies = None
+        self._num_iter = None
 
     def fit(self, X, psf=None, output_dir=None, gpu=None):
         """Reconstruct a volume based on views of particles"""
