@@ -4,6 +4,9 @@ import numpy as np
 import tifffile
 import torch
 
+from spfluo.ab_initio_reconstruction.common_image_processing_methods.others import (
+    normalize,
+)
 from spfluo.ab_initio_reconstruction.manage_files.read_save_files import (
     read_image,
     read_images_in_folder,
@@ -71,7 +74,10 @@ def create_parser():
 
 def main(args):
     particles, _ = read_images_in_folder(args.particles_dir, alphabetic_order=True)
-    psf = read_image(args.psf_path)
+    particles = np.stack(
+        [normalize(particles[i].astype(float)) for i in range(particles.shape[0])]
+    )
+    psf = normalize(read_image(args.psf_path).astype(float))
     guessed_poses, names = read_poses(args.guessed_poses_path, alphabetic_order=True)
 
     # Transfer to GPU
