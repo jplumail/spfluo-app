@@ -26,13 +26,15 @@
 # *
 # **************************************************************************
 import sys
-from os.path import join, dirname, exists, isdir
-from os import environ
+from os.path import join, dirname, exists, isdir, expanduser
+from os import environ, mkdir
 import importlib
 
 
 def getScipionHome():
-    home = environ.get("SCIPION_HOME", None)
+    home = environ.get("SCIPION_HOME", expanduser(join("~","scipion")))
+    if not exists(home):
+        mkdir(home)
 
     if not home:
         sys.exit("SCIPION_HOME environment variable must be set")
