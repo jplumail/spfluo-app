@@ -30,9 +30,9 @@ class NapariDataViewer(Viewer):
 
     def __init__(self, **kwargs):
         Viewer.__init__(self, **kwargs)
-        self._views = []
+        self._views: List[View] = []
 
-    def _visualize(self, obj: pwfluoobj.FluoObject, **kwargs) -> List[View]:
+    def _visualize(self, obj: pwfluoobj.FluoObject, **kwargs):
         cls = type(obj)
 
         if issubclass(cls, pwfluoobj.SetOfCoordinates3D):
