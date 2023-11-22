@@ -15,7 +15,7 @@ dependencies = [
     "numpy",
     "scipy",
     "aicsimageio",
-    "spfluo",
+    "spfluo[manual-picking,ab-initio-reconstruction,refinement,visualisation]",
 ]
 
 [project.urls]
