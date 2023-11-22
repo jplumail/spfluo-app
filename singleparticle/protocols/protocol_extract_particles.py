@@ -93,14 +93,32 @@ class ProtSingleParticleExtractParticles(Protocol, ProtFluoBase):
             bottom_right_corner = top_left_corner + box_size_data
             xmin, ymin, zmin = top_left_corner
             xmax, ymax, zmax = bottom_right_corner
+            original_shape = image_data.shape[2:]
+            x_slice = slice(max(xmin, 0), min(xmax, original_shape[0]))
+            y_slice = slice(max(ymin, 0), min(ymax, original_shape[1]))
+            z_slice = slice(max(zmin, 0), min(zmax, original_shape[2]))
+            x_overlap = slice(
+                max(0, -xmin), min(box_size_data[0], original_shape[0] - xmin)
+            )
+            y_overlap = slice(
+                max(0, -ymin), min(box_size_data[1], original_shape[1] - ymin)
+            )
+            z_overlap = slice(
+                max(0, -zmin), min(box_size_data[2], original_shape[2] - zmin)
+            )
+
         for c in range(C):
-            im_array_c = image_data[0, c]  # T=0,C=c in AICS model
+            # T=0,C=c in AICS model
             if subpixel:
                 particle_data[0, c] = affine_transform(
-                    im_array_c, mat, output_shape=tuple(box_size_data)
+                    image_data[0, c], mat, output_shape=tuple(box_size_data)
                 )
             else:
-                particle_data[0, c] = im_array_c[xmin:xmax, ymin:ymax, zmin:zmax]
+                padded_array = np.zeros(tuple(box_size_data), dtype=image_data.dtype)
+                padded_array[x_overlap, y_overlap, z_overlap] = image_data[
+                    0, c, x_slice, y_slice, z_slice
+                ]
+                particle_data[0, c] = padded_array.copy()
 
         new_particle = Particle(data=particle_data)
         new_particle.setCoordinate3D(coord)
