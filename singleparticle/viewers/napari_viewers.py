@@ -120,12 +120,12 @@ class ImageView(View):
     def launchNapari(
         path: Union[str, List[str]], scale: None | Tuple[float, float, float]
     ):
-        args = ""
+        args = []
         if scale:
-            args = f"--scale {scale[0]},{scale[1]},{scale[2]}"
+            args += ["--scale", f"{scale[0]},{scale[1]},{scale[2]}"]
         if isinstance(path, str):
             path = [path]
-        args = path + args.split(" ")
+        args = path + args
         runJob(None, Plugin.getNapariProgram(), args, env=Plugin.getEnviron())
 
 
