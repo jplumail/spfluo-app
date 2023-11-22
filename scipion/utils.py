@@ -28,7 +28,7 @@
 import sys
 from os.path import join, dirname, exists, isdir, expanduser
 from os import environ, mkdir
-import importlib
+import importlib.util
 
 
 def getScipionHome():
