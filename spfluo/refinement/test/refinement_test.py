@@ -26,7 +26,7 @@ if spfluo.has_torch_cuda:
     device = "cuda"
 else:
     device = "cpu"
-as_tensor = partial(torch.as_tensor, device=device)
+as_tensor = partial(torch.as_tensor, device=device, dtype=torch.float32)
 
 
 @pytest.fixture(scope="module")
