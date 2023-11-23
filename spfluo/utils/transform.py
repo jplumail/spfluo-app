@@ -124,9 +124,7 @@ def symmetrize_angles(
     return euler_angles_sym
 
 
-def symmetrize_poses(
-    poses: Array, symmetry: int, convention: str = "XZX", degrees: bool = False
-) -> Array:
+def symmetrize_poses(poses: Array, symmetry: int, convention: str = "XZX") -> Array:
     """
     Params:
         - poses: Array of shape (..., 6)
@@ -135,8 +133,9 @@ def symmetrize_poses(
     Returns:
         - poses_sym: shape (..., k, 6)
     """
+    assert convention == "XZX"
     euler_angles_sym = symmetrize_angles(
-        poses[..., :3], symmetry=symmetry, degrees=degrees
+        poses[..., :3], symmetry=symmetry, degrees=True
     )  # shape (..., k, 3)
     xp = array_namespace(euler_angles_sym)
     poses_sym = xp.concat(

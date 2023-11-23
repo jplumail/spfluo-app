@@ -117,7 +117,7 @@ def test_symmetrize_poses():
         data.generated_isotropic()["volumes"][0],
     )
     gt = data.generated_isotropic()["gt"]
-    poses_sym = symmetrize_poses(poses, 9, degrees=True)
+    poses_sym = symmetrize_poses(poses, 9)
     mats = get_transform_matrix(
         volume.shape, poses_sym[0, :, :3], poses_sym[0, :, 3:], degrees=True
     )

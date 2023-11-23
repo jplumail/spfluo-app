@@ -101,7 +101,7 @@ def test_apply_rot_to_poses():
     # v.add_image(volumes_aligned)
     # napari.run()
 
-    poses_aligned_sym = symmetrize_poses(poses_aligned, 9, degrees=True)
+    poses_aligned_sym = symmetrize_poses(poses_aligned, 9)
 
     # Vérification que les poses_aligned_sym sont bien aligned et sym!
     # volume0_aligned_sym = affine_transform(

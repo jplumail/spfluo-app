@@ -430,7 +430,6 @@ def refine(
     lambda_: float = 100.0,
     symmetry: int = 1,
     convention: str = "XZX",
-    degrees: bool = False,
 ):
     """
     Args:
@@ -447,7 +446,7 @@ def refine(
     tensor_kwargs = dict(dtype=patches.dtype, device=patches.device)
     lambda_ = torch.tensor(lambda_, **tensor_kwargs)
     guessed_poses_sym = symmetrize_poses(
-        guessed_poses, symmetry=symmetry, convention=convention, degrees=degrees
+        guessed_poses, symmetry=symmetry, convention=convention
     )
     guessed_poses_sym = torch.permute(guessed_poses_sym, (1, 0, 2)).contiguous()
     initial_reconstruction = reconstruction_L2(
@@ -510,7 +509,7 @@ def refine(
         refinement_logger.debug("[reconstruction_L2] Reconstruction")
         t0 = time.time()
         current_poses_sym = symmetrize_poses(
-            current_poses, symmetry=symmetry, convention=convention, degrees=degrees
+            current_poses, symmetry=symmetry, convention=convention
         )
         current_poses_sym = torch.permute(current_poses_sym, (1, 0, 2)).contiguous()
         current_reconstruction = reconstruction_L2(
