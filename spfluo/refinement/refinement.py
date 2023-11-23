@@ -68,8 +68,6 @@ def reconstruction_L2(
     Returns:
         recon (torch.Tensor):
             reconstruction(s) of shape ((M), D, D, D) or ((M), D+1, D+1, D+1)
-        den (torch.Tensor):
-            something of shape ((M), D, D, D)  or ((M), D+1, D+1, D+1)
     """
     refinement_logger.info("Calling function reconstruction_L2")
     device = volumes.device
@@ -107,6 +105,9 @@ def reconstruction_L2(
         D = D + 1
         new_poses[..., 3:] -= 0.5
         refinement_logger.info(f"Reshaped volumes to odd size {D}x{D}x{D}")
+        resize = True
+    else:
+        resize = False
 
     psf = interpolate_to_size(psf, (D, D, D))
 
@@ -168,8 +169,11 @@ def reconstruction_L2(
     del num
     recon = torch.clamp(recon, min=0)
 
+    if resize:
+        recon = interpolate_to_size(recon, (D - 1, D - 1, D - 1), batch=True)
+
     if not batch:
-        recon, den = recon[0], den[0]
+        recon = recon[0]
 
     if refinement_logger.isEnabledFor(logging.DEBUG):
         p = debug.save_image(
@@ -181,7 +185,7 @@ def reconstruction_L2(
         )
         refinement_logger.debug("Saving reconstruction(s) at " + str(p))
 
-    return recon, den
+    return recon
 
 
 def convolution_matching_poses_grid(
@@ -446,7 +450,7 @@ def refine(
         guessed_poses, symmetry=symmetry, convention=convention, degrees=degrees
     )
     guessed_poses_sym = torch.permute(guessed_poses_sym, (1, 0, 2)).contiguous()
-    initial_reconstruction, _ = reconstruction_L2(
+    initial_reconstruction = reconstruction_L2(
         patches, psf, guessed_poses_sym, lambda_, symmetry=True
     )
     initial_reconstruction = interpolate_to_size(
@@ -509,7 +513,7 @@ def refine(
             current_poses, symmetry=symmetry, convention=convention, degrees=degrees
         )
         current_poses_sym = torch.permute(current_poses_sym, (1, 0, 2)).contiguous()
-        current_reconstruction, _ = reconstruction_L2(
+        current_reconstruction = reconstruction_L2(
             patches, psf, current_poses_sym, lambda_, symmetry=True
         )
         current_reconstruction = interpolate_to_size(
@@ -565,7 +569,7 @@ def first_reconstruction(patches, views, poses, psf, step=10):
         mask_top_side = torch.logical_or(
             torch.as_tensor(views == 0), torch.as_tensor(views == 1)
         )
-        recon_noised, _ = reconstruction_L2(
+        recon_noised = reconstruction_L2(
             patches[mask_top_side], psf, poses_known[mask_top_side], lambda_
         )
         recons.append(recon_noised)

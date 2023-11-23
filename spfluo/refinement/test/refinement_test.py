@@ -1,8 +1,9 @@
 # from spfluo.utils.loading import loadmat
 
 from functools import partial
-from typing import Tuple
+from typing import Callable, Tuple
 
+import numpy as np
 import pytest
 import torch
 
@@ -14,8 +15,12 @@ from spfluo.refinement import (
     reconstruction_L2,
     refine,
 )
-from spfluo.utils.transform import distance_family_poses, symmetrize_angles
-from spfluo.utils.volume import are_volumes_aligned
+from spfluo.utils.transform import (
+    distance_family_poses,
+    get_transform_matrix,
+    symmetrize_angles,
+)
+from spfluo.utils.volume import affine_transform, are_volumes_aligned
 
 if spfluo.has_torch_cuda:
     device = "cuda"
@@ -53,10 +58,9 @@ def test_shapes_reconstruction_L2():
     psf = torch.randn((D, H, W))
     poses = torch.randn((N, 6))
     lambda_ = torch.tensor(1.0)
-    recon, den = reconstruction_L2(volumes, psf, poses, lambda_)
+    recon = reconstruction_L2(volumes, psf, poses, lambda_)
 
     assert recon.shape == (D, H, W)
-    assert den.shape == (D, H, W)
 
 
 def test_parallel_reconstruction_L2():
@@ -66,9 +70,9 @@ def test_parallel_reconstruction_L2():
     psf = torch.randn((D, H, W))
     poses = torch.randn((M, N, 6))
     lambda_ = torch.randn((M,))
-    recon, _ = reconstruction_L2(volumes, psf, poses, lambda_, batch=True)
+    recon = reconstruction_L2(volumes, psf, poses, lambda_, batch=True)
     recon2 = torch.stack(
-        [reconstruction_L2(volumes, psf, poses[i], lambda_[i])[0] for i in range(M)]
+        [reconstruction_L2(volumes, psf, poses[i], lambda_[i]) for i in range(M)]
     )
 
     assert recon.shape == (M, D, H, W)
@@ -84,26 +88,71 @@ def test_symmetry_reconstruction_L2():
         k, 1, 1
     )  # k times the same poses, useless symmetry
     lambda_ = torch.tensor(1.0)
-    recon_sym, den_sym = reconstruction_L2(volumes, psf, poses, lambda_, symmetry=True)
-    recon, den = reconstruction_L2(volumes, psf, poses[0], lambda_, symmetry=False)
+    recon_sym = reconstruction_L2(volumes, psf, poses, lambda_, symmetry=True)
+    recon = reconstruction_L2(volumes, psf, poses[0], lambda_, symmetry=False)
 
     assert recon_sym.shape == (D, H, W)
     assert torch.isclose(recon_sym, recon, atol=1e-4).all()
 
 
-def test_reconstruction_L2_simple(generated_data_all_pytorch):
+def test_symmetry_reconstruction_L2_2(
+    generated_data_all_pytorch: tuple[torch.Tensor, ...],
+    save_result: Callable[[str, np.ndarray], bool],
+):
+    """reconstruction_L2 of 1 particle with angles that have been symmetrized
+    should get approximately the same result as a simple rotation
+    """
     volumes, groundtruth_poses, psf, groundtruth = generated_data_all_pytorch
-    lbda = volumes.new_tensor(1e-5)
-    reconstruction, _ = reconstruction_L2(volumes, psf, groundtruth_poses, lbda)
+    lambda_ = as_tensor(torch.tensor(1.0))
+
+    # select particle 0
+    volume = volumes[0][None]
+    pose = groundtruth_poses[0][None]
+
+    # create symmetrical poses
+    pose_sym = torch.stack((pose,) * 9)
+    pose_sym[:, 0, :3] = symmetrize_angles(pose[0, :3], symmetry=9, degrees=True)
+
+    # reconstruct
+    recon_sym = reconstruction_L2(volume, psf, pose_sym, lambda_, symmetry=True)
+
+    # compare with simple rotation
+    rot = affine_transform(
+        volume[0],
+        get_transform_matrix(volume[0].shape, pose[0, :3], pose[0, 3:], degrees=True),
+        order=1,
+    )
+
+    # save and assert
+    save_result("reconstruction_sym", recon_sym.cpu().numpy())
+    save_result("simple_rot", rot.cpu().numpy())
+    assert are_volumes_aligned(recon_sym.cpu().numpy(), rot.cpu().numpy())
+
+
+def test_reconstruction_L2_simple(
+    generated_data_all_pytorch: tuple[torch.Tensor, ...],
+    save_result: Callable[[str, np.ndarray], bool],
+):
+    """Do a reconstruction and compare if it's aligned with the groundtruth"""
+    volumes, groundtruth_poses, psf, groundtruth = generated_data_all_pytorch
+    lbda = volumes.new_tensor(1e-4)
+    reconstruction = reconstruction_L2(volumes, psf, groundtruth_poses, lbda)
+
+    save_result("reconstruction", reconstruction.cpu().numpy())
+    save_result("groundtruth", groundtruth.cpu().numpy())
 
     assert are_volumes_aligned(
         reconstruction.cpu().numpy(), groundtruth.cpu().numpy(), atol=1
     )
 
 
-def test_reconstruction_L2_symmetry(generated_data_all_pytorch):
+def test_reconstruction_L2_symmetry(
+    generated_data_all_pytorch: tuple[torch.Tensor, ...],
+    save_result: Callable[[str, np.ndarray], bool],
+):
+    """Do a reconstruction with symmetry and compare if it's aligned with groundtruth"""
     volumes, groundtruth_poses, psf, groundtruth = generated_data_all_pytorch
-    lbda = volumes.new_tensor(1e-5)
+    lbda = volumes.new_tensor(1e-4)
     euler_angles_sym = symmetrize_angles(
         groundtruth_poses[:, :3], symmetry=9, degrees=True
     )
@@ -113,13 +162,92 @@ def test_reconstruction_L2_symmetry(generated_data_all_pytorch):
         gt_poses_sym, (1, 0, 2)
     ).contiguous()  # shape (k, N, 6)
 
-    reconstruction, _ = reconstruction_L2(
-        volumes, psf, gt_poses_sym, lbda, symmetry=True
-    )
+    reconstruction = reconstruction_L2(volumes, psf, gt_poses_sym, lbda, symmetry=True)
+
+    save_result("reconstruction", reconstruction.cpu().numpy())
+    save_result("groundtruth", groundtruth.cpu().numpy())
 
     assert are_volumes_aligned(
         reconstruction.cpu().numpy(), groundtruth.cpu().numpy(), atol=1
     )
+
+
+def test_reconstruction_L2_symmetry_1vol_iso(
+    generated_data_all_pytorch: tuple[torch.Tensor, ...],
+    save_result: Callable[[str, np.ndarray], bool],
+):
+    """Do a reconstruction with 1 volume in 2 ways:
+        - 1 volume, 9 poses, reconstruction_L2 with symmetry=True
+        - 9x 1 volume, 9 poses, reconstruction_L2 with symmetry=False
+
+    The results must be the same.
+    """
+    volumes, groundtruth_poses, psf, groundtruth = generated_data_all_pytorch
+    lbda = volumes.new_tensor(1e-4)
+    euler_angles_sym = symmetrize_angles(
+        groundtruth_poses[:, :3], symmetry=9, degrees=True
+    )
+    gt_poses_sym = torch.cat((euler_angles_sym, torch.zeros_like(euler_angles_sym)), 2)
+    gt_poses_sym[:, :, 3:] = groundtruth_poses[:, None, 3:]  # shape (N, k, 6)
+    gt_poses_sym = torch.permute(
+        gt_poses_sym, (1, 0, 2)
+    ).contiguous()  # shape (k, N, 6)
+
+    reconstruction_sym = reconstruction_L2(
+        volumes[:1], psf, gt_poses_sym[:, :1, :], lbda, symmetry=True
+    )
+    volumes_repeated = torch.concat(
+        [volumes[i].repeat(9, 1, 1, 1) for i in range(volumes.shape[0])]
+    )
+    reconstruction = reconstruction_L2(
+        volumes_repeated[:9], psf, gt_poses_sym[:, 0], lbda, symmetry=False
+    )
+
+    save_result("reconstruction_sym=True", reconstruction_sym.cpu().numpy())
+    save_result("reconstruction_sym=False", reconstruction.cpu().numpy())
+
+    assert torch.isclose(reconstruction_sym, reconstruction, rtol=0.01).all()
+
+
+def test_reconstruction_L2_symmetry_Nvol_iso(
+    generated_data_all_pytorch: tuple[torch.Tensor, ...],
+    save_result: Callable[[str, np.ndarray], bool],
+):
+    """Do a reconstruction with N volumes in 2 ways:
+        - N volumes, Nx9 poses, reconstruction_L2 with symmetry=True
+        - 9xN volumes, Nx9 poses, reconstruction_L2 with symmetry=False
+
+    The results must be the same.
+    """
+    volumes, groundtruth_poses, psf, groundtruth = generated_data_all_pytorch
+    lbda = volumes.new_tensor(1e-4)
+    euler_angles_sym = symmetrize_angles(
+        groundtruth_poses[:, :3], symmetry=9, degrees=True
+    )
+    gt_poses_sym = torch.cat((euler_angles_sym, torch.zeros_like(euler_angles_sym)), 2)
+    gt_poses_sym[:, :, 3:] = groundtruth_poses[:, None, 3:]  # shape (N, k, 6)
+    gt_poses_sym = torch.permute(
+        gt_poses_sym, (1, 0, 2)
+    ).contiguous()  # shape (k, N, 6)
+
+    reconstruction_sym = reconstruction_L2(
+        volumes, psf, gt_poses_sym, lbda, symmetry=True
+    )
+    volumes_repeated = torch.concat(
+        [volumes[i].repeat(9, 1, 1, 1) for i in range(volumes.shape[0])]
+    )
+    reconstruction = reconstruction_L2(
+        volumes_repeated,
+        psf,
+        torch.permute(gt_poses_sym, (1, 0, 2)).reshape(-1, 6),
+        lbda,
+        symmetry=False,
+    )
+
+    save_result("reconstruction_sym=True", reconstruction_sym.cpu().numpy())
+    save_result("reconstruction_sym=False", reconstruction.cpu().numpy())
+
+    assert torch.isclose(reconstruction_sym, reconstruction, rtol=0.01, atol=1e-6).all()
 
 
 #############################
