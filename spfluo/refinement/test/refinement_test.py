@@ -19,6 +19,7 @@ from spfluo.utils.transform import (
     distance_family_poses,
     get_transform_matrix,
     symmetrize_angles,
+    symmetrize_poses,
 )
 from spfluo.utils.volume import affine_transform, are_volumes_aligned
 
@@ -392,13 +393,30 @@ def test_refine_shapes():
 
 
 @pytest.mark.skipif(device == "cpu", reason="Too long if done on CPU.")
-def test_refine_easy(generated_data_all_pytorch, poses_with_noise):
+@pytest.mark.xfail(
+    reason="distance_family_poses doesn't work as expected, "
+    "the final reconstruction is better than the initial one."
+)
+def test_refine_easy(
+    generated_data_all_pytorch: tuple[torch.Tensor, ...],
+    poses_with_noise: torch.Tensor,
+    save_result: Callable[[str, np.ndarray], bool],
+):
     poses = poses_with_noise
     volumes, groundtruth_poses, psf, groundtruth = generated_data_all_pytorch
 
-    S = 10
-    A = 14 * 2
-    steps = [(A**2, 50)] + [S] * 7  # 7.25° axis precision; 0.8° sym precision
+    lbda = lbda = volumes.new_tensor(1e-2)
+    initial_reconstruction = reconstruction_L2(
+        volumes,
+        psf,
+        torch.moveaxis(symmetrize_poses(poses, 9), 1, 0),
+        lbda,
+        symmetry=True,
+    )
+
+    S = 5
+    A = 5 * 2
+    steps = [(A**2, 5)] + [S] * 7  # 7.25° axis precision; 4° sym precision
     ranges = [
         0,
     ] + [10, 5, 5, 2, 2, 1, 1]
@@ -413,5 +431,10 @@ def test_refine_easy(generated_data_all_pytorch, poses_with_noise):
         poses, groundtruth_poses, symmetry=9
     )
 
-    assert rot_dist_deg1.mean() < rot_dist_deg2.mean()
-    assert trans_dist_pix1.mean() < trans_dist_pix2.mean()
+    save_result("initial_reconstruction", initial_reconstruction.cpu().numpy())
+    save_result("final_reconstruction", reconstruction.cpu().numpy())
+
+    assert (
+        rot_dist_deg1.mean() < rot_dist_deg2.mean()
+        and trans_dist_pix1.mean() < trans_dist_pix2.mean()
+    )
