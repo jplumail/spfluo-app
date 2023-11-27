@@ -63,8 +63,11 @@ public class MainCommand {
         ImageReader reader = new ImageReader();
         reader.setId(path);
         if (reader.getSeriesCount()>1 || reader.getSizeT()>1 || reader.getSizeC()>1) {
+            int s = reader.getSeriesCount();
+            int t = reader.getSizeT();
+            int c = reader.getSizeC();
             reader.close();
-            throw new FormatException("File no good shape (Series:%d, T:%d, C:%d)".formatted(reader.getSeriesCount(), reader.getSizeT(), reader.getSizeC()));
+            throw new FormatException("File no good shape (Series:%d, T:%d, C:%d)".formatted(s, t, c));
         }
         reader.setSeries(0);
         int bitsPerPixel = reader.getBitsPerPixel();
