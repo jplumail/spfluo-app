@@ -4,6 +4,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.ByteBuffer;
+import java.nio.IntBuffer;
+import java.nio.ShortBuffer;
 import java.util.Arrays;
 
 import org.kohsuke.args4j.Argument;
@@ -73,44 +75,63 @@ public class MainCommand {
         int bufferSizeInBits = bitsPerPixel * sizeX * sizeY * sizeZ;
     
         ShapedArray shapedArray = null;
-        ByteBuffer buffer = ByteBuffer.allocate(bufferSizeInBits / 8);
+        ByteBuffer byteBuffer = ByteBuffer.allocate(bufferSizeInBits / 8);
         for (int i=0; i<reader.getSizeZ(); i++) {
             byte[] plane = reader.openBytes(i);
-            buffer.put(plane);
+            byteBuffer.put(plane);
         }
-        shapedArray = ArrayFactory.wrap(buffer.array(), reader.getSizeX(), reader.getSizeY(), reader.getSizeZ());
         switch (reader.getPixelType()) {
             case FormatTools.INT8:
-                reader.close();
-                throw new IOException("INT8 format not supported", null);
+                byteBuffer.flip();
+                IntBuffer unsignedByteBuffer = IntBuffer.allocate(byteBuffer.capacity());
+                byte a = (byte) 0b10000000;
+                while (byteBuffer.hasRemaining()) {
+                    byte signedValue = byteBuffer.get();
+                    byte unsignedValue;
+                    unsignedValue = (byte) (((a & signedValue) ^ a) & a | (~a & signedValue));
+                    unsignedByteBuffer.put(unsignedValue);
+                }
+                shapedArray = ArrayFactory.wrap(unsignedByteBuffer.array(), reader.getSizeX(), reader.getSizeY(), reader.getSizeZ());
+                break;
             case FormatTools.UINT8:
-                shapedArray = shapedArray.toByte(); // TiPi Byte corresponds to unsigned int
+                shapedArray = ArrayFactory.wrap(byteBuffer.array(), reader.getSizeX(), reader.getSizeY(), reader.getSizeZ());
                 break;
             case FormatTools.INT16:
-                shapedArray = shapedArray.toShort();
-                reader.close();
-                throw new IOException("INT16 format not supported", null);
+                ShortBuffer shortBuffer = ShortBuffer.allocate(byteBuffer.capacity()/2);
+                byteBuffer.flip();
+                while (byteBuffer.hasRemaining()) {
+                    byte low = byteBuffer.get();
+                    byte high = byteBuffer.get();
+                    short s = (short) ((high << 8) | low);
+                    shortBuffer.put(s);
+                }
+
+                ShortBuffer unsignedShortBuffer = ShortBuffer.allocate(byteBuffer.capacity()/2);
+                short aShort = (short) 0b1000000000000000;
+                shortBuffer.flip();
+                while (shortBuffer.hasRemaining()) {
+                    short signedValue = shortBuffer.get();
+                    short unsignedValue;
+                    unsignedValue = (short) ~(((aShort & signedValue) ^ aShort) & aShort | (~aShort & signedValue));
+                    unsignedShortBuffer.put(unsignedValue);
+                }
+                
+                shapedArray = ArrayFactory.wrap(unsignedShortBuffer.array(), reader.getSizeX(), reader.getSizeY(), reader.getSizeZ());
+                break;
             case FormatTools.UINT16:
+                ShortBuffer shortBuffer2 = ShortBuffer.allocate(byteBuffer.capacity()/2);
+                byteBuffer.flip();
+                while (byteBuffer.hasRemaining()) {
+                    byte low = byteBuffer.get();
+                    byte high = byteBuffer.get();
+                    short s = (short) ((high << 8) | low);
+                    shortBuffer2.put(s);
+                }
+                shapedArray = ArrayFactory.wrap(shortBuffer2.array(), reader.getSizeX(), reader.getSizeY(), reader.getSizeZ());
+                break;
+            default:
                 reader.close();
-                throw new IOException("UINT16 format not supported", null);
-            case FormatTools.INT32:
-                shapedArray = shapedArray.toInt();
-                reader.close();
-                throw new IOException("INT32 format not supported", null);
-            case FormatTools.UINT32:
-                reader.close();
-                throw new IOException("UINT32 format not supported", null);
-            case FormatTools.FLOAT:
-                shapedArray = shapedArray.toFloat();
-                reader.close();
-                throw new IOException("FLOAT format not supported", null);
-            case FormatTools.DOUBLE:
-                shapedArray = shapedArray.toDouble();
-                reader.close();
-                throw new IOException("DOUBLE format not supported", null);
-            case FormatTools.BIT:
-                reader.close();
-                throw new IOException("BIT format not supported", null);
+                throw new IOException("format not supported", null);
         }
         reader.close();
         return shapedArray;
