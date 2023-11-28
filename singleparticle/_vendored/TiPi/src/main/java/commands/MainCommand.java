@@ -4,6 +4,9 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.nio.DoubleBuffer;
+import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.nio.ShortBuffer;
 import java.util.Arrays;
@@ -66,8 +69,9 @@ public class MainCommand {
             int s = reader.getSeriesCount();
             int t = reader.getSizeT();
             int c = reader.getSizeC();
+            int z = reader.getSizeZ();
             reader.close();
-            throw new FormatException("File no good shape (Series:%d, T:%d, C:%d)".formatted(s, t, c));
+            throw new FormatException("File no good shape (Series:%d, T:%d, C:%d, Z:%d)".formatted(s, t, c, z));
         }
         reader.setSeries(0);
         int bitsPerPixel = reader.getBitsPerPixel();
@@ -82,6 +86,9 @@ public class MainCommand {
         for (int i=0; i<reader.getSizeZ(); i++) {
             byte[] plane = reader.openBytes(i);
             byteBuffer.put(plane);
+        }
+        if (reader.isLittleEndian()){
+            byteBuffer.order(ByteOrder.LITTLE_ENDIAN);
         }
         switch (reader.getPixelType()) {
             case FormatTools.INT8:
@@ -131,6 +138,28 @@ public class MainCommand {
                     shortBuffer2.put(s);
                 }
                 shapedArray = ArrayFactory.wrap(shortBuffer2.array(), reader.getSizeX(), reader.getSizeY(), reader.getSizeZ());
+                break;
+            case FormatTools.FLOAT:
+                FloatBuffer floatBuffer = FloatBuffer.allocate(byteBuffer.capacity()/4);
+                byteBuffer.flip();
+                reader.isLittleEndian();
+                while (byteBuffer.hasRemaining()) {
+                    float s = byteBuffer.getFloat();
+                    floatBuffer.put(s);
+                }
+                shapedArray = ArrayFactory.wrap(floatBuffer.array(), reader.getSizeX(), reader.getSizeY(), reader.getSizeZ());
+                shapedArray = shapedArray.toFloat();
+                break;
+            case FormatTools.DOUBLE:
+                DoubleBuffer doubleBuffer = DoubleBuffer.allocate(byteBuffer.capacity()/8);
+                byteBuffer.flip();
+                reader.isLittleEndian();
+                while (byteBuffer.hasRemaining()) {
+                    double s = byteBuffer.getDouble();
+                    doubleBuffer.put(s);
+                }
+                shapedArray = ArrayFactory.wrap(doubleBuffer.array(), reader.getSizeX(), reader.getSizeY(), reader.getSizeZ());
+                shapedArray = shapedArray.toDouble();
                 break;
             default:
                 reader.close();
