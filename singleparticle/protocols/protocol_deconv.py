@@ -174,37 +174,31 @@ class ProtSingleParticleDeconv(Protocol, ProtFluoBase):
         os.makedirs(self.root_dir, exist_ok=True)
         self.input_fluoimage: FluoImage = self.fluoimage.get()
         self.input_psf: PSFModel | None = self.psf.get()
-        fname = self.input_fluoimage.getFileName()
-        self.in_path = os.path.join(self.root_dir, os.path.basename(fname))
-        self.out_path = os.path.join(self.root_dir, "deconv-" + os.path.basename(fname))
+        self.in_path = os.path.join(self.root_dir, "in.ome.tiff")
+        self.out_path = os.path.join(self.root_dir, "out.ome.tiff")
         self.psf_path = None
 
         # Input image
-        if self.input_fluoimage.getDataType() != np.uint8:
-            input_uint8_array = self.input_fluoimage.getData().astype(np.uint8)
-            tifffile.imwrite(
-                self.in_path,
-                input_uint8_array,
-                metadata={"axes": self.input_fluoimage.img.dims.order},
-            )
-        else:
-            input_uint8_array = self.input_fluoimage.getData()
-            os.link(fname, self.in_path)
-        self.epsilon_default_value = float(input_uint8_array.max()) / 1000
+
+        a = self.input_fluoimage.getData().astype(np.float64)
+        a = (a - a.min()) / (a.max() - a.min())
+        tifffile.imwrite(
+            self.in_path,
+            a,
+            metadata={"axes": self.input_fluoimage.img.dims.order},
+        )
+        self.epsilon_default_value = float(a.max()) / 1000
 
         # Input PSF
         if self.input_psf:
             self.psf_path = os.path.join(self.root_dir, "psf.ome.tiff")
-            if self.input_psf.getDataType() != np.uint8:
-                input_psf_uint8_array = self.input_psf.getData()
-                input_psf_uint8_array = input_psf_uint8_array.astype(np.uint8)
-                tifffile.imwrite(
-                    self.psf_path,
-                    input_psf_uint8_array,
-                    metadata={"axes": self.input_psf.img.dims.order},
-                )
-            else:
-                os.link(fname, self.psf_path)
+            a = self.input_psf.getData().astype(np.float64)
+            a = (a - a.min()) / (a.max() - a.min())
+            tifffile.imwrite(
+                self.psf_path,
+                a,
+                metadata={"axes": self.input_psf.img.dims.order},
+            )
 
     def deconvStep(self):
         args = list(map(os.path.abspath, [self.in_path, self.out_path]))
@@ -234,7 +228,7 @@ class ProtSingleParticleDeconv(Protocol, ProtFluoBase):
         args += ["-maxiter", f"{self.maxiter.get()}"]
         args += ["-maxeval", f"{self.maxeval.get()}"]
         args += ["-pad", f"{self.paddingMethod.get()}"]
-        args += ["-debug"]
+        args += ["-debug", "-verbose"]
         if self.crop.get():
             args += ["-crop"]
 
@@ -443,19 +437,13 @@ class ProtSingleParticleBlindDeconv(Protocol, ProtFluoBase):
     def prepareStep(self):
         os.makedirs(self.root_dir, exist_ok=True)
         self.input_fluoimage: FluoImage = self.fluoimage.get()
-        fname = self.input_fluoimage.getFileName()
-        self.in_path = os.path.join(self.root_dir, os.path.basename(fname))
-        self.out_path = os.path.join(self.root_dir, "deconv-" + os.path.basename(fname))
-        self.out_psf_path = os.path.join(
-            self.root_dir, "psf-" + os.path.basename(fname)
-        )
-        if self.input_fluoimage.getDataType() != np.uint8:
-            input_uint8_array = self.input_fluoimage.getData().astype(np.uint8)
-            tifffile.imwrite(self.in_path, input_uint8_array)
-        else:
-            input_uint8_array = self.input_fluoimage.getData()
-            os.link(fname, self.in_path)
-        self.epsilon_default_value = float(input_uint8_array.max()) / 1000
+        self.in_path = os.path.join(self.root_dir, "in.ome.tiff")
+        self.out_path = os.path.join(self.root_dir, "out.ome.tiff")
+        self.out_psf_path = os.path.join(self.root_dir, "psf.ome.tiff")
+        a = self.input_fluoimage.getData().astype(np.float64)
+        a = (a - a.min()) / (a.max() - a.min())
+        tifffile.imwrite(self.in_path, a)
+        self.epsilon_default_value = float(a.max()) / 1000
 
     def deconvStep(self):
         args = list(
