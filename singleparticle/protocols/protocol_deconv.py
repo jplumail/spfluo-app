@@ -449,7 +449,9 @@ class ProtSingleParticleBlindDeconv(Protocol, ProtFluoBase):
         self.out_psf_path = os.path.join(self.root_dir, "psf.ome.tiff")
         a = self.input_fluoimage.getData().astype(np.float64)
         a = (a - a.min()) / (a.max() - a.min())
-        tifffile.imwrite(self.in_path, a)
+        tifffile.imwrite(
+            self.in_path, a, metadata={"axes": self.input_fluoimage.img.dims.order}
+        )
         self.epsilon_default_value = float(a.max()) / 1000
 
     def deconvStep(self):
