@@ -78,7 +78,7 @@ class Plugin(plugin.Plugin):
 
     @classmethod
     def getSPFluoProgram(cls, program: Union[str, List[str]]):
-        if type(program) is str:
+        if isinstance(program, str):
             program = [program]
         command = "python -m spfluo"
         for p in program:
