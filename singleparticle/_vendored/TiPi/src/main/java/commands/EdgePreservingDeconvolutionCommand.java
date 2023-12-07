@@ -201,7 +201,7 @@ public class EdgePreservingDeconvolutionCommand {
                 int[] psfDims = {Nxy, Nxy, shape.dimension(2)};
                 Shape psfShape = new Shape(psfDims);
                 WideFieldModel pupil = new WideFieldModel(psfShape, job.nPhase, job.nModulus, job.NA, job.lambda*1E-9, job.ni, job.dxy*1E-9, job.dz*1E-9, job.radial, job.single);
-                solver.setPSF(pupil.getPsf(), job.normalizePSF);
+                solver.setPSF(ArrayUtils.roll(pupil.getPsf()), job.normalizePSF);
             }
 
             // Deal with the weights.

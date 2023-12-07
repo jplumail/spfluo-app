@@ -372,6 +372,6 @@ public class BlindDeconvolutionCommand {
             psfArray = ArrayUtils.crop(psfArray, dataArray.getShape());
         }
         MainCommand.saveArrayToOMETiff(outputName, objArray);
-        MainCommand.saveArrayToOMETiff(psfName, ArrayUtils.roll(pupil.getPsf()));
+        MainCommand.saveArrayToOMETiff(psfName, psfArray);
     }
 }
