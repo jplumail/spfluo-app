@@ -118,6 +118,9 @@ public class BlindDeconvolutionCommand {
     @Option(name = "-nbIterDeconv", usage = "Number of iterations for deconvolution", metaVar = "N")
     private int nbIterDeconv = 50;
 
+    @Option(name = "-crop", usage = "Crop result to same size as input.")
+    private boolean crop = false;
+
     // Misc
     @Option(name = "-debug", usage = "debug flag")
     private boolean debug;
@@ -358,6 +361,12 @@ public class BlindDeconvolutionCommand {
         pupil.freeMem();
 
         // save arrays
+        psfArray = pupil.getPsf();
+        psfArray = ArrayUtils.roll(psfArray);
+        if (job.crop) {
+            objArray = ArrayUtils.crop(objArray, dataArray.getShape());
+            psfArray = ArrayUtils.crop(psfArray, dataArray.getShape());
+        }
         MainCommand.saveArrayToOMETiff(outputName, objArray);
         MainCommand.saveArrayToOMETiff(psfName, ArrayUtils.roll(pupil.getPsf()));
     }

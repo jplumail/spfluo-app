@@ -298,6 +298,13 @@ class ProtSingleParticleBlindDeconv(Protocol, ProtFluoBase):
             default=1.518,
         )
 
+        form.addParam(
+            "crop",
+            params.BooleanParam,
+            label="Crop result to the same size as input",
+            default=True,
+        )
+
         form.addSection(label="Parameters")
 
         form.addParam(
@@ -463,6 +470,9 @@ class ProtSingleParticleBlindDeconv(Protocol, ProtFluoBase):
         args += ["-maxIterDefocus", f"{self.maxIterDefocus.get()}"]
         args += ["-maxIterPhase", f"{self.maxIterPhase.get()}"]
         args += ["-maxIterModulus", f"{self.maxIterModulus.get()}"]
+
+        if self.crop.get():
+            args += ["-crop"]
 
         # Parameters
         args += [
