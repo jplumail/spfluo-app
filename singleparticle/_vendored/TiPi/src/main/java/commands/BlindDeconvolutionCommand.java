@@ -155,9 +155,13 @@ public class BlindDeconvolutionCommand {
         Shape dataShape = dataArray.getShape();
         ByteArray badpixArray = (ByteArray) ArrayFactory.create(Traits.BYTE, dataShape);
         if (job.badDataPath != null) {
-            throw new IllegalArgumentException("bad data is not yet implemented");
+            throw new IllegalArgumentException("custom bad data is not yet implemented");
         } 
-        // IF dataArray has saturated pixels, do something...?
+        if (job.single) {
+            WeightFactory.flagBads(dataArray, badpixArray, ((FloatArray) dataArray).max());
+        } else {
+            WeightFactory.flagBads(dataArray, badpixArray, ((DoubleArray) dataArray).max());
+        }
         
         if (job.single){
             float maxi = dataArray.toFloat().max();
