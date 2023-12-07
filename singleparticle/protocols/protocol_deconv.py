@@ -87,7 +87,7 @@ class ProtSingleParticleDeconv(Protocol, ProtFluoBase):
             "crop",
             params.BooleanParam,
             label="Crop result to the same size as input",
-            default=False,
+            default=True,
         )
 
         form.addSection(label="Parameters")
