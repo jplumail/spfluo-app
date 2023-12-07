@@ -24,6 +24,7 @@ from pyworkflow.wizard import Wizard
 
 from singleparticle.constants import (
     FLUO_ROOT_VAR,
+    JAVA_XMX,
     SINGLEPARTICLE_HOME,
     TIPI_JAR,
 )
@@ -93,7 +94,7 @@ class Plugin(plugin.Plugin):
 
     @classmethod
     def getMicroTipiProgram(cls, program: str):
-        microtipi_cmd = f"java -jar {TIPI_JAR}"
+        microtipi_cmd = f"java -Xmx{JAVA_XMX} -jar {TIPI_JAR}"
         programs = ["deconv", "blinddeconv"]
         assert program in programs, f"{program} should be one of {programs}."
         microtipi_cmd += " " + program

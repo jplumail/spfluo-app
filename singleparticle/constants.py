@@ -25,3 +25,4 @@ target_dir = os.path.join(
     os.path.abspath(os.path.dirname(__file__)), "_vendored", "TiPi", "target"
 )
 TIPI_JAR = os.path.join(target_dir, "TiPi-for-spfluo-1.0.jar")
+JAVA_XMX = "16G"
