@@ -146,6 +146,8 @@ public class BlindDeconvolutionCommand {
 
     private static WideFieldModel buildPupil(BlindDeconvolutionCommand job, Shape psfShape) {
         WideFieldModel pupil = new WideFieldModel(psfShape, job.nPhase, job.nModulus, job.NA, job.lambda*1E-9, job.ni, job.dxy*1E-9, job.dz*1E-9, job.radial, job.single);
+        pupil.setPupilAxis(new double[]{0., 0.});
+        pupil.setModulus(new double[]{1.});
         return pupil;
     }
 
@@ -287,6 +289,13 @@ public class BlindDeconvolutionCommand {
         DeconvHook dHook = new DeconvHook(imager, outputShape,null, job.debug);
         DeconvHook dHookfinal = new DeconvHook(imager, outputShape,"Deconvolved", job.debug);
 
+        // build wgtArray, weights
+        ShapedArray wgtArray = getWeights(job, dataArray, true);
+        WeightUpdater wghtUpdt = null;
+        if (job.weighting == WeightingMethod.AUTOMATIC_VAR_MAP) {
+            wghtUpdt = new weightsFromModel( dataArray, null);
+        }
+
         // build deconvolver
         if (job.single) {
             dataSpace = new FloatShapedVectorSpace(dataArray.getShape());
@@ -301,18 +310,9 @@ public class BlindDeconvolutionCommand {
         WeightedConvolutionCost fdata =  WeightedConvolutionCost.build(objectSpace, dataSpace);
         fdata.setData(dataArray);
         fdata.setPSF(psfArray);
-        DeconvolutionJob deconvolver = new DeconvolutionJob(fdata, job.mu, fprior, !job.negativity, job.nbIterDeconv, dHook, dHookfinal); // hooks to null
-
-        // build wgtArray, weights
-        ShapedArray wgtArray = getWeights(job, dataArray, true);
-        WeightUpdater wghtUpdt = null;
-        if (job.weighting == WeightingMethod.AUTOMATIC_VAR_MAP) {
-            wghtUpdt = new weightsFromModel( dataArray, null);
-        }
-
-        // update weights
         fdata.setWeights(wgtArray,true);
         psfEstimation.setWeight(ArrayUtils.pad(wgtArray,psfShape));
+        DeconvolutionJob deconvolver = new DeconvolutionJob(fdata, job.mu, fprior, !job.negativity, job.nbIterDeconv, dHook, dHookfinal); // hooks to null
 
         // update psfEstimation
         psfEstimation.setData(objArray);
