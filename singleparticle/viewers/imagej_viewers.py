@@ -90,6 +90,6 @@ class ImageJView(View):
 
     def show(self):
         self.thread = threading.Thread(
-            target=self.imagej.runProgram, args=self.files, kwargs={"cwd": self.cwd}
+            target=self.imagej.runProgram, args=[self.files], kwargs={"cwd": self.cwd}
         )
         self.thread.start()
