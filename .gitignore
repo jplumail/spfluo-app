@@ -16,7 +16,7 @@
 *.iml
 
 # Packaging files
-scipion_app.egg-info/*
+*.egg-info
 dist
 
 *.snap
@@ -26,3 +26,5 @@ config/*
 /scipion3venv/
 
 build/
+.venv
+.vscode
