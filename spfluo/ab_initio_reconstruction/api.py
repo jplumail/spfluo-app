@@ -19,6 +19,7 @@ class AbInitioReconstruction:
         self._volume = None
         self._energies = None
         self._num_iter = None
+        self._poses = None
 
     def fit(self, X, psf=None, output_dir=None, gpu=None):
         """Reconstruct a volume based on views of particles"""
@@ -85,5 +86,6 @@ class AbInitioReconstruction:
         self._volume = volume_representation.get_image_from_fourier_representation()
         self._energies = np.mean(energies_each_view, axis=0)
         self._num_iter = itr
+        self._poses = ests_poses
 
         return self
