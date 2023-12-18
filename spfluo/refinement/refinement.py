@@ -37,8 +37,8 @@ def reconstruction_L2(
     psf: torch.Tensor,
     poses: torch.Tensor,
     lambda_: torch.Tensor,
-    batch=False,
-    symmetry=False,
+    batch: bool = False,
+    symmetry: bool = False,
 ) -> torch.Tensor:
     """Reconstruct a particule from volumes and their poses.
     M reconstructions can be done at once.
