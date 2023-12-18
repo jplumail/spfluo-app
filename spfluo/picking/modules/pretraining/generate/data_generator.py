@@ -373,7 +373,8 @@ class DataGenerator:
         if self.config.sensor.poisson_noise:
             self.add_poisson_noise()
 
-    def create_psf(self):
+    @staticmethod
+    def make_psf(anisotropic_blur_sigma: Tuple[int], dtype: np.dtype) -> np.ndarray:
         # commented out because GT is in the image space not int the pointcloud space
         # step = float(self.step)
         # B = self.config.voxelisation.bandwidth # bandwidth in the pointcloud coordinate system
@@ -384,23 +385,26 @@ class DataGenerator:
         # psf[k*B,k*B,k*B] = 1 # dirac
         # psf = gaussian_filter(psf, sigma=B, mode='constant') # gaussian of std B
 
+        sigma = np.array(anisotropic_blur_sigma, dtype=int)
+        k = 4  # +/- 4 sigmas is sufficient
+        shape = np.ceil(2 * k * sigma + 1).astype(int)
+        size = max(shape)
+        grid = make_grid(size, 3)
+        grid_step = 2 / (size - 1)
+        cov_PSF = grid_step**2 * np.eye(3)
+        cov_PSF[[0, 1, 2], [0, 1, 2]] *= sigma**2
+        psf = nd_gaussian(grid, np.zeros(3), cov_PSF, 3).astype(dtype)
+        if psf.max() > psf.min():
+            psf = (psf - psf.min()) / (psf.max() - psf.min())
+        psf = psf / psf.sum()
+        return psf
+
+    def create_psf(self):
         # Anisotropic blur
         if self.config.sensor.anisotropic_blur:
-            sigma = np.array(self.config.sensor.anisotropic_blur_sigma, dtype=int)
-            k = 4  # +/- 4 sigmas is sufficient
-            shape = np.ceil(2 * k * sigma + 1).astype(int)
-            size = max(shape)
-            grid = make_grid(size, 3)
-            grid_step = 2 / (size - 1)
-            cov_PSF = grid_step**2 * np.eye(3)
-            cov_PSF[[0, 1, 2], [0, 1, 2]] *= sigma**2
-            psf = nd_gaussian(grid, np.zeros(3), cov_PSF, 3).astype(self.dtype)
-
-            # Save
-            if psf.max() > psf.min():
-                psf = (psf - psf.min()) / (psf.max() - psf.min())
-            psf = psf / psf.sum()
-            self.psf = psf
+            self.psf = DataGenerator.make_psf(
+                self.config.sensor.anisotropic_blur_sigma, self.dtype
+            )
         else:
             self.psf = None
 

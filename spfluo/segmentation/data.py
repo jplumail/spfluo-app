@@ -12,11 +12,13 @@ from pyfigtree import figtree
 from scipy.spatial import ConvexHull
 from scipy.spatial.qhull import QhullError
 from scipy.spatial.transform import Rotation
-from segmentation.create_centriole import get_radius, simu_cylinder_rev
 from torch.distributions.multivariate_normal import MultivariateNormal
 from torch.nn import functional as F
-from utils import create_psf, get_random_3d_vector
-from utils.loading import load_array, load_pointcloud
+
+from spfluo.picking.modules.pretraining.generate.data_generator import DataGenerator
+from spfluo.segmentation.create_centriole import get_radius, simu_cylinder_rev
+from spfluo.utils.loading import load_array, load_pointcloud
+from spfluo.utils.volume import get_random_3d_vector
 
 
 class SamplingStrategy:
@@ -214,7 +216,7 @@ class _RandomParticle(_Generator):
         super().__init__()
 
         self.params["CreatePointcloud"]["args"] = dict(
-            a=-0.5, b=5.4, c=103.253, r=15, l=600, s=15, angle=110, N=1000
+            a=-0.5, b=5.4, c=103.253, r=15, L=600, s=15, angle=110, N=1000
         )
         self.params["Rotate"]["args"]["rotation_angles"] = Uniform3DAngle()
         self.params["Shrink"]["args"]["factor"] = Normal(loc=1, scale=0.1)
@@ -240,7 +242,7 @@ class _DefaultGenerator(_Generator):
         super().__init__()
 
         self.params["CreatePointcloud"]["args"] = dict(
-            a=-0.5, b=5.4, c=103.253, r=15, l=600, s=15, angle=110, N=1000
+            a=-0.5, b=5.4, c=103.253, r=15, L=600, s=15, angle=110, N=1000
         )
         self.params["Rotate"]["args"]["rotation_angles"] = Uniform3DAngle()
         self.params["Shrink"]["args"]["factor"] = Normal(loc=0.6, scale=0.01)
@@ -264,7 +266,6 @@ class _DefaultGenerator(_Generator):
             target_snr=Normal(loc=15, scale=2), gaussian_noise_mean=Uniform()
         )
         self.params["ApplyPSF"]["args"] = dict(
-            psf_size=(21, 21, 21),
             cov_coef_sampling_strategy=Normal(loc=2, scale=1),
             anisotropy_sampling_strategy=Normal(loc=2, scale=0.5),
         )
@@ -363,7 +364,7 @@ class RandomParticle_variableSize(_RandomParticle):
             high = low
         self.params["CreatePointcloud"]["args"].update(
             dict(
-                l=Uniform(low, high),
+                L=Uniform(low, high),
             )
         )
         self.params["Shrink"]["args"].update(
@@ -383,7 +384,7 @@ class Generator_variableSize(_DefaultGenerator):
 
         self.params["CreatePointcloud"]["args"].update(
             dict(
-                l=Uniform(low, high),
+                L=Uniform(low, high),
             )
         )
         self.params["Shrink"]["args"].update(
@@ -409,7 +410,7 @@ class ISIMParticle(_RandomParticle):
                 b=Uniform(5.4, 6),
                 c=Uniform(103.253, 105),
                 r=Uniform(10, 20),
-                l=900,
+                L=900,
                 s=Uniform(10, 20),
                 angle=Uniform(0, 180),
                 N=1000,
@@ -444,7 +445,7 @@ class ISIMGenerator(_DefaultGenerator):
                 b=Uniform(5.4, 6),
                 c=Uniform(103.253, 105),
                 r=Uniform(10, 20),
-                l=900,
+                L=900,
                 s=Uniform(10, 20),
                 angle=Uniform(0, 180),
                 N=1000,
@@ -801,7 +802,6 @@ class Voxelise(_AbstractTransform):
 class ApplyPSF(_AbstractAugment):
     def __init__(
         self,
-        psf_size=(21, 21, 21),
         cov=(0.1, 0.1, 0.1),
         cov_coef_sampling_strategy=None,
         anisotropy_sampling_strategy=None,
@@ -816,7 +816,6 @@ class ApplyPSF(_AbstractAugment):
         else:
             self.psf_path = None
             self.psf = None
-            self.psf_size = Parameter(psf_size)
             if (
                 cov_coef_sampling_strategy is not None
                 and anisotropy_sampling_strategy is not None
@@ -844,7 +843,13 @@ class ApplyPSF(_AbstractAugment):
     def get_psf(self, dtype):
         cov = torch.eye(3, dtype=dtype, device=self.device)
         cov[[0, 1, 2], [0, 1, 2]] = self.cov_coef.type(dtype).to(self.device) ** 2
-        return create_psf(self.psf_size, cov, device=self.device, dtype=dtype)
+        return torch.as_tensor(
+            DataGenerator.make_psf(
+                tuple((cov[[0, 1, 2], [0, 1, 2]] ** 0.5).cpu().numpy()), np.float64
+            ),
+            device=self.device,
+            dtype=dtype,
+        )
 
     def transform(self, data):
         img, mask, info = data
@@ -1098,7 +1103,7 @@ class CreatePointcloud(_AbstractAugment):
         self.b = Parameter(b)
         self.c = Parameter(c)
         self.r = Parameter(r)
-        self.l = Parameter(L)
+        self.L = Parameter(L)
         self.s = Parameter(s)
         self.angle = Parameter(angle)
         self.N = N
@@ -1113,7 +1118,7 @@ class CreatePointcloud(_AbstractAugment):
                 x, self.a.cpu().numpy(), self.b.cpu().numpy(), self.c.cpu().numpy()
             ),
             self.r.cpu().numpy(),
-            self.l.cpu().numpy(),
+            self.L.cpu().numpy(),
             self.s.cpu().numpy(),
             self.N,
             self.angle.cpu().numpy(),
