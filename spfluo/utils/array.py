@@ -1,32 +1,15 @@
 import functools
-from typing import TypeVar
+from typing import TypeAlias
 
-import spfluo
+from numpy.array_api._array_object import Array as ArrayAPIArray
+
 from spfluo._vendored.array_api_compat import (
     array_namespace,
     is_array_api_obj,
-    numpy,
     to_device,
 )
 
-arrays = [numpy.ndarray]
-libs = [numpy]
-
-if spfluo.has_cupy:
-    from spfluo._vendored.array_api_compat import cupy
-
-    arrays.append(cupy.ndarray)
-    libs.append(cupy)
-if spfluo.has_torch:
-    from spfluo._vendored.array_api_compat import torch
-
-    arrays.append(torch.Tensor)
-    libs.append(torch)
-
-if len(arrays) > 1:
-    Array = TypeVar("Array", *arrays)
-else:
-    Array = arrays[0]
+Array: TypeAlias = ArrayAPIArray
 
 
 def cpu_only_compatibility(cpu_func):
@@ -68,7 +51,6 @@ def cpu_only_compatibility(cpu_func):
 
 __all__ = [
     Array,
-    *libs,
     array_namespace,
     is_array_api_obj,
     to_device,
