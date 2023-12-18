@@ -34,7 +34,7 @@ setup(
     url='https://github.com/scipion-em/scipion-app',  # Optional
     author='Scipion team',  # Optional
     author_email='scipion@cnb.csic.es',  # Optional
-    keywords='scipion cryoem imageprocessing scipion-3.0',  # Optional
+    keywords='scipion imageprocessing scipion-3.0',  # Optional
     packages=find_packages(),
     install_requires=[requirements],
     package_data={  # Optional
