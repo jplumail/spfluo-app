@@ -97,7 +97,6 @@ def main(args):
         args.ranges[0],
         args.lambda_,
         args.symmetry,
-        degrees=True,
     )
 
     reconstruction, poses = reconstruction.cpu().numpy(), poses.cpu().numpy()
