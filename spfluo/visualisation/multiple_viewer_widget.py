@@ -21,6 +21,7 @@ from napari.components.viewer_model import ViewerModel
 from napari.layers import Image, Labels, Layer, Points, Vectors
 from napari.qt import QtViewer
 from napari.utils.action_manager import action_manager
+from napari.utils.events import Event
 from napari.utils.events.event import WarningEmitter
 from napari.utils.notifications import show_info
 from packaging.version import parse as parse_version
@@ -325,42 +326,44 @@ class MultipleViewerWidget(QSplitter):
         order[-3:] = order[-1], order[-2], order[-3]
         self.viewer_model2.dims.order = order
 
-    def _layer_added(self, event):
+    def _layer_added(self, event: Event):
         """add layer to additional viewers and connect all required events"""
-        self.viewer_model1.layers.insert(event.index, copy_layer(event.value, "model1"))
-        self.viewer_model2.layers.insert(event.index, copy_layer(event.value, "model2"))
-        for name in get_property_names(event.value):
-            getattr(event.value.events, name).connect(
+        layer_added: Layer = event.value
+        self.viewer_model1.layers.insert(event.index, copy_layer(layer_added, "model1"))
+        self.viewer_model2.layers.insert(event.index, copy_layer(layer_added, "model2"))
+        for name in get_property_names(layer_added):
+            print(name)
+            getattr(layer_added.events, name).connect(
                 own_partial(self._property_sync, name)
             )
 
-        if isinstance(event.value, Labels) or isinstance(event.value, Points):
-            event.value.events.set_data.connect(self._set_data_refresh)
-            self.viewer_model1.layers[event.value.name].events.set_data.connect(
+        if isinstance(layer_added, Labels) or isinstance(layer_added, Points):
+            layer_added.events.set_data.connect(self._set_data_refresh)
+            self.viewer_model1.layers[layer_added.name].events.set_data.connect(
                 self._set_data_refresh
             )
-            self.viewer_model2.layers[event.value.name].events.set_data.connect(
+            self.viewer_model2.layers[layer_added.name].events.set_data.connect(
                 self._set_data_refresh
             )
-        if isinstance(event.value, Points):
-            event.value.events.current_edge_color.connect(
+        if isinstance(layer_added, Points):
+            layer_added.events.current_edge_color.connect(
                 self._current_edge_color_refresh
             )
             self.viewer_model1.layers[
-                event.value.name
+                layer_added.name
             ].events.current_edge_color.connect(self._current_edge_color_refresh)
             self.viewer_model2.layers[
-                event.value.name
+                layer_added.name
             ].events.current_edge_color.connect(self._current_edge_color_refresh)
-        if event.value.name != ".cross":
-            self.viewer_model1.layers[event.value.name].events.data.connect(
+        if layer_added.name != ".cross":
+            self.viewer_model1.layers[layer_added.name].events.data.connect(
                 self._sync_data
             )
-            self.viewer_model2.layers[event.value.name].events.data.connect(
+            self.viewer_model2.layers[layer_added.name].events.data.connect(
                 self._sync_data
             )
 
-        event.value.events.name.connect(self._sync_name)
+        layer_added.events.name.connect(self._sync_name)
 
         self._order_update()
 
