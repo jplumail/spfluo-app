@@ -3,7 +3,7 @@ import json
 import os
 import shutil
 from functools import partial
-from typing import Tuple
+from typing import Any, Callable, Tuple
 
 import numpy as np
 import pandas as pd
@@ -47,6 +47,7 @@ def gd_importance_sampling_3d(
     file_names=None,
     folder_views_selected=None,
     gpu=None,
+    callback: Callable[[np.ndarray, int], Any] | None = None,
 ):
     unif_prop_axes, unif_prop_rot = unif_prop
     epoch_length = (
@@ -338,6 +339,11 @@ def gd_importance_sampling_3d(
 
             # Increase energy
             total_energy += np.sum(energies_batch)
+
+            if callback:
+                callback(
+                    volume_representation.get_image_from_fourier_representation(), itr
+                )
 
         ests_poses.append(estimated_poses_iter)
         pbar2.close()

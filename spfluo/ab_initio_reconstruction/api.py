@@ -1,3 +1,5 @@
+from typing import Any, Callable
+
 from spfluo.ab_initio_reconstruction.common_image_processing_methods.others import (
     normalize,
 )
@@ -14,12 +16,15 @@ from .volume_representation.pixel_representation import Fourier_pixel_representa
 
 
 class AbInitioReconstruction:
-    def __init__(self, **params):
+    def __init__(
+        self, callback: Callable[[np.ndarray, int], Any] | None = None, **params
+    ):
         self.params = params
         self._volume = None
         self._energies = None
         self._num_iter = None
         self._poses = None
+        self.callback = callback
 
     def fit(self, X, psf=None, output_dir=None, gpu=None):
         """Reconstruct a volume based on views of particles"""
@@ -82,6 +87,7 @@ class AbInitioReconstruction:
             file_names=None,
             folder_views_selected=None,
             gpu=gpu,
+            callback=self.callback,
         )
         self._volume = volume_representation.get_image_from_fourier_representation()
         self._energies = np.mean(energies_each_view, axis=0)
