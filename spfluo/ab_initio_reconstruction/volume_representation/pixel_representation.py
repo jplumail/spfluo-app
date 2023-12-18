@@ -60,16 +60,15 @@ class Fourier_pixel_representation:
         save(path, self.get_image_from_fourier_representation())
 
     def register_and_save(self, output_dir, output_name, ground_truth=None, gpu=None):
-        path = os.path.join(output_dir, output_name)
         im = self.get_image_from_fourier_representation()
 
         if ground_truth is not None:
             _, im = shift_registration_exhaustive_search(ground_truth, im)
             im = im.astype(ground_truth.dtype)
-
-        save(path, im)
-        if ground_truth is not None:
             _, im = registration_exhaustive_search(ground_truth, im)
+
+        path = os.path.join(output_dir, output_name)
+        save(path, im)
         return im
 
     def center(self):
