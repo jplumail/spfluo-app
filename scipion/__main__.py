@@ -243,14 +243,6 @@ def main():
     # Set default VIEWERS value for scipion if not defined:
     if not os.environ.get("VIEWERS", None):
         defaultViewers = []
-        defaultViewers.append('"Volume":["pwfluo.viewers.DataViewer"]')
-        defaultViewers.append('"VolumeMask":["pwfluo.viewers.DataViewer"]')
-        defaultViewers.append('"SetOfTiltSeries":["imod.viewers.ImodViewer"]')
-        defaultViewers.append('"SetOfLandmarkModels":["imod.viewers.ImodViewer"]')
-        defaultViewers.append('"SetOfTomograms":["imod.viewers.ImodViewer"]')
-        defaultViewers.append('"SetOfSubTomograms":["pwfluo.viewers.DataViewer"]')
-        defaultViewers.append('"SetOfVolumes":["pwfluo.viewers.DataViewer"]')
-        defaultViewers.append('"SetOfParticles":["pwfluo.viewers.DataViewer"]')
 
         os.environ["VIEWERS"] = '{%s}' % ','.join(defaultViewers)
 
