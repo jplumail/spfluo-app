@@ -1,3 +1,4 @@
+import logging
 import os
 import platform
 import tempfile
@@ -5,12 +6,19 @@ import threading
 from typing import List
 
 import pyworkflow.utils as pwutils
+import tifffile
 from pwfluo import objects as pwfluoobj
 from pyworkflow.gui.browser import FileBrowserWindow
 from pyworkflow.viewer import DESKTOP_TKINTER, View, Viewer
-import tifffile
 
 from singleparticle.constants import FIJI_HOME
+
+logger = logging.getLogger("imagej-viewer")
+
+handler = logging.StreamHandler()
+formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 
 class ImageJ:
@@ -45,7 +53,7 @@ class ImageJ:
             f"{'64' if platform.architecture()[0]=='64bit' else '32'}"
             f"{'' if platform.system()=='Linux' else '.exe'}"
         )
-    
+
     def runProgram(self, images: list[pwfluoobj.Image], cwd=None):
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_file = os.path.join(temp_dir, "temp.ome.tiff")
@@ -53,28 +61,37 @@ class ImageJ:
                 for i, im in enumerate(images):
                     vs_xy, vs_z = im.getVoxelSize() if im.getVoxelSize() else (1, 1)
                     metadata = {
-                        'axes': 'CZYX',
-                        'PositionT': i,
-                        'PhysicalSizeX': vs_xy,
-                        'PhysicalSizeXUnit': 'µm',
-                        'PhysicalSizeY': vs_xy,
-                        'PhysicalSizeYUnit': 'µm',
-                        'PhysicalSizeZ': vs_z,
-                        'PhysicalSizeZUnit': 'µm',
+                        "axes": "CZYX",
+                        "PositionT": i,
+                        "PhysicalSizeX": vs_xy,
+                        "PhysicalSizeXUnit": "µm",
+                        "PhysicalSizeY": vs_xy,
+                        "PhysicalSizeYUnit": "µm",
+                        "PhysicalSizeZ": vs_z,
+                        "PhysicalSizeZUnit": "µm",
                     }
+                    logger.debug(f"{im.getVoxelSize()=}, {type(im.getVoxelSize())=}")
+                    logger.debug(f"voxel size: {vs_xy}x{vs_xy}x{vs_z}")
                     data = im.getData()
                     if data is not None:
                         tif.write(data, metadata=metadata, contiguous=False)
                     else:
                         raise ValueError(f"Data is None for {im}.")
-            series_str = " ".join(["series_"+str(i+1) for i in range(len(images))])
-            script = ("run('Bio-Formats', "
-            f"'open={temp_file} autoscale color_mode=Default "
-            "concatenate_series rois_import=[ROI manager] view=Hyperstack "
-            f"stack_order=XYCZT {series_str}');")
-            pwutils.runJob(None, self.getProgram(), ["-eval", script],
-                           env=self.getEnviron(), cwd=cwd)
-
+            series_str = " ".join(["series_" + str(i + 1) for i in range(len(images))])
+            script = (
+                "run('Bio-Formats', "
+                f"'open={temp_file} autoscale color_mode=Default "
+                "concatenate_series rois_import=[ROI manager] view=Hyperstack "
+                f"stack_order=XYCZT {series_str}');"
+            )
+            logger.debug(script)
+            pwutils.runJob(
+                None,
+                self.getProgram(),
+                ["-eval", script],
+                env=self.getEnviron(),
+                cwd=cwd,
+            )
 
 
 class ImageJViewer(Viewer):
@@ -97,9 +114,7 @@ class ImageJViewer(Viewer):
         if isinstance(obj, pwfluoobj.Image):
             self._views.append(ImageJView(obj, parent=self.parent))
         elif isinstance(obj, pwfluoobj.SetOfImages):
-            self._views.append(
-                ImageJView([im for im in obj], parent=self.parent)
-            )
+            self._views.append(ImageJView([im for im in obj], parent=self.parent))
         return self._views
 
 
@@ -110,16 +125,17 @@ class ImageJViewer(Viewer):
 
 class ImageJView(View):
     def __init__(
-            self,
-            images: pwfluoobj.Image | list[pwfluoobj.Image],
-            cwd: str | None = None, parent=None):
+        self,
+        images: pwfluoobj.Image | list[pwfluoobj.Image],
+        cwd: str | None = None,
+        parent=None,
+    ):
         if isinstance(images, pwfluoobj.Image):
             self.images = [images]
         else:
             self.images = images
         self.cwd = cwd
         self.imagej = ImageJ(parent=parent)
-
 
     def show(self):
         self.thread = threading.Thread(
