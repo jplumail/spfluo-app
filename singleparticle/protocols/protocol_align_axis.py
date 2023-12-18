@@ -77,8 +77,9 @@ class ProtSingleParticleAlignAxis(Protocol, ProtFluoBase):
 
     def createOuputStep(self):
         # Rotated volume
-        rotated_particle = Particle()
-        rotated_particle.setFileName(self.rotated_particle_path)
+        rotated_particle = Particle.from_filename(
+            self.rotated_particle_path, voxel_size=self.particle.getVoxelSize()
+        )
         self._defineOutputs(**{outputs.aligned_volume.name: rotated_particle})
         self._defineRelation(RELATION_TRANSFORM, self.particle, rotated_particle)
 
@@ -98,10 +99,11 @@ class ProtSingleParticleAlignAxis(Protocol, ProtFluoBase):
             os.link(particle.getFileName(), rotated_particle_path)
 
             # Creating the particle
-            rotated_particle = Particle(data=rotated_particle_path)
+            rotated_particle = Particle.from_filename(
+                rotated_particle_path, voxel_size=particle.getVoxelSize()
+            )
             rotated_particle.setTransform(rotated_transform)
             rotated_particle.setImageName(particle.getImageName())
-            rotated_particle.setVoxelSize(particle.getVoxelSize())
             rotated_particle.setImgId(os.path.basename(rotated_particle_path))
 
             output_particles.append(rotated_particle)

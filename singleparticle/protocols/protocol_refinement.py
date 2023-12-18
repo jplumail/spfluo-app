@@ -213,6 +213,8 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
 
     def createOutputStep(self):
         # Output 1 : reconstruction Volume
-        reconstruction = AverageParticle()
-        reconstruction.setFileName(self.final_reconstruction)
+        vs = min(self.inputParticles.get().getVoxelSize())
+        reconstruction = AverageParticle.from_filename(
+            self.final_reconstruction, num_channels=1, voxel_size=(vs, vs)
+        )
         self._defineOutputs(**{outputs.reconstructedVolume.name: reconstruction})

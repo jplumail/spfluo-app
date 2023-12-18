@@ -2,7 +2,6 @@ import os
 
 import numpy as np
 from pwfluo.objects import (
-    Coordinate3D,
     FluoImage,
     Particle,
     SetOfCoordinates3D,
@@ -12,6 +11,26 @@ from pwfluo.protocols import ProtFluoBase
 from pyworkflow import BETA
 from pyworkflow.protocol import Form, Protocol, params
 from scipy.ndimage import affine_transform
+
+
+def split_ome_tiff(filename):
+    """
+    Splits an OME-TIFF filename into the base name and extension.
+
+    Args:
+    filename (str): The OME-TIFF filename.
+
+    Returns:
+    tuple: A tuple containing the base name and extension.
+    """
+    if filename.endswith(".ome.tiff") or filename.endswith(".ome.tif"):
+        base_name = filename.rsplit(".", 2)[0]
+        extension = "." + filename.rsplit(".", 2)[1] + "." + filename.rsplit(".", 2)[2]
+    else:
+        # Fallback to regular splitext for non-OME-TIFF files
+        base_name, extension = os.path.splitext(filename)
+
+    return base_name, extension
 
 
 class ProtSingleParticleExtractParticles(Protocol, ProtFluoBase):
@@ -49,20 +68,27 @@ class ProtSingleParticleExtractParticles(Protocol, ProtFluoBase):
         box_size = coords.getBoxSize()
         for im in fluoimages.iterItems():
             im: FluoImage
+            image_data = im.getData()
             for coord_im in coords.iterCoordinates(im):
-                extracted_particle = self.extract_particle(
-                    im, coord_im, box_size, subpixel=self.subpixel.get()
+                particle_data = self.extract_particle(
+                    image_data,
+                    coord_im.getMatrix(),
+                    box_size,
+                    voxel_size=im.getVoxelSize(),
+                    subpixel=self.subpixel.get(),
                 )
 
-                ext = os.path.splitext(im.getFileName())[1]
+                ext = split_ome_tiff(im.getFileName())[1]
                 coord_str = "-".join([f"{x:.2f}" for x in coord_im.getPosition()])
                 name = im.getImgId() + "_" + coord_str + ext
                 filepath = self._getExtraPath(name)
-                extracted_particle.setImgId(os.path.basename(filepath))
 
-                # save to disk
-                extracted_particle.save(filepath)
-                extracted_particle.setFileName(filepath)
+                extracted_particle = Particle.from_data(
+                    particle_data, filepath, voxel_size=im.getVoxelSize()
+                )
+                extracted_particle.setCoordinate3D(coord_im)
+                extracted_particle.setImageName(im.getFileName())
+                extracted_particle.setImgId(os.path.basename(filepath))
 
                 particles.append(extracted_particle)
 
@@ -72,28 +98,30 @@ class ProtSingleParticleExtractParticles(Protocol, ProtFluoBase):
 
     @staticmethod
     def extract_particle(
-        im: FluoImage, coord: Coordinate3D, box_size: float, subpixel: bool = False
-    ) -> Particle:
-        vs_xy, vs_z = im.getVoxelSize()
+        image_data: np.ndarray,
+        mat: np.ndarray,
+        box_size: float,
+        voxel_size=tuple[float, float],
+        subpixel: bool = False,
+    ) -> np.ndarray:
+        vs_xy, vs_z = voxel_size
 
         def world_to_data_coord(pos):
             return pos / np.asarray([vs_z, vs_xy, vs_xy])
 
-        mat = coord.getMatrix()
         mat[:3, 3] = world_to_data_coord(mat[:3, 3])  # World coordinates to data coords
         box_size_world = np.asarray([box_size, box_size, box_size], dtype=float)
         box_size_data = np.rint(world_to_data_coord(box_size_world)).astype(int)
         mat[:3, 3] -= box_size_data / 2
         mat[:3, :3] = np.eye(3)
-        image_data = im.getData()
-        C = im.getNumChannels()
-        particle_data = np.empty((1, C) + tuple(box_size_data), dtype=image_data.dtype)
+        C = image_data.shape[0]
+        particle_data = np.empty((C,) + tuple(box_size_data), dtype=image_data.dtype)
         if not subpixel:
             top_left_corner = np.rint(mat[:3, 3]).astype(int)
             bottom_right_corner = top_left_corner + box_size_data
             xmin, ymin, zmin = top_left_corner
             xmax, ymax, zmax = bottom_right_corner
-            original_shape = image_data.shape[2:]
+            original_shape = image_data.shape[1:]
             x_slice = slice(max(xmin, 0), min(xmax, original_shape[0]))
             y_slice = slice(max(ymin, 0), min(ymax, original_shape[1]))
             z_slice = slice(max(zmin, 0), min(zmax, original_shape[2]))
@@ -108,21 +136,15 @@ class ProtSingleParticleExtractParticles(Protocol, ProtFluoBase):
             )
 
         for c in range(C):
-            # T=0,C=c in AICS model
             if subpixel:
-                particle_data[0, c] = affine_transform(
-                    image_data[0, c], mat, output_shape=tuple(box_size_data)
+                particle_data[c] = affine_transform(
+                    image_data[c], mat, output_shape=tuple(box_size_data)
                 )
             else:
                 padded_array = np.zeros(tuple(box_size_data), dtype=image_data.dtype)
                 padded_array[x_overlap, y_overlap, z_overlap] = image_data[
-                    0, c, x_slice, y_slice, z_slice
+                    c, x_slice, y_slice, z_slice
                 ]
-                particle_data[0, c] = padded_array.copy()
+                particle_data[c] = padded_array.copy()
 
-        new_particle = Particle(data=particle_data)
-        new_particle.setCoordinate3D(coord)
-        new_particle.setImageName(im.getFileName())
-        new_particle.setVoxelSize(im.getVoxelSize())
-        # did not set origin, is it a problem?
-        return new_particle
+        return particle_data

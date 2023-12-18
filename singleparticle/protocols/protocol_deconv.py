@@ -2,7 +2,6 @@ import os
 from enum import Enum
 
 import numpy as np
-import tifffile
 from pwfluo.objects import FluoImage, PSFModel
 from pwfluo.protocols import ProtFluoBase
 from pyworkflow import BETA
@@ -172,43 +171,42 @@ class ProtSingleParticleDeconv(Protocol, ProtFluoBase):
 
     def prepareStep(self):
         os.makedirs(self.root_dir, exist_ok=True)
-        self.input_fluoimage: FluoImage = self.fluoimage.get()
+        input_fluoimage: FluoImage = self.fluoimage.get()
         self.input_psf: PSFModel | None = self.psf.get()
-        self.in_path = os.path.join(self.root_dir, "in.ome.tiff")
         self.out_path = os.path.join(self.root_dir, "out.ome.tiff")
         self.psf_path = None
 
         # Input image
-
-        a = self.input_fluoimage.getData().astype(np.float64)
+        a = input_fluoimage.getData().astype(np.float64)
         a = (a - a.min()) / (a.max() - a.min())
-        tifffile.imwrite(
-            self.in_path,
-            a,
-            metadata={"axes": self.input_fluoimage.img.dims.order},
-        )
         self.epsilon_default_value = float(a.max()) / 1000
+        self.input_float = FluoImage.from_data(
+            a,
+            os.path.join(self.root_dir, "in.ome.tiff"),
+            voxel_size=input_fluoimage.getVoxelSize(),
+        )
 
         # Input PSF
         if self.input_psf:
-            self.psf_path = os.path.join(self.root_dir, "psf.ome.tiff")
             a = self.input_psf.getData().astype(np.float64)
             a = (a - a.min()) / (a.max() - a.min())
-            tifffile.imwrite(
-                self.psf_path,
+            self.psf_float = PSFModel.from_data(
                 a,
-                metadata={"axes": self.input_psf.img.dims.order},
+                os.path.join(self.root_dir, "psf.ome.tiff"),
+                voxel_size=input_fluoimage.getVoxelSize(),
             )
 
     def deconvStep(self):
-        args = list(map(os.path.abspath, [self.in_path, self.out_path]))
+        args = list(
+            map(os.path.abspath, [self.input_float.getFileName(), self.out_path])
+        )
         if self.usePSF.get():
             args += ["-dxy", f"{self.input_psf.getVoxelSize()[0]*1000}"]
             args += ["-dz", f"{self.input_psf.getVoxelSize()[1]*1000}"]
-            args += ["-psf", f"{os.path.abspath(self.psf_path)}"]
+            args += ["-psf", f"{os.path.abspath(self.psf_float.getFileName())}"]
         else:
-            args += ["-dxy", f"{self.input_fluoimage.getVoxelSize()[0]*1000}"]
-            args += ["-dz", f"{self.input_fluoimage.getVoxelSize()[1]*1000}"]
+            args += ["-dxy", f"{self.input_float.getVoxelSize()[0]*1000}"]
+            args += ["-dz", f"{self.input_float.getVoxelSize()[1]*1000}"]
             args += ["-NA", f"{self.NA.get()}"]
             args += ["-lambda", f"{self.lbda.get()}"]
             args += ["-ni", f"{self.ni.get()}"]
@@ -235,9 +233,10 @@ class ProtSingleParticleDeconv(Protocol, ProtFluoBase):
         Plugin.runJob(self, Plugin.getMicroTipiProgram("deconv"), args=args)
 
     def createOutputStep(self):
-        deconv_im = FluoImage(data=self.out_path)
-        deconv_im.setVoxelSize(self.input_fluoimage.getVoxelSize())
-        deconv_im.setImgId(self.input_fluoimage.getImgId())
+        deconv_im = FluoImage.from_filename(
+            self.out_path, voxel_size=self.input_float.getVoxelSize()
+        )
+        deconv_im.setImgId(self.input_float.getImgId())
         deconv_im.cleanObjId()
         self._defineOutputs(**{self.OUTPUT_NAME: deconv_im})
 
@@ -443,20 +442,25 @@ class ProtSingleParticleBlindDeconv(Protocol, ProtFluoBase):
 
     def prepareStep(self):
         os.makedirs(self.root_dir, exist_ok=True)
-        self.input_fluoimage: FluoImage = self.fluoimage.get()
-        self.in_path = os.path.join(self.root_dir, "in.ome.tiff")
+        input_fluoimage: FluoImage = self.fluoimage.get()
         self.out_path = os.path.join(self.root_dir, "out.ome.tiff")
         self.out_psf_path = os.path.join(self.root_dir, "psf.ome.tiff")
-        a = self.input_fluoimage.getData().astype(np.float64)
+
+        a = input_fluoimage.getData().astype(np.float64)
         a = (a - a.min()) / (a.max() - a.min())
-        tifffile.imwrite(
-            self.in_path, a, metadata={"axes": self.input_fluoimage.img.dims.order}
+        self.input_float = FluoImage.from_data(
+            a,
+            os.path.join(self.root_dir, "in.ome.tiff"),
+            voxelSize=input_fluoimage.getVoxelSize(),
         )
         self.epsilon_default_value = float(a.max()) / 1000
 
     def deconvStep(self):
         args = list(
-            map(os.path.abspath, [self.in_path, self.out_path, self.out_psf_path])
+            map(
+                os.path.abspath,
+                [self.input_float.getFileName(), self.out_path, self.out_psf_path],
+            )
         )
         args += ["-dxy", f"{self.input_fluoimage.getVoxelSize()[0]*1000}"]
         args += ["-dz", f"{self.input_fluoimage.getVoxelSize()[1]*1000}"]
@@ -498,12 +502,14 @@ class ProtSingleParticleBlindDeconv(Protocol, ProtFluoBase):
         Plugin.runJob(self, Plugin.getMicroTipiProgram("blinddeconv"), args=args)
 
     def createOutputStep(self):
-        deconv_im = FluoImage(data=self.out_path)
-        deconv_im.setVoxelSize(self.input_fluoimage.getVoxelSize())
+        deconv_im = FluoImage.from_filename(
+            self.out_path, voxel_size=self.input_fluoimage.getVoxelSize()
+        )
         deconv_im.setImgId(self.input_fluoimage.getImgId())
         deconv_im.cleanObjId()
         self._defineOutputs(**{outputs.deconvolution.name: deconv_im})
 
-        psf = PSFModel(data=self.out_psf_path)
-        psf.setVoxelSize(self.input_fluoimage.getVoxelSize())
+        psf = PSFModel.from_filename(
+            self.out_psf_path, voxel_size=self.input_fluoimage.getVoxelSize()
+        )
         self._defineOutputs(**{outputs.psf.name: psf})

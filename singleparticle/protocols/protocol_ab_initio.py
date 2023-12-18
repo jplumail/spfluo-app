@@ -238,10 +238,13 @@ class ProtSingleParticleAbInitio(Protocol, ProtFluoBase):
         )
 
     def createOutputStep(self):
-        inputSetOfParticles = self.inputParticles.get()
+        inputSetOfParticles: SetOfParticles = self.inputParticles.get()
         # Output 1 : reconstruction Volume
-        reconstruction = AverageParticle()
-        reconstruction.setFileName(self.final_reconstruction)
+        vs = inputSetOfParticles.getVoxelSize()
+        vs_recon = (min(vs), min(vs))
+        reconstruction = AverageParticle.from_filename(
+            self.final_reconstruction, voxel_size=vs_recon, channel=1
+        )
         self._defineOutputs(**{outputs.reconstructedVolume.name: reconstruction})
 
         # Output 2 : SetOfParticles
