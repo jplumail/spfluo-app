@@ -254,7 +254,7 @@ class ProtSingleParticleBlindDeconv(Protocol, ProtFluoBase):
     _devStatus = BETA
     _possibleOutputs = outputs
 
-    WEIGHTINGS = ["variance=1", "computed var map"]
+    WEIGHTINGS = [("variance=1", "CONSTANT"), ("computed var map", "COMPUTED_VAR_MAP")]
 
     def _defineParams(self, form: Form):
         form.addSection(label="Data params")
@@ -319,7 +319,7 @@ class ProtSingleParticleBlindDeconv(Protocol, ProtFluoBase):
         group.addParam(
             "weighting",
             params.EnumParam,
-            choices=self.WEIGHTINGS,
+            choices=[k for k, v in self.WEIGHTINGS],
             label="Weighting method",
             display=params.EnumParam.DISPLAY_COMBO,
             default=1,
@@ -442,16 +442,16 @@ class ProtSingleParticleBlindDeconv(Protocol, ProtFluoBase):
 
     def prepareStep(self):
         os.makedirs(self.root_dir, exist_ok=True)
-        input_fluoimage: FluoImage = self.fluoimage.get()
+        self.input_fluoimage: FluoImage = self.fluoimage.get()
         self.out_path = os.path.join(self.root_dir, "out.ome.tiff")
         self.out_psf_path = os.path.join(self.root_dir, "psf.ome.tiff")
 
-        a = input_fluoimage.getData().astype(np.float64)
+        a = self.input_fluoimage.getData().astype(np.float64)
         a = (a - a.min()) / (a.max() - a.min())
         self.input_float = FluoImage.from_data(
             a,
             os.path.join(self.root_dir, "in.ome.tiff"),
-            voxelSize=input_fluoimage.getVoxelSize(),
+            voxelSize=self.input_fluoimage.getVoxelSize(),
         )
         self.epsilon_default_value = float(a.max()) / 1000
 
@@ -483,7 +483,7 @@ class ProtSingleParticleBlindDeconv(Protocol, ProtFluoBase):
         # Parameters
         args += [
             "-weighting",
-            f"{self.WEIGHTINGS[self.weighting.get()].upper().replace(' ','_')}",
+            f"{self.WEIGHTINGS[self.weighting.get()][1]}",
         ]
         if self.gamma.get():
             args += ["-gain", f"{self.gamma.get()}"]
