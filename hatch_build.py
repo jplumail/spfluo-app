@@ -11,6 +11,9 @@ class CustomBuildHook(BuildHookInterface):
             # Build JAR and adds it in wheel
             here = os.path.abspath(os.path.dirname(__file__))
             tipi_path = os.path.join(here, "singleparticle", "_vendored", "TiPi")
-            subprocess.check_call(["mvn", "package"], cwd=tipi_path)
+            subprocess.check_call(
+                ["mvn", "package", "--file", "pom.xml", "--settings", "settings.xml"],
+                cwd=tipi_path,
+            )
             jar_file = os.path.join(tipi_path, "target", "TiPi-for-spfluo-1.0.jar")
             assert os.path.exists(jar_file), f"JAR file {jar_file} not found"

@@ -1,0 +1,42 @@
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 https://maven.apache.org/xsd/settings-1.0.0.xsd">
+
+    <mirrors>
+        <mirror>
+            <id>ome-mirror1</id>
+            <mirrorOf>ome</mirrorOf>
+            <name>OME Artifactory Mirror</name>
+            <url>https://artifacts.glencoesoftware.com:443/artifactory/bioformats-compat/</url>
+        </mirror>
+    </mirrors>
+
+    <profiles>
+        <profile>
+            <id>default</id>
+            <repositories>
+                <repository>
+                    <id>central</id>
+                    <name>Central Repository</name>
+                    <url>https://repo.maven.apache.org/maven2</url>
+                </repository>
+                <repository>
+                    <id>ome</id>
+                    <name>OME Artifactory</name>
+                    <url>https://artifacts.openmicroscopy.org/artifactory/maven/</url>
+                </repository>
+                <repository>
+                    <id>unidata.releases</id>
+                    <url>https://artifacts.unidata.ucar.edu/content/repositories/unidata-releases</url>
+                    <snapshots>
+                        <enabled>false</enabled>
+                    </snapshots>
+                </repository>
+            </repositories>
+        </profile>
+    </profiles>
+
+    <activeProfiles>
+        <activeProfile>default</activeProfile>
+    </activeProfiles>
+
+</settings>
