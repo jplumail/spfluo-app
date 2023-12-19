@@ -46,6 +46,7 @@ exclude = [
 artifacts = [
   "/singleparticle/_vendored/TiPi/target/TiPi-for-spfluo-*.jar"
 ]
+packages = ["singleparticle"]
 
 [tool.hatch.build.targets.wheel.hooks.custom]
 
