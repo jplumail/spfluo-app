@@ -43,10 +43,11 @@ VERSION_1_1 = '1.1.0'
 VERSION_1_2 = '1.2.0'
 VERSION_2_0 = '2.0.0'
 VERSION_3_0 = '3.3.0'
+VERSION_3_0_WINDOWS = '3.3.0.2' # version windows compatible
 
 # For a new release, define a new constant and assign it to LAST_VERSION
 # The existing one has to be added to OLD_VERSIONS list.
-LAST_VERSION = VERSION_3_0
+LAST_VERSION = VERSION_3_0_WINDOWS
 OLD_VERSIONS = (VERSION_1, VERSION_1_1, VERSION_1_2, VERSION_2_0)
 
 # STATUS
