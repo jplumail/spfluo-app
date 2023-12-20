@@ -71,7 +71,7 @@ public class MainCommand {
             int c = reader.getSizeC();
             int z = reader.getSizeZ();
             reader.close();
-            throw new FormatException("File no good shape (Series:%d, T:%d, C:%d, Z:%d)".formatted(s, t, c, z));
+            throw new FormatException(String.format("File no good shape (Series:%d, T:%d, C:%d, Z:%d)", s, t, c, z));
         }
         reader.setSeries(0);
         int bitsPerPixel = reader.getBitsPerPixel();
