@@ -15,3 +15,4 @@ typings/
 
 # java
 singleparticle/_vendored/TiPi/target
+singleparticle/_vendored/TiPi/dependency-reduced-pom.xml
