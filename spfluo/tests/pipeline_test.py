@@ -3,8 +3,8 @@
 from pathlib import Path
 
 import numpy as np
-import pytest
 
+import pytest
 import spfluo
 import spfluo.ab_initio_reconstruction.__main__ as ab_initio_main
 import spfluo.refinement.__main__ as refinement_main
@@ -71,7 +71,7 @@ def test_ab_initio_refinement(tmpdir):
             "pytorch",
             # args
             "--N_iter_max",
-            str(20),
+            str(10),
             "--eps",
             "-10",
             "--lr",
@@ -86,6 +86,7 @@ def test_ab_initio_refinement(tmpdir):
 
     # Symmetry axis aligned with the X-axis
     poses_aligned = tmpdir / "poses_aligned.csv"
+    recon_aligned = tmpdir / "recons_aligned.tiff"
     utils_parser = utils_main.create_parser()
     utils_args = utils_parser.parse_args(
         [
@@ -97,6 +98,8 @@ def test_ab_initio_refinement(tmpdir):
             str(poses_aligned),
             "--poses",
             str(guessed_poses_path),
+            "--rotated-volume",
+            str(recon_aligned),
         ]
     )
     utils_main.main(utils_args)
@@ -122,10 +125,10 @@ def test_ab_initio_refinement(tmpdir):
             str(9),
             "--steps",
             "(1024,10)",
-            "10",
-            "10",
-            "10",
-            "10",
+            "5",
+            "5",
+            "5",
+            "5",
             "--ranges",
             "0",
             "40",

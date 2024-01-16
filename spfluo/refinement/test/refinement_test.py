@@ -4,9 +4,9 @@ from functools import partial
 from typing import Callable, Tuple
 
 import numpy as np
-import pytest
 import torch
 
+import pytest
 import spfluo
 from spfluo.refinement import (
     convolution_matching_poses_grid,
@@ -80,9 +80,9 @@ def test_parallel_reconstruction_L2():
     assert torch.isclose(recon, recon2).all()
 
 
-def test_symmetry_reconstruction_L2():
+def test_symmetry_reconstruction_L2(save_result: Callable[[str, np.ndarray], bool]):
     k = 9
-    N, D, H, W = 10, 32, 32, 32
+    N, D, H, W = 10, 33, 33, 33
     volumes = torch.randn((N, D, H, W))
     psf = torch.randn((D, H, W))
     poses = torch.randn((N, 6)).repeat(
@@ -91,6 +91,9 @@ def test_symmetry_reconstruction_L2():
     lambda_ = torch.tensor(1.0)
     recon_sym = reconstruction_L2(volumes, psf, poses, lambda_, symmetry=True)
     recon = reconstruction_L2(volumes, psf, poses[0], lambda_, symmetry=False)
+
+    save_result("reconstruction_sym", recon_sym.cpu().numpy())
+    save_result("reconstruction", recon.cpu().numpy())
 
     assert recon_sym.shape == (D, H, W)
     assert torch.isclose(recon_sym, recon, atol=1e-4).all()
