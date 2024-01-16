@@ -1,15 +1,35 @@
 import functools
-from typing import TypeAlias
+from typing import TYPE_CHECKING, TypeAlias
 
 from numpy.array_api._array_object import Array as ArrayAPIArray
 
+import spfluo
 from spfluo._vendored.array_api_compat import (
     array_namespace,
     is_array_api_obj,
+    numpy,
     to_device,
 )
 
+libs = [numpy]
+if spfluo.has_torch:
+    from spfluo._vendored.array_api_compat import torch
+
+    libs.append(torch)
+else:
+    torch = None
+
+if spfluo.has_cupy:
+    from spfluo._vendored.array_api_compat import cupy
+
+    libs.append(cupy)
+else:
+    cupy = None
+
 Array: TypeAlias = ArrayAPIArray
+
+if TYPE_CHECKING:
+    import numpy.array_api as array_api
 
 
 def cpu_only_compatibility(cpu_func):
@@ -49,9 +69,4 @@ def cpu_only_compatibility(cpu_func):
     return func
 
 
-__all__ = [
-    Array,
-    array_namespace,
-    is_array_api_obj,
-    to_device,
-]
+__all__ = [Array, array_namespace, is_array_api_obj, to_device, array_api, *libs]
