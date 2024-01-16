@@ -1,3 +1,4 @@
+import atexit
 import csv
 import os
 from typing import Tuple
@@ -15,6 +16,7 @@ def annotate(
     output_path: str,
     size: int = 10,
     spacing: Tuple[float, float, float] = (1, 1, 1),
+    save: bool = True,
 ):
     """
     Inputs:
@@ -60,7 +62,7 @@ def annotate(
     view = napari.Viewer()
     view, dock_widget, cross = add_orthoviewer_widget(view)
 
-    view.open(im_path, plugin="napari-aicsimageio", layer_type="image", scale=spacing)
+    view.open(im_path, layer_type="image", scale=spacing)
 
     def on_move_point(event: Event):
         layer: Points = event.source
@@ -121,29 +123,30 @@ def annotate(
     view.scale_bar.unit = "um"
 
     # Save annotations
-    f = open(output_path, "w")
+    if save:
+        f = open(output_path, "w")
 
-    def save_annotations():
-        # delete previous annotations
-        f.seek(0)
-        f.truncate()
+        def save_annotations():
+            # delete previous annotations
+            f.seek(0)
+            f.truncate()
 
-        # write new annotations
-        s = points_layer.current_size
-        f.write(",".join(["index", "axis-1", "axis-2", "axis-3", "size"]))
-        f.write("\n")
-        for i, pos in enumerate(points_layer.data):
-            f.write(str(i) + ",")
-            f.write(",".join(map(str, points_layer.data_to_world(pos))))
-            f.write("," + str(s * spacing[1]))
+            # write new annotations
+            s = points_layer.current_size
+            f.write(",".join(["index", "axis-1", "axis-2", "axis-3", "size"]))
             f.write("\n")
-        f.tell()
+            for i, pos in enumerate(points_layer.data):
+                f.write(str(i) + ",")
+                f.write(",".join(map(str, points_layer.data_to_world(pos))))
+                f.write("," + str(s * spacing[1]))
+                f.write("\n")
+            f.tell()
 
-    save_annotations()
-    points_layer.events.data.connect(save_annotations)
-    points_layer.events.current_size.connect(save_annotations)
+        save_annotations()
+        points_layer.events.data.connect(save_annotations)
+        points_layer.events.current_size.connect(save_annotations)
 
-    points_layer.mode = "add"
+        points_layer.mode = "add"
+        atexit.register(lambda: f.close())
+
     napari.run()
-
-    f.close()

@@ -20,7 +20,7 @@ authors = [
 ]
 description = "SPFluo package"
 readme = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.9"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
@@ -30,11 +30,16 @@ classifiers = [
 [project.optional-dependencies]
 gpu = [
   "pynvml",
+  # CuCIM deps
+  "scipy",
+  "scikit-image",
+  "cupy-wheel", # infer cuda install automatically
 
   # Conditional
-  "cucim; sys_platform == 'linux'", # not available on other systems
-  "cupy-wheel; sys_platform == 'linux'", # needed to use cucim
-  "torch; sys_platform == 'linux'", # GPU version of torch on PyPI by default on Linux
+  # CuCIM
+  "cucim==23.8.0; platform_system == 'Linux'", # fix version to be on par with windows systems
+  # torch
+  "torch; platform_system == 'Linux'", # GPU version of torch on PyPI by default on Linux
   # needs to install torch manually on Windows (see pytorch docs) 
 ]
 dev = [
@@ -60,7 +65,6 @@ refinement = [
 ] # User should install torch cpu version by hand on linux
 visualisation = [
   "napari[all]>=0.4.18",
-  "napari-aicsimageio", # need jplumail branch on github
 ]
 all = [
   "spfluo[manual-picking]",
