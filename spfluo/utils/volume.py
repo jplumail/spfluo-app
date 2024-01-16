@@ -1,5 +1,5 @@
 import itertools
-from typing import Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Tuple, Union
 
 import matplotlib.pyplot as plt
 import scipy.ndimage as ndii
@@ -15,6 +15,9 @@ import spfluo
 from spfluo.utils.array import Array, array_namespace, is_array_api_obj
 from spfluo.utils.array import numpy as np
 from spfluo.utils.transform import get_zoom_matrix
+
+if TYPE_CHECKING:
+    from spfluo.utils.array import array_api
 
 # Optional imports
 if spfluo.has_cupy:
@@ -502,7 +505,7 @@ def cartesian_prod(*arrays):
 
 
 def discretize_sphere_uniformly(
-    xp,
+    xp: "array_api",
     N: int,
     M: int,
     symmetry: int = 1,
