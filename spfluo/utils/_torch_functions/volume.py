@@ -122,6 +122,7 @@ def _affine_transform(input, rotMat, tvec, output_shape, mode, **tensor_kwargs):
             align_corners=False,
             padding_mode=mode,
         )
+        del grid_batch
     rotated_vol[:, :, : output_shape[0], : output_shape[1], : output_shape[2]]
     return rotated_vol
 
