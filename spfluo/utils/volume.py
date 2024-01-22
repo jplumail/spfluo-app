@@ -549,6 +549,22 @@ def discretize_sphere_uniformly(
     return (theta, phi, psi), (precision_axes, precision_rot)
 
 
+def center_of_mass(volume: Array):
+    xp = array_namespace(volume)
+    tensor_kwargs = dict(dtype=volume.dtype, device=xp.device(volume))
+    zz, yy, xx = xp.meshgrid(
+        xp.arange(volume.shape[-3], **tensor_kwargs),
+        xp.arange(volume.shape[-2], **tensor_kwargs),
+        xp.arange(volume.shape[-1], **tensor_kwargs),
+        indexing="ij",
+    )
+    return (
+        float(xp.sum(volume * zz) / xp.sum(volume)),
+        float(xp.sum(volume * yy) / xp.sum(volume)),
+        float(xp.sum(volume * xx) / xp.sum(volume)),
+    )
+
+
 def disp3D(*ims, fig=None, axis_off=False):
     if fig is None:
         fig = plt.figure()
