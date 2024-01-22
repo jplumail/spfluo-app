@@ -69,4 +69,7 @@ def cpu_only_compatibility(cpu_func):
     return func
 
 
-__all__ = [Array, array_namespace, is_array_api_obj, to_device, array_api, *libs]
+__all__ = [Array, array_namespace, is_array_api_obj, to_device, *libs]
+
+if TYPE_CHECKING:
+    __all__ = [Array, array_namespace, is_array_api_obj, to_device, *libs, array_api]
