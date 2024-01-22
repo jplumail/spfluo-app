@@ -427,6 +427,7 @@ def refine(
     guessed_poses: torch.Tensor,
     steps: List[Union[Tuple[int, int], int]],
     ranges: List[float],
+    initial_volume: Optional[torch.Tensor] = None,
     lambda_: float = 100.0,
     symmetry: int = 1,
     convention: str = "XZX",
@@ -445,26 +446,32 @@ def refine(
     refinement_logger.debug("Calling function refine")
     tensor_kwargs = dict(dtype=patches.dtype, device=patches.device)
     lambda_ = torch.tensor(lambda_, **tensor_kwargs)
-    guessed_poses_sym = symmetrize_poses(
-        guessed_poses, symmetry=symmetry, convention=convention
-    )
-    guessed_poses_sym = torch.permute(guessed_poses_sym, (1, 0, 2)).contiguous()
-    initial_reconstruction = reconstruction_L2(
-        patches, psf, guessed_poses_sym, lambda_, symmetry=True
-    )
-    initial_reconstruction = interpolate_to_size(
-        initial_reconstruction, patches[0].shape
-    )
+
+    if initial_volume is not None:
+        initial_volume = interpolate_to_size(initial_volume, patches[0].shape)
+        current_reconstruction = initial_volume
+    else:
+        guessed_poses_sym = symmetrize_poses(
+            guessed_poses, symmetry=symmetry, convention=convention
+        )
+        guessed_poses_sym = torch.permute(guessed_poses_sym, (1, 0, 2)).contiguous()
+        initial_reconstruction = reconstruction_L2(
+            patches, psf, guessed_poses_sym, lambda_, symmetry=True
+        )
+        initial_reconstruction = interpolate_to_size(
+            initial_reconstruction, patches[0].shape
+        )
+
+        current_reconstruction = initial_reconstruction
 
     if refinement_logger.isEnabledFor(logging.DEBUG):
-        im = initial_reconstruction.cpu().numpy()
+        im = current_reconstruction.cpu().numpy()
         p = debug.save_image(
             im, debug.DEBUG_DIR_REFINEMENT, refine, "initial-reconstruction"
         )
         refinement_logger.debug("Saving current reconstruction at " + str(p))
         all_recons = [im]
 
-    current_reconstruction = initial_reconstruction
     current_poses = guessed_poses
     for i in tqdm(range(len(steps)), desc="refine"):
         refinement_logger.debug(f"STEP {i+1}/{len(steps)}")

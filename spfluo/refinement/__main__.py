@@ -26,6 +26,7 @@ def create_parser():
     parser.add_argument("--particles_dir", type=str, required=True)
     parser.add_argument("--psf_path", type=str, required=True)
     parser.add_argument("--guessed_poses_path", type=str, required=True)
+    parser.add_argument("--initial_volume_path", type=str, required=False, default=None)
 
     # Output files
     parser.add_argument(
@@ -78,6 +79,10 @@ def main(args):
         [normalize(particles[i].astype(float)) for i in range(particles.shape[0])]
     )
     psf = normalize(read_image(args.psf_path).astype(float))
+    if args.initial_volume_path:
+        initial_volume = normalize(read_image(args.initial_volume_path).astype(float))
+    else:
+        initial_volume = None
     guessed_poses, names = read_poses(args.guessed_poses_path, alphabetic_order=True)
 
     # Transfer to GPU
@@ -88,6 +93,8 @@ def main(args):
         )
 
     particles, psf, guessed_poses = map(as_tensor, (particles, psf, guessed_poses))
+    if initial_volume is not None:
+        initial_volume = as_tensor(initial_volume)
 
     reconstruction, poses = refine(
         particles,
@@ -95,6 +102,7 @@ def main(args):
         guessed_poses,
         args.steps[0],
         args.ranges[0],
+        initial_volume,
         args.lambda_,
         args.symmetry,
     )
