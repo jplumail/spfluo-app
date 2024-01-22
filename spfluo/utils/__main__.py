@@ -56,7 +56,7 @@ def main(args: argparse.Namespace) -> None:
     image_paths = list(map(os.path.abspath, args.input))
     output_path = os.path.abspath(args.output) if args.output else None
     utils_logger.info("Function : " + args.function)
-    utils_logger.debug("Images :", image_paths)
+    utils_logger.debug("Images :" + str(image_paths))
     if args.function == "isotropic_resample":
         isotropic_resample(image_paths, output_path, spacing=args.spacing)
     if args.function == "resize":
