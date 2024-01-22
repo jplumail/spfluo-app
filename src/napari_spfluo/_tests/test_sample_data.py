@@ -1,7 +1,5 @@
-# from napari_spfluo import make_sample_data
-
-# add your tests here...
+from napari_spfluo import make_generated_anisotropic
 
 
-def test_something():
-    pass
+def test_aniso():
+    assert len(make_generated_anisotropic()) == 3
