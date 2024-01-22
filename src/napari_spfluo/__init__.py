@@ -19,5 +19,5 @@ __all__ = (
     "threshold_autogenerate_widget",
     "threshold_magic_widget",
     "AbInitioWidget",
-    "SymmetrizeWidget"
+    "SymmetrizeWidget",
 )

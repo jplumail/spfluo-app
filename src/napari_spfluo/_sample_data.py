@@ -19,6 +19,4 @@ def make_generated_anisotropic():
     # add_image_kwargs
     # https://napari.org/stable/api/napari.Viewer.html#napari.Viewer.add_image
     data = spfluo.data.generated_anisotropic()
-    return [
-        (data[k], {"name": k}) for k in ["volumes", "psf", "gt"]
-    ]
+    return [(data[k], {"name": k}) for k in ["volumes", "psf", "gt"]]
