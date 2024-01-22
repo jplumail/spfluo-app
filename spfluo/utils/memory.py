@@ -1,12 +1,15 @@
 from __future__ import annotations
 
 import itertools
+import logging
 import math
 from typing import Generator, Tuple
 
 import numpy as np
 import torch
 from torch import cuda
+
+from spfluo.utils.debug import arg_pretty_repr
 
 try:
     from pynvml.smi import nvidia_smi
@@ -24,6 +27,18 @@ except ModuleNotFoundError:
     psutil_installed = False
 
 NVSMI = None
+
+
+logger = logging.getLogger("spfluo.utils.memory")
+
+
+def format_memory_size(size_in_bytes):
+    # Define the suffixes for each magnitude
+    for unit in ["Bytes", "KB", "MB", "GB"]:
+        if size_in_bytes < 1024:
+            return f"{size_in_bytes:.2f} {unit}"
+        size_in_bytes /= 1024
+    return f"{size_in_bytes:.2f} TB"
 
 
 def nvidia_free_memory() -> int:
@@ -222,9 +237,16 @@ def maximum_batch(total_memory, func: str, *func_args):
 
 
 def split_batch_func(func, *func_args, total_memory=None):
+    logger.info(
+        f"split_batch_func for func {func} with args ("
+        f"{' '.join([arg_pretty_repr(arg) for arg in func_args])})."
+    )
     if total_memory is None:
         total_memory = free_memory_gpu() if func_args[0].is_cuda else free_memory_cpu()
+        logger.debug(f"Total free memory: {format_memory_size(total_memory)}")
     max_batch, shape = maximum_batch(total_memory, func, *func_args)
+    logger.debug(f"Maximum batch size: {max_batch}")
+    logger.debug(f"Total shape: {shape}")
     yield from split_batch(max_batch, shape, total_memory)
 
 
@@ -257,8 +279,12 @@ def split_batch(
         end = start + batch_size
         out = list(zip(start, end))
         if len(out) == 1:
+            logger.debug(
+                f"Minibatch summary: minibatch={out[0]}, {max_batch=}, {shape=}"
+            )
             yield out[0]
         else:
+            logger.debug(f"Minibatch summary: minibatch={out}, {max_batch=}, {shape=}")
             yield out
 
     if remain_shape.sum() > 0:
@@ -281,6 +307,9 @@ def split_batch(
                     None,
                     new_offset,
                 ):
+                    logger.debug(
+                        f"Minibatch summary: minibatch={o}, {max_batch=}, {shape=}"
+                    )
                     yield o
 
 

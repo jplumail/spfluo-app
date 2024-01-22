@@ -10,6 +10,17 @@ DEBUG_DIR = pathlib.Path("spfluo_debug")
 DEBUG_DIR_REFINEMENT = DEBUG_DIR / "refinement"
 
 
+def arg_pretty_repr(arg):
+    if hasattr(arg, "shape"):
+        return array_pretty_repr(arg)
+    else:
+        return repr(arg)
+
+
+def array_pretty_repr(arr):
+    return f"({type(arr)}, {arr.shape}, {arr.dtype})"
+
+
 def create_debug_directories():
     global DEBUG_DIR, DEBUG_DIR_REFINEMENT
     if logging.getLogger("spfluo").isEnabledFor(logging.DEBUG):
