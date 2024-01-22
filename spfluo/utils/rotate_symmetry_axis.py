@@ -33,7 +33,7 @@ def find_rotation_between_two_vectors(a, b):
 
 
 def find_centriole_symmetry_axis(centriole_im):
-    ma = np.max(centriole_im) / 2
+    ma = np.max(centriole_im)
     centriol_pc = convert_im_to_point_cloud(centriole_im, ma / 3)
     pca = PCA(n_components=3)
     pca.fit(centriol_pc)
