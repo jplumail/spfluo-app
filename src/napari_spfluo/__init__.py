@@ -10,6 +10,7 @@ from ._widget import (
     threshold_magic_widget,
 )
 from .ab_initio_widget import AbInitioWidget
+from .symmetrize_widget import SymmetrizeWidget
 
 __all__ = (
     "make_generated_anisotropic",
@@ -17,5 +18,6 @@ __all__ = (
     "ImageThreshold",
     "threshold_autogenerate_widget",
     "threshold_magic_widget",
-    "AbInitioWidget"
+    "AbInitioWidget",
+    "SymmetrizeWidget"
 )

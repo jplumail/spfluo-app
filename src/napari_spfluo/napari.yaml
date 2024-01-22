@@ -9,31 +9,18 @@ contributions:
     - id: napari-spfluo.make_generated_anisotropic
       python_name: napari_spfluo._sample_data:make_generated_anisotropic
       title: Load sample data from single particle
-    - id: napari-spfluo.make_container_widget
-      python_name: napari_spfluo:ImageThreshold
-      title: Make threshold Container widget
-    - id: napari-spfluo.make_magic_widget
-      python_name: napari_spfluo:threshold_magic_widget
-      title: Make threshold magic widget
-    - id: napari-spfluo.make_function_widget
-      python_name: napari_spfluo:threshold_autogenerate_widget
-      title: Make threshold function widget
     - id: napari-spfluo.make_ab_initio_widget
       python_name: napari_spfluo:AbInitioWidget
       title: Make ab initio Container widget
+    - id: napari-spfluo.make_symmetrize_widget
+      python_name: napari_spfluo:SymmetrizeWidget
+      title: Make symmetrize widget
   sample_data:
     - command: napari-spfluo.make_generated_anisotropic
       display_name: generate anisotropic data
       key: anisotropic
   widgets:
-    - command: napari-spfluo.make_container_widget
-      display_name: Container Threshold
-    - command: napari-spfluo.make_magic_widget
-      display_name: Magic Threshold
-    - command: napari-spfluo.make_function_widget
-      autogenerate: true
-      display_name: Autogenerate Threshold
-    - command: napari-spfluo.make_qwidget
-      display_name: Example QWidget
     - command: napari-spfluo.make_ab_initio_widget
-      display_name: Container Ab initio reconstruction
+      display_name: Ab initio reconstruction
+    - command: napari-spfluo.make_symmetrize_widget
+      display_name: Symmetrize
