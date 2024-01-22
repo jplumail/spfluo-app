@@ -41,7 +41,6 @@ class SymmetrizeWidget(Container):
             np.asarray(self._center_layer.data[0])
             - np.asarray(self._particle_layer_combo.value.data.shape[1:]) / 2
         )
-        print(center)
         res = symmetrize(
             torch.as_tensor(
                 img_as_float(self._particle_layer_combo.value.data)
