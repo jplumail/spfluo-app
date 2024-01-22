@@ -48,6 +48,7 @@ def gd_importance_sampling_3d(
     folder_views_selected=None,
     gpu=None,
     callback: Callable[[np.ndarray, int], Any] | None = None,
+    particles_names: list[str] = None,
 ):
     unif_prop_axes, unif_prop_rot = unif_prop
     epoch_length = (
@@ -60,6 +61,9 @@ def gd_importance_sampling_3d(
     if folder_views_selected is None:
         folder_views_selected = f"{output_dir}/views_selected"
         make_dir(folder_views_selected)
+
+    if particles_names is None:
+        particles_names = [i for i in range(len(views))]
 
     make_dir(output_dir)
     # print('number of views', len(views))
@@ -269,7 +273,9 @@ def gd_importance_sampling_3d(
                 min_energy = energies[j, k]
                 energies_batch.append(min_energy)  # store it
                 energies_each_view[v].append(min_energy)
-                pbar2.set_description(f"particle {v} energy : {min_energy:.1f}")
+                pbar2.set_description(
+                    f"particle {particles_names[v]} energy : {min_energy:.1f}"
+                )
 
                 # The transformation associated with that minimum
                 best_idx_axes, best_idx_rot = indices_axes[j], indices_rot[k]

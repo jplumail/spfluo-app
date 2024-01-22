@@ -54,14 +54,20 @@ def create_parser():
 
 
 def main(args):
-    particles, _ = read_images_in_folder(args.particles_dir)
+    particles, names = read_images_in_folder(args.particles_dir)
     psf = read_image(args.psf_path)
     ab_initio_params = dict(vars(args))
     for k in ["output_dir", "gpu", "psf_path", "particles_dir"]:
         ab_initio_params.pop(k)
     reconstruction = AbInitioReconstruction(**ab_initio_params)
     psf = interpolate_to_size(psf, particles.shape[1:])
-    reconstruction.fit(particles, psf=psf, gpu=args.gpu, output_dir=args.output_dir)
+    reconstruction.fit(
+        particles,
+        psf=psf,
+        gpu=args.gpu,
+        output_dir=args.output_dir,
+        particles_names=names,
+    )
 
 
 if __name__ == "__main__":

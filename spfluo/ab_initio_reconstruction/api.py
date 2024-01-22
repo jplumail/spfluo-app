@@ -1,4 +1,4 @@
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 from spfluo.ab_initio_reconstruction.common_image_processing_methods.others import (
     normalize,
@@ -26,7 +26,14 @@ class AbInitioReconstruction:
         self._poses = None
         self.callback = callback
 
-    def fit(self, X, psf=None, output_dir=None, gpu=None):
+    def fit(
+        self,
+        X: np.ndarray,
+        psf: Optional[np.ndarray] = None,
+        output_dir: Optional[str] = None,
+        gpu: Optional[str] = None,
+        particles_names: Optional[list[str]] = None,
+    ):
         """Reconstruct a volume based on views of particles"""
         if psf is None:
             raise NotImplementedError  # TODO : default psf to gaussian
@@ -88,6 +95,7 @@ class AbInitioReconstruction:
             folder_views_selected=None,
             gpu=gpu,
             callback=self.callback,
+            particles_names=particles_names,
         )
         self._volume = volume_representation.get_image_from_fourier_representation()
         self._energies = np.mean(energies_each_view, axis=0)
