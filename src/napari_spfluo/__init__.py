@@ -3,12 +3,6 @@ try:
 except ImportError:
     __version__ = "unknown"
 from ._sample_data import make_generated_anisotropic
-from ._widget import (
-    ExampleQWidget,
-    ImageThreshold,
-    threshold_autogenerate_widget,
-    threshold_magic_widget,
-)
 from .ab_initio_widget import AbInitioWidget
 from .symmetrize_widget import SymmetrizeWidget
 
