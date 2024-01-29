@@ -2,14 +2,20 @@ import os
 from enum import Enum
 
 import pyworkflow.protocol.params as params
-from pwfluo.objects import AverageParticle, PSFModel, SetOfCoordinates3D, SetOfParticles
+from pwfluo.objects import (
+    AverageParticle,
+    Particle,
+    PSFModel,
+    SetOfCoordinates3D,
+    SetOfParticles,
+)
 from pwfluo.protocols import ProtFluoBase
 from pyworkflow import BETA
 from pyworkflow.protocol import Protocol
 
 from singleparticle import Plugin
 from singleparticle.constants import REFINEMENT_MODULE, UTILS_MODULE
-from singleparticle.convert import save_particles_and_poses, save_psf
+from singleparticle.convert import save_image, save_particles_and_poses
 
 
 class outputs(Enum):
@@ -44,6 +50,13 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
             label="PSF",
             important=True,
             help="Select the PSF.",
+        )
+        form.addParam(
+            "initialVolume",
+            params.PointerParam,
+            pointerClass="Particle",
+            label="Initial volume",
+            expertLevel=params.LEVEL_ADVANCED,
         )
         form.addParam(
             "channel",
@@ -119,6 +132,7 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
         self.root_dir = os.path.abspath(self._getExtraPath("root"))
         self.outputDir = os.path.abspath(self._getExtraPath("working_dir"))
         self.psfPath = os.path.join(self.root_dir, "psf.tif")
+        self.initial_volume_path = os.path.join(self.root_dir, "initial_volume.tif")
         self.final_reconstruction = os.path.abspath(
             self._getExtraPath("final_reconstruction.tif")
         )
@@ -137,7 +151,12 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
 
         # PSF Path
         psf: PSFModel = self.inputPSF.get()
-        save_psf(self.psfPath, psf)
+        save_image(self.psfPath, psf)
+
+        # Initial volume path
+        initial_volume: Particle = self.initialVolume.get()
+        if initial_volume:
+            save_image(self.initial_volume_path, initial_volume)
 
         # Make isotropic
         vs = particles.getVoxelSize()
@@ -145,6 +164,8 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
             raise RuntimeError("Input Particles don't have a voxel size.")
 
         input_paths = particles_paths + [self.psfPath]
+        if initial_volume:
+            input_paths += [self.initial_volume_path]
         args = ["-f", "isotropic_resample"]
         args += ["-i"] + input_paths
         folder_isotropic = os.path.abspath(self._getExtraPath("isotropic"))
@@ -177,13 +198,25 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
         os.link(
             os.path.join(folder_resized, os.path.basename(self.psfPath)), self.psfPath
         )
+        # link to initial volume
+        if initial_volume:
+            os.remove(self.initial_volume_path)
+            os.link(
+                os.path.join(
+                    folder_resized, os.path.basename(self.initial_volume_path)
+                ),
+                self.initial_volume_path,
+            )
         # Links to particles
         for p in particles_paths:
             os.link(os.path.join(folder_resized, os.path.basename(p)), p)
 
     def reconstructionStep(self):
         ranges = "0 " + str(self.ranges) if len(str(self.ranges)) > 0 else "0"
-        args = [
+        args = []
+        if self.initialVolume.get():
+            args += ["--initial_volume_path", self.initial_volume_path]
+        args += [
             "--particles_dir",
             os.path.join(self.root_dir, "particles"),
             "--psf_path",

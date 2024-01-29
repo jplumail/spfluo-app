@@ -9,8 +9,8 @@ from aicsimageio.aics_image import AICSImage
 from aicsimageio.transforms import reshape_data
 from pwfluo.objects import (
     Coordinate3D,
+    Image,
     Particle,
-    PSFModel,
     SetOfCoordinates3D,
     SetOfParticles,
     Transform,
@@ -145,7 +145,7 @@ def save_particles(
         im_name = im.strId()
         im_newPath = os.path.join(particles_dir, im_name + ".tif")
         particles_paths.append(im_newPath)
-        if channel is not None and im.getNumChannels() > 1:
+        if im.getNumChannels() > 1 and channel is not None:
             AICSImage(
                 reshape_data(im.getData(), im.img.dims.order, "TCZYX", C=channel)
             ).save(im_newPath)
@@ -227,12 +227,13 @@ def save_particles_and_poses(
     return particles_paths, max_dim
 
 
-def save_psf(new_psf_path: str, psf: PSFModel):
-    psf_path = os.path.abspath(psf.getFileName())
-    ext = os.path.splitext(psf_path)[1]
+def save_image(new_path: str, image: Image):
+    image_path = os.path.abspath(image.getFileName())
+    ext = os.path.splitext(image_path)[1]
     if ext != ".tif" and ext != ".tiff":
         raise NotImplementedError(
-            f"Found ext {ext} in particles: {psf_path}." "Only tiff file are supported."
+            f"Found ext {ext} in particles: {image_path}."
+            "Only tiff file are supported."
         )
     else:
-        os.link(psf_path, new_psf_path)
+        os.link(image_path, new_path)
