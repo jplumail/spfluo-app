@@ -43,8 +43,8 @@ from singleparticle import Plugin
 from singleparticle.constants import AB_INITIO_MODULE, UTILS_MODULE
 from singleparticle.convert import (
     getLastParticlesParams,
+    save_image,
     save_particles,
-    save_psf,
     updateSetOfParticles,
 )
 
@@ -174,7 +174,7 @@ class ProtSingleParticleAbInitio(Protocol, ProtFluoBase):
 
         # PSF Path
         psf: PSFModel = self.inputPSF.get()
-        save_psf(self.psfPath, psf)
+        save_image(self.psfPath, psf)
 
         # Make isotropic
         vs = particles.getVoxelSize()
