@@ -88,9 +88,11 @@ class SetOfParticlesView(View):
         self.proc.start()
 
     def lanchNapariForParticles(self, particles: pwfluoobj.SetOfParticles):
-        filenames = [p.getFileName() for p in particles]
+        args = [p.getFileName() for p in particles]
         program = Plugin.getSPFluoProgram([VISUALISATION_MODULE, "particles"])
-        runJob(None, program, filenames, env=Plugin.getEnviron())
+        vs_xy, vs_z = particles.getVoxelSize()
+        args += ["--spacing", str(vs_z), str(vs_xy), str(vs_xy)]
+        runJob(None, program, args, env=Plugin.getEnviron())
 
 
 ###########
