@@ -15,6 +15,7 @@ current dims point (`viewer.dims.point`).
 from copy import deepcopy
 
 import napari
+import napari_bbox
 import numpy as np
 from napari.components.layerlist import Extent
 from napari.components.viewer_model import ViewerModel
@@ -306,7 +307,11 @@ class MultipleViewerWidget(QSplitter):
         ]
 
     def _point_update(self, event):
+        if self._block:
+            return
         for model in [self.viewer, self.viewer_model1, self.viewer_model2]:
+            if len(model.layers) == 0:
+                continue
             if model.dims is event.source:
                 continue
             if len(self.viewer.layers) != len(model.layers):
@@ -332,12 +337,15 @@ class MultipleViewerWidget(QSplitter):
         self.viewer_model1.layers.insert(event.index, copy_layer(layer_added, "model1"))
         self.viewer_model2.layers.insert(event.index, copy_layer(layer_added, "model2"))
         for name in get_property_names(layer_added):
-            print(name)
             getattr(layer_added.events, name).connect(
                 own_partial(self._property_sync, name)
             )
 
-        if isinstance(layer_added, Labels) or isinstance(layer_added, Points):
+        if (
+            isinstance(layer_added, Labels)
+            or isinstance(layer_added, Points)
+            or isinstance(layer_added, napari_bbox.Boundingbox)
+        ):
             layer_added.events.set_data.connect(self._set_data_refresh)
             self.viewer_model1.layers[layer_added.name].events.set_data.connect(
                 self._set_data_refresh

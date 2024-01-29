@@ -1,12 +1,14 @@
 import atexit
 import csv
+import itertools
 import os
 from typing import Tuple
 
 import napari
 import numpy as np
-from napari.layers import Points
+from napari.layers import Shapes
 from napari.utils.events import Event
+from napari_bbox.boundingbox import Boundingbox, Mode
 
 from spfluo.visualisation.multiple_viewer_widget import add_orthoviewer_widget, init_qt
 
@@ -14,7 +16,6 @@ from spfluo.visualisation.multiple_viewer_widget import add_orthoviewer_widget, 
 def annotate(
     im_path: str,
     output_path: str,
-    size: int = 10,
     spacing: Tuple[float, float, float] = (1, 1, 1),
     save: bool = True,
 ):
@@ -29,15 +30,16 @@ def annotate(
         The CSV written in output_path is in real coordinates, in um.
         The last column is the diameter of the circle in um.
     """
+    # correct spacing, see https://github.com/napari/napari/issues/6627
+    spacing_normalized = np.asarray(spacing) / np.min(spacing)
+
     init_qt()
 
-    points_layer = Points(
+    bbox_layer = Boundingbox(
         ndim=3,
         edge_color=[0, 0, 255, 255],
         face_color=[0, 0, 0, 0],
-        out_of_slice_display=True,
-        size=size,
-        scale=spacing,
+        scale=spacing_normalized,
         name="Picking",
     )
 
@@ -51,21 +53,35 @@ def annotate(
             except StopIteration:  # file is empty
                 reader = []
             for p in reader:
-                data.append(
-                    points_layer.world_to_data((float(p[1]), float(p[2]), float(p[3])))
+                p1 = bbox_layer.world_to_data(
+                    np.asarray(
+                        (float(p[0 * 3 + 1]), float(p[0 * 3 + 2]), float(p[0 * 3 + 3]))
+                    )
+                    / np.min(spacing)
                 )
-                size = float(p[4])
-            data = np.array(data)
-        points_layer.data = data
-        points_layer.current_size = int(size / spacing[1])
+                p2 = bbox_layer.world_to_data(
+                    np.asarray(
+                        (float(p[1 * 3 + 1]), float(p[1 * 3 + 2]), float(p[1 * 3 + 3]))
+                    )
+                    / np.min(spacing)
+                )
+                data.append(
+                    list(
+                        itertools.product(
+                            (p1[0], p2[0]), (p1[1], p2[1]), (p1[2], p2[2])
+                        )
+                    )
+                )
+            data = np.asarray(data)
+        bbox_layer.data = data
 
     view = napari.Viewer()
     view, dock_widget, cross = add_orthoviewer_widget(view)
 
-    view.open(im_path, layer_type="image", scale=spacing)
+    view.open(im_path, layer_type="image", scale=spacing_normalized)
 
     def on_move_point(event: Event):
-        layer: Points = event.source
+        layer: Shapes = event.source
         viewers = [
             dock_widget.viewer,
             dock_widget.viewer_model1,
@@ -74,10 +90,10 @@ def annotate(
         if len(layer.selected_data) > 0:
             idx_point = list(layer.selected_data)[0]
             try:
-                pos_point = tuple(layer.data[idx_point])
+                bbox = tuple(layer.data[idx_point])
             except IndexError:
                 return
-
+            bbox_center = np.array(bbox).mean(axis=0)
             # update viewers
             viewers_not_under_mouse = [
                 viewer for viewer in viewers if not viewer.mouse_over_canvas
@@ -88,7 +104,7 @@ def annotate(
                 return
             for viewer in viewers_not_under_mouse:
                 pos_reordered = tuple(
-                    np.array(points_layer.data_to_world(pos_point))[
+                    np.array(bbox_layer.data_to_world(bbox_center))[
                         list(viewer.dims.order)
                     ]
                 )
@@ -99,26 +115,17 @@ def annotate(
                     [
                         max(min_, min(p, max_)) / step
                         for p, (min_, max_, step) in zip(
-                            points_layer.data_to_world(pos_point),
+                            bbox_layer.data_to_world(bbox_center),
                             dock_widget.viewer.dims.range,
                         )
                     ]
                 ).astype(int)
             )
 
-    points_layer.events.set_data.connect(on_move_point)
+    # ne fonctionne pas avec des bbox
+    # bbox_layer.events.set_data.connect(on_move_point)
 
-    def on_size_change(event):
-        layer = event.source
-        layer.size = layer.current_size
-
-    points_layer.events.current_size.connect(on_size_change)
-
-    view.add_layer(points_layer)
-    qt_controls_container = view.window.qt_viewer.controls
-    qt_controls_container.widgets[points_layer].layout().itemAt(3).widget().setText(
-        "particle diameter (px)"
-    )
+    view.add_layer(bbox_layer)
     view.scale_bar.visible = True
     view.scale_bar.unit = "um"
 
@@ -132,21 +139,48 @@ def annotate(
             f.truncate()
 
             # write new annotations
-            s = points_layer.current_size
-            f.write(",".join(["index", "axis-1", "axis-2", "axis-3", "size"]))
+            f.write(
+                ",".join(
+                    [
+                        "index",
+                        "axis-1",
+                        "axis-2",
+                        "axis-3",
+                        "axis-1",
+                        "axis-2",
+                        "axis-3",
+                    ]
+                )
+            )
             f.write("\n")
-            for i, pos in enumerate(points_layer.data):
+            for i, bbox in enumerate(bbox_layer.data):
                 f.write(str(i) + ",")
-                f.write(",".join(map(str, points_layer.data_to_world(pos))))
-                f.write("," + str(s * spacing[1]))
+                f.write(
+                    ",".join(
+                        map(
+                            str,
+                            np.asarray(bbox_layer.data_to_world(np.min(bbox, axis=0)))
+                            * np.min(spacing),
+                        )
+                    )
+                )
+                f.write(",")
+                f.write(
+                    ",".join(
+                        map(
+                            str,
+                            np.asarray(bbox_layer.data_to_world(np.max(bbox, axis=0)))
+                            * np.min(spacing),
+                        )
+                    )
+                )
                 f.write("\n")
             f.tell()
 
         save_annotations()
-        points_layer.events.data.connect(save_annotations)
-        points_layer.events.current_size.connect(save_annotations)
+        bbox_layer.events.data.connect(save_annotations)
 
-        points_layer.mode = "add"
+        bbox_layer.mode = Mode.ADD_BOUNDING_BOX
         atexit.register(lambda: f.close())
 
     napari.run()
