@@ -12,7 +12,6 @@ dependencies = [
   "pandas",
   "tqdm",
   "matplotlib",
-  "pooch",
 ]
 dynamic = ["version"]
 authors = [
