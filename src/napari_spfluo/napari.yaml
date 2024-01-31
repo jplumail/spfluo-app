@@ -15,6 +15,9 @@ contributions:
     - id: napari-spfluo.make_symmetrize_widget
       python_name: napari_spfluo:SymmetrizeWidget
       title: Make symmetrize widget
+    - id: napari-spfluo.make_rotate_widget
+      python_name: napari_spfluo:RotateWidget
+      title: Make rotate widget
   sample_data:
     - command: napari-spfluo.make_generated_anisotropic
       display_name: generate anisotropic data
@@ -24,3 +27,5 @@ contributions:
       display_name: Ab initio reconstruction
     - command: napari-spfluo.make_symmetrize_widget
       display_name: Symmetrize
+    - command: napari-spfluo.make_rotate_widget
+      display_name: Rotate
