@@ -1,7 +1,13 @@
 import napari
 import numpy as np
 import torch
-from magicgui.widgets import ComboBox, Container, PushButton, create_widget
+from magicgui.widgets import (
+    ComboBox,
+    Container,
+    FloatSlider,
+    PushButton,
+    create_widget,
+)
 from skimage.util import img_as_float
 from spfluo.utils.symmetrize_particle import symmetrize
 
@@ -22,10 +28,19 @@ class SymmetrizeWidget(Container):
         self._psf_layer_combo: ComboBox = create_widget(
             label="PSF", annotation="napari.layers.Image"
         )
-        self._lambda_widget = create_widget(value=1e-2)
+        self._lambda_widget = FloatSlider(
+            value=1,
+            name="regularization (log10)",
+            min=-10,
+            max=10,
+            tracking=True,
+        )
 
         self._run_button = PushButton(text="Run")
         self._run_button.changed.connect(self._run_symmetrize)
+        self._lambda_widget.changed.connect(self._run_symmetrize)
+
+        self._particle_layer_combo.changed.connect(self._on_layer_changed)
 
         self.extend(
             [
@@ -36,23 +51,32 @@ class SymmetrizeWidget(Container):
             ]
         )
 
+    def _on_layer_changed(self, val):
+        self._center_layer.scale = val.scale[1:]
+
     def _run_symmetrize(self):
-        center = (
-            np.asarray(self._center_layer.data[0])
-            - np.asarray(self._particle_layer_combo.value.data.shape[1:]) / 2
-        )
-        res = symmetrize(
-            torch.as_tensor(
-                img_as_float(self._particle_layer_combo.value.data)
-            ),
-            (center[0], center[1]),
-            9,
-            torch.as_tensor(img_as_float(self._psf_layer_combo.value.data)),
-            torch.as_tensor(self._lambda_widget.value),
-        ).numpy()
-        if self.symmetric_particle is None:
-            self.symmetric_particle = self._viewer.add_image(
-                res, name="symmetric particle"
+        if len(self._center_layer.data) > 0:
+            center = self._center_layer.world_to_data(
+                np.asarray(self._center_layer.data[0])
+                - np.asarray(self._particle_layer_combo.value.data.shape[1:])
+                / 2
             )
-        else:
-            self.symmetric_particle.data = res
+            res = symmetrize(
+                torch.as_tensor(
+                    img_as_float(self._particle_layer_combo.value.data)
+                ),
+                (center[0], center[1]),
+                9,
+                torch.as_tensor(
+                    img_as_float(self._psf_layer_combo.value.data)
+                ),
+                torch.as_tensor(10**self._lambda_widget.value),
+            ).numpy()
+            if self.symmetric_particle is None:
+                self.symmetric_particle = self._viewer.add_image(
+                    res, name="symmetric particle"
+                )
+            else:
+                self.symmetric_particle.data = res
+
+            self.symmetric_particle.reset_contrast_limits()
