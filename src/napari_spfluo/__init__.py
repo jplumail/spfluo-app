@@ -5,6 +5,7 @@ except ImportError:
 from ._sample_data import make_generated_anisotropic
 from .ab_initio_widget import AbInitioWidget
 from .rotate_widget import RotateWidget
+from .separate_widget import SeparateWidget
 from .symmetrize_widget import SymmetrizeWidget
 
 __all__ = (
@@ -16,4 +17,5 @@ __all__ = (
     "AbInitioWidget",
     "SymmetrizeWidget",
     "RotateWidget",
+    "SeparateWidget",
 )

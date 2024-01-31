@@ -18,6 +18,9 @@ contributions:
     - id: napari-spfluo.make_rotate_widget
       python_name: napari_spfluo:RotateWidget
       title: Make rotate widget
+    - id: napari-spfluo.make_separate_widget
+      python_name: napari_spfluo:SeparateWidget
+      title: Make separate widget
   sample_data:
     - command: napari-spfluo.make_generated_anisotropic
       display_name: generate anisotropic data
@@ -29,3 +32,5 @@ contributions:
       display_name: Symmetrize
     - command: napari-spfluo.make_rotate_widget
       display_name: Rotate
+    - command: napari-spfluo.make_separate_widget
+      display_name: Separate
