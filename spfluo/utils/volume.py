@@ -7,6 +7,7 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from numpy.typing import DTypeLike, NDArray
 from scipy.ndimage import affine_transform as affine_transform_scipy
 from scipy.ndimage import fourier_shift as fourier_shift_scipy
+from scipy.signal.windows import tukey as tukey_scipy
 from skimage.registration import (
     phase_cross_correlation as phase_cross_correlation_skimage,
 )
@@ -17,7 +18,7 @@ from spfluo.utils.array import numpy as np
 from spfluo.utils.transform import get_zoom_matrix
 
 if TYPE_CHECKING:
-    from spfluo.utils.array import array_api
+    from spfluo.utils.array import array_api_module
 
 # Optional imports
 if spfluo.has_cupy:
@@ -206,6 +207,44 @@ def affine_transform_batched_multichannel_scipy(
         return
 
     return output
+
+
+def resample(
+    volume: Array,
+    sampling: tuple[float],
+    order: int = 1,
+    batch: bool = False,
+    multichannel: bool = False,
+):
+    xp = array_namespace(volume)
+    array_kwargs = dict(device=xp.device(volume), dtype=volume.dtype)
+    sampling = xp.asarray(sampling, device=xp.device(volume), dtype=float)
+    in_shape = xp.asarray(volume.shape[-3:], device=xp.device(volume), dtype=float)
+    out_shape = xp.round(in_shape * sampling)
+    D, H, W = int(out_shape[0]), int(out_shape[1]), int(out_shape[2])
+
+    # Compute transformation matrix
+    input_center, output_center = (in_shape - 1) / 2, (out_shape - 1) / 2
+    H_center, H_homo = xp.eye(4, **array_kwargs), xp.eye(4, **array_kwargs)
+    H_center[:3, 3] = -input_center  # 1. translation to (0,0,0)
+    H_homo[[0, 1, 2], [0, 1, 2]] = sampling  # 2. homothety
+    H_homo[:3, 3] = output_center  # 3. translation to center of image
+    #    3-2 <- 1
+    mat = H_homo @ H_center
+
+    inv_mat = xp.linalg.inv(mat)
+    if batch:
+        N = volume.shape[0]
+        inv_mat = xp.broadcast_to(inv_mat[None], (N, 4, 4))
+    return affine_transform(
+        volume,
+        inv_mat,
+        output_shape=(D, H, W),
+        batch=batch,
+        multichannel=multichannel,
+        order=order,
+        prefilter=False,
+    )
 
 
 def interpolate_to_size(
@@ -505,7 +544,7 @@ def cartesian_prod(*arrays):
 
 
 def discretize_sphere_uniformly(
-    xp: "array_api",
+    xp: "array_api_module",
     N: int,
     M: int,
     symmetry: int = 1,
@@ -839,3 +878,17 @@ def are_volumes_translated(vol1, vol2, atol=0.1, nb_spatial_dims=3):
         nb_spatial_dims=nb_spatial_dims,
     )
     return error.mean() <= atol
+
+
+def tukey(
+    xp: "array_api_module", shape: tuple[int], alpha: float = 0.5, sym: bool = True
+):
+    tukeys = [tukey_scipy(s, alpha=alpha, sym=sym) for s in shape]
+    tukeys_reshaped = [
+        xp.reshape(t, (1,) * i + (-1,) + (1,) * (len(shape) - i - 1))
+        for i, t in enumerate(tukeys)
+    ]
+    final_window = tukeys_reshaped[0]
+    for t in tukeys_reshaped[1:]:
+        final_window = final_window * t
+    return xp.asarray(final_window)
