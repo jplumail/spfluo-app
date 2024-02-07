@@ -31,7 +31,11 @@ class SeparateWidget(Container):
         self._threshold_widget = FloatSlider(
             value=0.5, name="threshold value", min=0, max=1, tracking=False
         )
+        self._alpha_widget = FloatSlider(
+            value=0.1, name="tukey alpha", min=0, max=1, tracking=False
+        )
         self._threshold_widget.changed.connect(self._separate)
+        self._alpha_widget.changed.connect(self._separate)
         self._particles_layer_combo.changed.connect(self._on_layer_changed)
         self._run_button = PushButton(text="Run")
         self._run_button.changed.connect(self._separate)
@@ -40,6 +44,7 @@ class SeparateWidget(Container):
             [
                 self._particles_layer_combo,
                 self._threshold_widget,
+                self._alpha_widget,
                 self._run_button,
             ]
         )
@@ -70,7 +75,10 @@ class SeparateWidget(Container):
 
             im = self._particles_layer_combo.value.data
             im1, im2 = separate_centrioles(
-                im, threshold_percentage=self._threshold_widget.value
+                im,
+                im.shape,
+                threshold_percentage=self._threshold_widget.value,
+                tukey_alpha=self._alpha_widget.value,
             )
 
             self.output1_particle_layer.data = im1
