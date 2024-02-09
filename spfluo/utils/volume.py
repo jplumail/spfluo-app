@@ -867,6 +867,19 @@ def are_volumes_aligned(vol1, vol2, atol=0.1, nb_spatial_dims=3):
     return n <= atol
 
 
+def assert_volumes_aligned(vol1, vol2, atol=0.1, nb_spatial_dims=3):
+    (dz, dy, dx), _, _ = phase_cross_correlation(
+        vol1,
+        vol2,
+        upsample_factor=10,
+        disambiguate=True,
+        normalization=None,
+        nb_spatial_dims=nb_spatial_dims,
+    )
+    n = (dz**2 + dy**2 + dx**2) ** 0.5
+    assert (n <= atol).all(), f"{n.max()} > {atol}"
+
+
 def are_volumes_translated(vol1, vol2, atol=0.1, nb_spatial_dims=3):
     """check if vol1 is a translation of vol2"""
     _, error, _ = phase_cross_correlation(
