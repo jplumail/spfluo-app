@@ -10,5 +10,7 @@ examples/
 *.tiff
 .hypothesis
 .venv
+*.log
+*.ipynb
 
 spfluo/_version.py
