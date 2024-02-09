@@ -15,7 +15,6 @@ from skimage.registration import (
 import spfluo
 from spfluo.utils.array import Array, array_namespace, is_array_api_obj
 from spfluo.utils.array import numpy as np
-from spfluo.utils.transform import get_zoom_matrix
 
 if TYPE_CHECKING:
     from spfluo.utils.array import array_api_module
@@ -178,7 +177,7 @@ def affine_transform_batched_multichannel_scipy(
         output = np.empty((N, C) + output_shape, dtype=output)
     else:
         return_none = True
-    if type(offset) is float or type(offset) is tuple:
+    if isinstance(offset, float) or isinstance(offset, tuple):
 
         def offset_gen(_):
             return offset
@@ -259,11 +258,11 @@ def interpolate_to_size(
     """
     xp = array_namespace(volume)
     volume = xp.asarray(volume)
-    d, h, w = volume.shape[-3:]
     D, H, W = output_size
-    mat = get_zoom_matrix(
-        (d, h, w), (D, H, W), xp, device=xp.device(volume), dtype=volume.dtype
-    )
+    input_center = (xp.asarray(volume.shape[-3:], device=xp.device(volume)) - 1) / 2
+    output_center = (xp.asarray(output_size, device=xp.device(volume)) - 1) / 2
+    mat = xp.eye(4, device=xp.device(volume))
+    mat[:3, 3] = output_center - input_center
     inv_mat = xp.linalg.inv(mat)
     if batch:
         N = volume.shape[0]
