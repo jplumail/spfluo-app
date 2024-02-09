@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import itertools
 import logging
 import math
@@ -236,24 +237,30 @@ def maximum_batch(total_memory, func: str, *func_args):
     return max_batch, shape
 
 
-def split_batch_func(func, *func_args, total_memory=None):
+def split_batch_func(func, *func_args, total_memory=None, max_batch=None):
+    func = inspect.stack()[1].function
     logger.info(
         f"split_batch_func for func {func} with args ("
         f"{' '.join([arg_pretty_repr(arg) for arg in func_args])})."
     )
     if total_memory is None:
-        total_memory = free_memory_gpu() if func_args[0].is_cuda else free_memory_cpu()
+        total_memory = (
+            free_memory_gpu()
+            if hasattr(func_args[0], "is_cuda") and func_args[0].is_cuda
+            else free_memory_cpu()
+        )
         logger.debug(f"Total free memory: {format_memory_size(total_memory)}")
-    max_batch, shape = maximum_batch(total_memory, func, *func_args)
+    max_batch_inferred, shape = maximum_batch(total_memory, func, *func_args)
+    if max_batch is None:
+        max_batch = max_batch_inferred
     logger.debug(f"Maximum batch size: {max_batch}")
     logger.debug(f"Total shape: {shape}")
-    yield from split_batch(max_batch, shape, total_memory)
+    yield from split_batch(max_batch, shape)
 
 
 def split_batch(
     max_batch: Tuple[int | None],
     shape: Tuple[int],
-    total_memory: int | None = None,
     offset: Tuple[int] = None,
 ) -> Generator[int | Tuple[int], None, None]:
     # max_batch = maximum_batch(memory, total_memory)
@@ -290,7 +297,7 @@ def split_batch(
     if remain_shape.sum() > 0:
         rectangle = times * batch_size
         dims = remain_shape.nonzero()[0]
-        if type(shape) is int:
+        if isinstance(shape, int):
             shape = np.array([shape])
         for i in range(1, len(dims) + 1):
             for combination in itertools.combinations(dims, i):
@@ -304,7 +311,6 @@ def split_batch(
                 for o in split_batch(
                     tuple(np.minimum(max_batch, new_shape)),
                     tuple(new_shape),
-                    None,
                     new_offset,
                 ):
                     logger.debug(
