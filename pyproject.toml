@@ -80,21 +80,3 @@ Repository = "https://github.com/jplumail/spfluo.git"
 
 [tool.setuptools_scm]
 write_to = "spfluo/_version.py"
-
-[tool.ruff]
-select = [
-    "E", "F", # default
-    "I", # isort
-]
-
-[tool.ruff.isort]
-known-first-party = ["spfluo"]
-
-[tool.ruff.per-file-ignores]
-"spfluo/picking/*" = ["E501"]
-"spfluo/segmentation/unet_3d.py" = ["E501"]
-"spfluo/segmentation/losses.py" = ["E501"]
-"spfluo/_vendored/*" = ["ALL"]
-
-[tool.black]
-exclude = "spfluo/_vendored/*"
