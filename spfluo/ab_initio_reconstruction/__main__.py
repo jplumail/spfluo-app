@@ -1,7 +1,5 @@
 import argparse
 
-import numpy as np
-
 from spfluo.ab_initio_reconstruction.api import AbInitioReconstruction
 from spfluo.ab_initio_reconstruction.manage_files.read_save_files import (
     read_image,
@@ -36,7 +34,7 @@ def create_parser():
     parser.add_argument("--epochs_of_suppression", type=int, default=None)
     parser.add_argument("--proportion_of_views_suppressed", type=float, default=None)
     parser.add_argument("--convention", type=str, default="XZX")
-    parser.add_argument("--dtype", type=np.dtype, default="float32")
+    parser.add_argument("--dtype", type=str, default="float32")
     parser.add_argument("--reg_coeff", type=float, default=0)
     parser.add_argument("--beta_sampling", type=float, default=0)
     parser.add_argument("--epoch_length", type=int, default=None)
@@ -46,6 +44,7 @@ def create_parser():
 
     # GPU acceleration
     parser.add_argument("--gpu", type=str, default=None)
+    parser.add_argument("--minibatch_size", type=int, default=None)
 
     # Ouput directory
     parser.add_argument("--output_dir", type=str)
@@ -57,7 +56,7 @@ def main(args):
     particles, names = read_images_in_folder(args.particles_dir)
     psf = read_image(args.psf_path)
     ab_initio_params = dict(vars(args))
-    for k in ["output_dir", "gpu", "psf_path", "particles_dir"]:
+    for k in ["output_dir", "gpu", "psf_path", "particles_dir", "minibatch_size"]:
         ab_initio_params.pop(k)
     reconstruction = AbInitioReconstruction(**ab_initio_params)
     psf = interpolate_to_size(psf, particles.shape[1:])
@@ -66,6 +65,7 @@ def main(args):
         psf=psf,
         gpu=args.gpu,
         output_dir=args.output_dir,
+        minibatch_size=args.minibatch_size,
         particles_names=names,
     )
 

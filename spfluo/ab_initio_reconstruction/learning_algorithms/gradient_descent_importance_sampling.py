@@ -3,7 +3,7 @@ import json
 import os
 import shutil
 from functools import partial
-from typing import Any, Callable, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Tuple
 
 import numpy as np
 import pandas as pd
@@ -18,6 +18,7 @@ from spfluo.ab_initio_reconstruction.volume_representation.pixel_representation 
     Fourier_pixel_representation,
 )
 from spfluo.utils.array import Array, array_namespace, numpy, to_device, torch
+from spfluo.utils.memory import split_batch_func
 from spfluo.utils.transform import get_transform_matrix
 from spfluo.utils.volume import fourier_shift, phase_cross_correlation
 
@@ -30,6 +31,9 @@ from ..manage_files.read_save_files import make_dir, save, write_array_csv
 from ..volume_representation.gaussian_mixture_representation.GMM_grid_evaluation import (  # noqa: E501
     one_d_gaussian,
 )
+
+if TYPE_CHECKING:
+    from spfluo.utils.array import array_api_module
 
 
 def gd_importance_sampling_3d(
@@ -46,7 +50,9 @@ def gd_importance_sampling_3d(
     ground_truth=None,
     file_names=None,
     folder_views_selected=None,
-    gpu=None,
+    xp: "array_api_module" = np,
+    device="cuda",
+    minibatch_size=None,
     callback: Callable[[np.ndarray, int], Any] | None = None,
     particles_names: list[str] = None,
 ):
@@ -136,6 +142,7 @@ def gd_importance_sampling_3d(
             gradients_batch = []
             energies_batch = []
             for v in batch:
+                view = views[v]
                 # Pick a subset of the discretization of SO(3) based on
                 # importance distributions
                 indices_axes = np.random.choice(
@@ -152,7 +159,7 @@ def gd_importance_sampling_3d(
                     ),
                     axis=-1,
                 )  # the euler angles, shape N_axes x N_rot x 3
-                image_shape = views[0].shape
+                image_shape = view.shape
                 # turn the euler angles into transform matrices, shape N_axes*N_rot x 3
                 transforms = get_transform_matrix(
                     shape=image_shape,
@@ -164,59 +171,92 @@ def gd_importance_sampling_3d(
                 # transforms represents transformation from reference volume
                 # to the views
 
+                def to_numpy(x):
+                    return np.asarray(to_device(x, "cpu"))
+
                 # inverse_transforms represents transformation from the views
                 # to the reference volume
                 inverse_transforms = np.linalg.inv(transforms)
-
-                view = views[v]
-                try:
-                    if gpu == "pytorch" or gpu is None:
-                        import torch
-
-                        inverse_transforms, view = map(
-                            lambda x: torch.as_tensor(
-                                x.astype(params_learning_alg.dtype),
-                                device="cuda" if gpu == "pytorch" else None,
-                            ),
-                            [inverse_transforms, view],
-                        )
-                    elif gpu == "cucim":
-                        import cupy as cp
-
-                        inverse_transforms, view = map(
-                            lambda x: cp.asarray(x.astype(params_learning_alg.dtype)),
-                            [inverse_transforms, view],
-                        )
-                except ImportError as e:
-                    raise ImportError(
-                        "Install appropriate libs to use the --gpu option"
-                    ) from e
-
-                # Compute shifts
-                # views are transformed back to the reference volume
-                # then phase cross correlation is computed to get the shifts
-                (
-                    shifts,
-                    psf_inverse_transformed_fft,
-                    view_inverse_transformed_fft,
-                ) = compute_shifts(
-                    volume_representation.volume_fourier,
-                    volume_representation.psf,
-                    inverse_transforms,
-                    view,
-                    interp_order=1,
+                shifts = np.empty((inverse_transforms.shape[0], 3))
+                energies = np.empty((inverse_transforms.shape[0],))
+                view_inverse_transformed_shifted_fft = np.empty(
+                    (inverse_transforms.shape[0],) + image_shape, dtype=np.complex64
+                )
+                psf_inverse_transformed_fft = np.empty(
+                    (inverse_transforms.shape[0],) + image_shape, dtype=np.complex64
                 )
 
-                # Shift the view
-                view_inverse_transformed_shifted_fft = fourier_shift(
-                    view_inverse_transformed_fft, shifts
+                view = xp.asarray(
+                    view, device=device, dtype=getattr(xp, params_learning_alg.dtype)
+                )
+                for start, end in split_batch_func(
+                    "", image_shape, N_axes * N_rot, max_batch=minibatch_size
+                ):
+                    inverse_transforms_minibatch = xp.asarray(
+                        inverse_transforms[start:end],
+                        device=device,
+                        dtype=getattr(xp, params_learning_alg.dtype),
+                    )
+
+                    # Compute shifts
+                    # views are transformed back to the reference volume
+                    # then phase cross correlation is computed to get the shifts
+                    (
+                        shifts_minibatch,
+                        psf_inverse_transformed_fft_minibatch,
+                        view_inverse_transformed_fft_minibatch,
+                    ) = compute_shifts(
+                        volume_representation.volume_fourier,
+                        volume_representation.psf,
+                        inverse_transforms_minibatch,
+                        view,
+                        interp_order=1,
+                    )
+
+                    # Shift the view
+                    view_inverse_transformed_shifted_fft_minibatch = fourier_shift(
+                        view_inverse_transformed_fft_minibatch, shifts_minibatch
+                    )
+
+                    # Compute the energy associated with each transformation
+                    energies_minibatch = compute_energy(
+                        volume_representation.volume_fourier,
+                        psf_inverse_transformed_fft_minibatch,
+                        view_inverse_transformed_shifted_fft_minibatch,
+                    )
+                    del view_inverse_transformed_fft_minibatch
+
+                    # save results to cpu
+                    shifts[start:end] = to_numpy(shifts_minibatch)
+                    energies[start:end] = to_numpy(energies_minibatch)
+                    view_inverse_transformed_shifted_fft[start:end] = to_numpy(
+                        view_inverse_transformed_shifted_fft_minibatch
+                    )
+                    psf_inverse_transformed_fft[start:end] = to_numpy(
+                        psf_inverse_transformed_fft_minibatch
+                    )
+
+                    del shifts_minibatch, energies_minibatch
+
+                # Some reshaping
+                shifts = shifts.reshape(len(indices_axes), len(indices_rot), 3)
+                energies = energies.reshape(len(indices_axes), len(indices_rot))
+                view_inverse_transformed_shifted_fft = (
+                    view_inverse_transformed_shifted_fft.reshape(
+                        len(indices_axes), len(indices_rot), *image_shape
+                    )
+                )
+                psf_inverse_transformed_fft = psf_inverse_transformed_fft.reshape(
+                    len(indices_axes), len(indices_rot), *image_shape
                 )
 
-                # Compute the energy associated with each transformation
-                energies = compute_energy(
-                    volume_representation.volume_fourier,
-                    psf_inverse_transformed_fft,
-                    view_inverse_transformed_shifted_fft,
+                # Find the energy minimum
+                j, k = np.unravel_index(np.argmin(energies), energies.shape)
+                min_energy = energies[j, k]
+                energies_batch.append(min_energy)  # store it
+                energies_each_view[v].append(min_energy)
+                pbar2.set_description(
+                    f"particle {particles_names[v]} energy : {min_energy:.1f}"
                 )
 
                 # Recover the pose of the view
@@ -230,64 +270,28 @@ def gd_importance_sampling_3d(
                 # Equivalently, (T_{- R^-1 x t} o R)(volume) = view
 
                 # The associated pose with the view is therefore
-                rot = R.from_euler(
-                    params_learning_alg.convention,
-                    rot_vecs.reshape(-1, 3),
-                    degrees=True,
-                ).as_matrix()
-                shifts = to_device(shifts, "cpu")
-                shifts = np.asarray(shifts)
-                associated_translations = -(np.linalg.inv(rot) @ shifts[:, :, None])
-                associated_translations = associated_translations[:, :, 0].reshape(
-                    len(indices_axes), len(indices_rot), 3
-                )
-
-                # Go back to CPU
-                def to_numpy(x):
-                    return np.asarray(to_device(x, "cpu"))
-
-                energies = energies.reshape(len(indices_axes), len(indices_rot))
-                psf_inverse_transformed_fft = psf_inverse_transformed_fft.reshape(
-                    len(indices_axes), len(indices_rot), *image_shape
-                )
-                view_inverse_transformed_shifted_fft = (
-                    view_inverse_transformed_shifted_fft.reshape(
-                        len(indices_axes), len(indices_rot), *image_shape
+                rot = (
+                    R.from_euler(
+                        params_learning_alg.convention,
+                        rot_vecs.reshape(-1, 3),
+                        degrees=True,
                     )
+                    .as_matrix()
+                    .reshape(len(indices_axes), len(indices_rot), 3, 3)
                 )
-                (
-                    energies,
-                    psf_inverse_transformed_fft,
-                    view_inverse_transformed_shifted_fft,
-                ) = map(
-                    to_numpy,
-                    (
-                        energies,
-                        psf_inverse_transformed_fft,
-                        view_inverse_transformed_shifted_fft,
-                    ),
-                )
-
-                # Find the energy minimum
-                j, k = np.unravel_index(np.argmin(energies), energies.shape)
-                min_energy = energies[j, k]
-                energies_batch.append(min_energy)  # store it
-                energies_each_view[v].append(min_energy)
-                pbar2.set_description(
-                    f"particle {particles_names[v]} energy : {min_energy:.1f}"
-                )
+                translation = -(np.linalg.inv(rot[j, k]) @ shifts[j, k, :, None])
 
                 # The transformation associated with that minimum
                 best_idx_axes, best_idx_rot = indices_axes[j], indices_rot[k]
-                rot_vec = [
-                    thetas[best_idx_axes],
-                    phis[best_idx_axes],
-                    psis[best_idx_rot],
-                ]
+                rot_vec = np.asarray(
+                    [
+                        thetas[best_idx_axes],
+                        phis[best_idx_axes],
+                        psis[best_idx_rot],
+                    ]
+                )
                 estimated_poses_iter[v, :3] = rot_vec  # store the rotation
-                estimated_poses_iter[v, 3:] = associated_translations[
-                    j, k
-                ]  # store the translation
+                estimated_poses_iter[v, 3:] = translation[:, 0]  # store the translation
 
                 # Compute the gradient of the energy with respect to the volume
                 grad = compute_grad(
@@ -387,7 +391,6 @@ def gd_importance_sampling_3d(
             sub_dir,
             f"recons_epoch_{itr}.tif",
             ground_truth=ground_truth,
-            gpu=gpu,
         )
 
         # Update uniform distribution

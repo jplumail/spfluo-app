@@ -27,7 +27,7 @@ class ParametersMainAlg:
         epochs_of_suppression=None,
         proportion_of_views_suppressed=None,
         convention="XZX",
-        dtype=np.float32,
+        dtype="float32",
         reg_coeff=0,
         beta_sampling=0,
         epoch_length=None,

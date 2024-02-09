@@ -32,6 +32,7 @@ class AbInitioReconstruction:
         psf: Optional[np.ndarray] = None,
         output_dir: Optional[str] = None,
         gpu: Optional[str] = None,
+        minibatch_size: Optional[int] = None,
         particles_names: Optional[list[str]] = None,
     ):
         """Reconstruct a volume based on views of particles"""
@@ -39,6 +40,22 @@ class AbInitioReconstruction:
             raise NotImplementedError  # TODO : default psf to gaussian
         if output_dir is None:
             output_dir = "./ab-initio-output"
+
+        if gpu == "pytorch":
+            from spfluo.utils.array import torch
+
+            xp = torch
+            device = "cuda"
+        elif gpu == "cupy":
+            from spfluo.utils.array import cupy
+
+            xp = cupy
+            device = None
+        elif gpu is None:
+            xp = np
+            device = None
+        else:
+            raise ValueError(f"Found {gpu=}")
 
         params_learning_alg = ParametersMainAlg(**self.params)
         fourier_volume = Fourier_pixel_representation(
@@ -93,7 +110,9 @@ class AbInitioReconstruction:
             ground_truth=None,
             file_names=None,
             folder_views_selected=None,
-            gpu=gpu,
+            xp=xp,
+            device=device,
+            minibatch_size=minibatch_size,
             callback=self.callback,
             particles_names=particles_names,
         )

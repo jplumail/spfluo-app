@@ -59,7 +59,7 @@ class Fourier_pixel_representation:
         path = f"{output_dir}/{output_name}.tif"
         save(path, self.get_image_from_fourier_representation())
 
-    def register_and_save(self, output_dir, output_name, ground_truth=None, gpu=None):
+    def register_and_save(self, output_dir, output_name, ground_truth=None):
         im = self.get_image_from_fourier_representation()
 
         if ground_truth is not None:
