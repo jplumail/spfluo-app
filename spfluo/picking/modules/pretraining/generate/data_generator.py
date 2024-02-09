@@ -89,9 +89,10 @@ class DataGenerator:
             nb_max = min(nb_max, remaining_particles)
             nb_particles = R.randint(nb_min, high=nb_max + 1)
         margin = np.array(3 * (self.config.voxelisation.max_particle_dim,))
-        clip_min, clip_max = (margin - center) / radius, (
-            shape - margin - center
-        ) / radius
+        clip_min, clip_max = (
+            (margin - center) / radius,
+            (shape - margin - center) / radius,
+        )
         truncnorm_kwargs = {"loc": center, "scale": radius, "size": (nb_particles, 3)}
         centers = truncnorm.rvs(clip_min, clip_max, **truncnorm_kwargs)
         return centers.astype(np.uint16)

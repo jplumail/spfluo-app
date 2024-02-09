@@ -153,8 +153,9 @@ def predict_patches_tilt(
     if dim == 2:
         patches = patches.sum(axis=1)
     flatten_patches = patches.view(patches.size(0), -1)
-    (min_patch, _), (max_patch, _) = flatten_patches.min(dim=1), flatten_patches.max(
-        dim=1
+    (min_patch, _), (max_patch, _) = (
+        flatten_patches.min(dim=1),
+        flatten_patches.max(dim=1),
     )
     min_patch = min_patch.view(-1, 1, 1)
     max_patch = max_patch.view(-1, 1, 1)

@@ -4,9 +4,9 @@ from functools import partial
 from typing import Callable, Tuple
 
 import numpy as np
+import pytest
 import torch
 
-import pytest
 import spfluo
 from spfluo.refinement import (
     convolution_matching_poses_grid,
@@ -37,7 +37,7 @@ def generated_data_all_pytorch(generated_data_all):
 
 @pytest.fixture
 def poses_with_noise(
-    generated_data_all_pytorch: Tuple[torch.Tensor, ...]
+    generated_data_all_pytorch: Tuple[torch.Tensor, ...],
 ) -> torch.Tensor:
     _, poses, _, _ = generated_data_all_pytorch
     poses_noisy = poses.clone()

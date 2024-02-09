@@ -1,8 +1,8 @@
 from functools import partial
 
 import numpy as np
-
 import pytest
+
 from spfluo.data import generated_anisotropic
 from spfluo.utils.separate import separate_centrioles, separate_centrioles_coords
 from spfluo.utils.volume import are_volumes_translated, resample

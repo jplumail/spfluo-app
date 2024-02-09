@@ -3,8 +3,8 @@
 from pathlib import Path
 
 import numpy as np
-
 import pytest
+
 import spfluo
 import spfluo.ab_initio_reconstruction.__main__ as ab_initio_main
 import spfluo.refinement.__main__ as refinement_main

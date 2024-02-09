@@ -224,7 +224,8 @@ def convolution_matching_poses_grid(
         # Rotate the reference
         reference_minibatch = reference.repeat(end2 - start2, 1, 1, 1)
         reference_minibatch = affine_transform_wrapper(  # TODO: inefficient
-            reference_minibatch, potential_poses_minibatch  # should leverage pytorch
+            reference_minibatch,
+            potential_poses_minibatch,  # should leverage pytorch
         )  # multichannel grid_sample
         reference_minibatch = h * torch.fft.fftn(reference_minibatch, dim=(1, 2, 3))
 

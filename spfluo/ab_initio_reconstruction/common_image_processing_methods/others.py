@@ -49,8 +49,9 @@ def resize(in_array, desired_shape):
 
 
 def resize_to_given_size_of_pixels(volume, pixel_size_before, pixel_size_after):
-    pixel_size_before, pixel_size_after = np.array(pixel_size_before), np.array(
-        pixel_size_after
+    pixel_size_before, pixel_size_after = (
+        np.array(pixel_size_before),
+        np.array(pixel_size_after),
     )
     shape_before = volume.shape
     ratio_shape = pixel_size_before / pixel_size_after
