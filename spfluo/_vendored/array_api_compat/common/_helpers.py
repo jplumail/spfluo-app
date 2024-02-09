@@ -9,10 +9,11 @@ from __future__ import annotations
 
 import sys
 import math
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypeAlias
 
 if TYPE_CHECKING:
     import numpy.array_api
+    array_api_module: TypeAlias = numpy.array_api
 
 def _is_numpy_array(x):
     # Avoid importing NumPy if it isn't already
@@ -57,7 +58,7 @@ def _check_api_version(api_version):
     if api_version is not None and api_version != '2021.12':
         raise ValueError("Only the 2021.12 version of the array API specification is currently supported")
 
-def array_namespace(*xs, api_version=None, _use_compat=True) -> "numpy.array_api":
+def array_namespace(*xs, api_version=None, _use_compat=True) -> "array_api_module":
     """
     Get the array API compatible namespace for the arrays `xs`.
 
