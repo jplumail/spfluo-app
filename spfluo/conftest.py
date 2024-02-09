@@ -1,4 +1,5 @@
 # Make the generated data available to all spfluo subpackages
+import functools
 import os
 from pathlib import Path
 from typing import Tuple, Union
@@ -30,11 +31,16 @@ def image_directory(pytestconfig: pytest.Config):
 def save_result(image_directory: Union[Path, None], request: pytest.FixtureRequest):
     base_name = os.path.split(request.node.nodeid)[1]
 
-    def inner(name: str, arr: np.ndarray):
+    functools.wraps(tifffile.imwrite)
+
+    def inner(name: str, arr: np.ndarray, *args, **kwargs):
         saved = False
         if image_directory:
             tifffile.imwrite(
-                str(image_directory / (base_name + "-" + name + ".tiff")), arr
+                str(image_directory / (base_name + "-" + name + ".ome.tiff")),
+                arr,
+                *args,
+                **kwargs,
             )
             saved = True
         return saved
