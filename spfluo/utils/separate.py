@@ -10,7 +10,7 @@ def extract_particle(
     image_data: Array,
     pos: tuple[float, float, float],
     dim: tuple[float, float, float],
-    scale=tuple[float, float, float],
+    scale: tuple[float, float, float],
     subpixel: bool = False,
 ):
     xp = array_namespace(image_data)
@@ -112,12 +112,14 @@ def separate_centrioles_coords(
     kmeans.fit(points)
 
     # extract 2 patches around the centroids
+    image_float = xp.asarray(image, dtype=xp.float64)
     patch1 = extract_particle(
-        image, kmeans.cluster_centers_[0], output_size, scale, subpixel=False
+        image_float, kmeans.cluster_centers_[0], output_size, scale, subpixel=False
     )
     patch2 = extract_particle(
-        image, kmeans.cluster_centers_[1], output_size, scale, subpixel=False
+        image_float, kmeans.cluster_centers_[1], output_size, scale, subpixel=False
     )
+    print(patch1.shape)
 
     # Separate clusters
     svc = SVC(kernel="linear")
@@ -174,9 +176,7 @@ def separate_centrioles_coords(
         )  # world space
         center_patch_proj_patch_space = (
             center_patch_proj - patch_top_left_corner
-        ) / xp.asarray(
-            scale
-        )  # pixel space
+        ) / xp.asarray(scale)  # pixel space
         H3 = xp.eye(4)
         H3[[0, 1, 2], [0, 1, 2]] = 1 / xp.asarray(scale)
         H3[:3, 3] = center_patch_proj_patch_space - pos_tukey_plane
@@ -187,5 +187,10 @@ def separate_centrioles_coords(
 
     if not multichannel:
         patch1, patch2 = patch1[0], patch2[0]
+
+    patch1, patch2 = (
+        xp.asarray(patch1, dtype=image.dtype),
+        xp.asarray(patch2, dtype=image.dtype),
+    )
 
     return patch1, patch2
