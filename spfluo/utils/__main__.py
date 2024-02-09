@@ -41,6 +41,12 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--convention", type=str, help="scipy rotation convention", default="XZX"
     )
+    parser.add_argument(
+        "--threshold",
+        type=float,
+        help="threshold in percentage of the max",
+        default=0.5,
+    )
     parser.add_argument("--poses", type=str, help="path to poses", default=None)
     parser.add_argument(
         "--rotated-volume", type=str, help="path to the rotated volume", default=None
@@ -65,7 +71,12 @@ def main(args: argparse.Namespace) -> None:
         resample(image_paths, output_path, factor=args.factor)
     if args.function == "rotate_symmetry_axis":
         rotate_symmetry_axis_main(
-            args.input, args.convention, args.rotated_volume, args.poses, args.output
+            args.input,
+            args.convention,
+            args.threshold,
+            args.rotated_volume,
+            args.poses,
+            args.output,
         )
 
 

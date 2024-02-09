@@ -1,13 +1,59 @@
-from typing import Tuple
+from functools import partial
+from typing import TYPE_CHECKING, Tuple
 
 from scipy.spatial.transform import Rotation
 
-from .array import Array, array_namespace, cpu_only_compatibility
+from .array import Array, array_namespace, numpy_only_compatibility
+
+if TYPE_CHECKING:
+    pass
 
 
-@cpu_only_compatibility
+@numpy_only_compatibility
 def euler_to_matrix(convention: str, euler_angles: Array, degrees=False) -> Array:
+    """
+    Params:
+        convention: str
+        euler_angles: Array of shape (3,) or (N, 3)
+        degrees: bool
+    """
     return Rotation.from_euler(convention, euler_angles, degrees=degrees).as_matrix()
+
+
+@numpy_only_compatibility
+def matrix_to_euler(convention: str, matrix: Array, degrees: bool = False):
+    """
+    Params:
+        convention: str
+        euler_angles: Array of shape (3,) or (N, 3)
+        degrees: bool
+    """
+    return Rotation.from_matrix(matrix).as_euler(convention, degrees=degrees)
+
+
+def compose_poses(pose1: Array, pose2: Array, convention="XZX"):
+    """Returns a pose: pose = pose2 ○ pose1
+    Params:
+        pose1, pose2: Array of shape (3,) or (N, 3)
+        convention: str
+    """
+    xp = array_namespace(pose1, pose2)
+    to_matrix = partial(euler_to_matrix, convention, degrees=True)
+    to_euler = partial(matrix_to_euler, convention, degrees=True)
+    new_pose = xp.zeros_like(pose1) + xp.zeros_like(pose2)
+    new_pose[..., :3] = to_euler(to_matrix(pose2[..., :3]) @ to_matrix(pose1[..., :3]))
+    new_pose[..., 3:] = pose2[..., 3:] + to_matrix(pose2[..., :3]) @ pose1[..., 3:]
+    return new_pose
+
+
+def invert_pose(pose: Array, convention="XZX"):
+    xp = array_namespace(pose)
+    inv_mat = euler_to_matrix(convention, pose[..., :3], degrees=True).T
+    t = pose[..., 3:]
+    new_pose = xp.zeros_like(pose)
+    new_pose[..., :3] = matrix_to_euler(convention, inv_mat, degrees=True)
+    new_pose[..., 3:] = -inv_mat @ t
+    return new_pose
 
 
 def get_transform_matrix_around_center(
@@ -94,6 +140,17 @@ def get_transform_matrix(
     return xp.asarray(H_rot, dtype=dtype)
 
 
+def get_transform_matrix_from_pose(
+    shape: Tuple[int, int, int],
+    pose: Array,
+    *,
+    convention: str = "XZX",
+):
+    return get_transform_matrix(
+        shape, pose[..., :3], pose[..., 3:], convention=convention, degrees=True
+    )
+
+
 def symmetrize_angles(
     euler_angles: Array, symmetry: int, convention: str = "XZX", degrees: bool = False
 ) -> Array:
@@ -146,7 +203,7 @@ def symmetrize_poses(poses: Array, symmetry: int, convention: str = "XZX") -> Ar
 
 
 def distance_poses(
-    p1: Array, p2: Array, convention: str = "XZX"
+    p1: Array, p2: Array, convention: str = "XZX", symmetry: int = 1
 ) -> Tuple[Array, Array]:
     """Compute the rotation distance and the euclidean distance between p1 and p2.
     Parameters:
@@ -157,17 +214,32 @@ def distance_poses(
     """
     # Rotation distance
     xp = array_namespace(p1, p2)
-    rot1, rot2 = xp.asarray(p1[..., :3]), xp.asarray(p2[..., :3])
+    dtype, device = p1.dtype, xp.device(p1)
+    euler1, euler2 = xp.asarray(p1[..., :3]), xp.asarray(p2[..., :3])
     rot_mat1 = xp.reshape(
-        euler_to_matrix(convention, xp.reshape(rot1, (-1, 3)), degrees=True),
-        rot1.shape[:-1] + (3, 3),
-    )
+        euler_to_matrix(convention, xp.reshape(euler1, (-1, 3)), degrees=True),
+        euler1.shape[:-1] + (3, 3),
+    )  # shape (..., 3, 3)
     rot_mat2 = xp.reshape(
-        euler_to_matrix(convention, xp.reshape(rot2, (-1, 3)), degrees=True),
-        rot2.shape[:-1] + (3, 3),
+        euler_to_matrix(convention, xp.reshape(euler2, (-1, 3)), degrees=True),
+        euler2.shape[:-1] + (3, 3),
+    )  # shape (..., 3, 3)
+    sym_euler = xp.zeros((symmetry, 3), dtype=dtype, device=device)
+    sym_euler[:, 2] = (
+        -2 * xp.arange(symmetry, dtype=dtype, device=device) * xp.pi / symmetry
     )
-    R = rot_mat1 @ xp.linalg.matrix_transpose(rot_mat2)
-    rot_distance = xp.acos((R[..., [0, 1, 2], [0, 1, 2]].sum(-1) - 1) / 2) * 180 / xp.pi
+    sym_matrices = euler_to_matrix(
+        convention, sym_euler, degrees=False
+    )  # shape (s, 3, 3)
+    R = (rot_mat1[..., None, :, :] @ sym_matrices) @ xp.linalg.matrix_transpose(
+        rot_mat2[..., None, :, :]
+    )  # shape (..., s, 3, 3)
+    traces = xp.sum(R[..., [0, 1, 2], [0, 1, 2]], axis=-1)  # shape (..., s)
+    traces[traces > 3.0] = 3.0
+    traces[traces < -1.0] = -1.0
+    angles = xp.acos((traces - 1) / 2) * 180 / xp.pi  # shape (..., s)
+    best_s = xp.argmin(xp.abs(xp.mean(angles, axis=tuple(range(angles.ndim - 1)))))
+    rot_distance = angles[..., best_s]  # shape (...)
 
     # Euclidian distance
     t1, t2 = p1[..., 3:], p2[..., 3:]
@@ -242,22 +314,3 @@ def distance_family_poses(
     trans_distances = xp.sum(((t1 - t2) ** 2), axis=-1) ** 0.5
 
     return mean_angles, trans_distances
-
-
-def get_zoom_matrix(
-    input_shape: Tuple[int, int, int],
-    output_shape: Tuple[int, int, int],
-    xp,
-    **array_kwargs,
-):
-    in_shape, out_shape = xp.asarray(input_shape, **array_kwargs), xp.asarray(
-        output_shape, **array_kwargs
-    )
-    input_center, output_center = (in_shape - 1) / 2, (out_shape - 1) / 2
-    H_center, H_homo = xp.eye(4, **array_kwargs), xp.eye(4, **array_kwargs)
-    H_center[:3, 3] = -input_center  # 1. translation to (0,0,0)
-    H_homo[:3, 3] = output_center  # 3. translation to center of image
-
-    #    3-2 <- 1
-    H = H_homo @ H_center
-    return H
