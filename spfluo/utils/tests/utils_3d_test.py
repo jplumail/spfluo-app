@@ -1,6 +1,7 @@
 from functools import partial
 from typing import TYPE_CHECKING
 
+import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 from hypothesis.extra.numpy import arrays
@@ -12,7 +13,6 @@ from skimage.registration import (
     phase_cross_correlation as phase_cross_correlation_skimage,
 )
 
-import pytest
 import spfluo
 import spfluo.utils
 from spfluo.utils.array import array_namespace
@@ -20,7 +20,7 @@ from spfluo.utils.array import numpy as np
 from spfluo.utils.volume import fourier_shift, phase_cross_correlation
 
 if TYPE_CHECKING:
-    from spfluo.utils.array import array_api
+    from spfluo.utils.array import array_api_module
 
 libs = [(np, None)]
 if spfluo.has_cupy:
@@ -70,7 +70,7 @@ phase_cross_correlation_skimage = partial(
 )
 @pytest.mark.parametrize("image", [data.camera(), data.cells3d()[:, 0, :60, :60]])
 def test_correctness_phase_cross_correlation(
-    xp: "array_api", device, image, translation, upsample_factor, normalization
+    xp: "array_api_module", device, image, translation, upsample_factor, normalization
 ):
     reference_image = np.fft.fftn(util.img_as_float(image))
     translation = translation[: reference_image.ndim]
