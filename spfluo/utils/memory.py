@@ -198,42 +198,10 @@ def maximum_batch(total_memory, func: str, *func_args):
         max_batch = (math.floor(total_batch**0.5), math.floor(total_batch**0.5))
         shape = (M, k)
 
-    if func == "affine_transform":
-        volumes, transforms = func_args
-        N, C, D, H, W = volumes.size()
-        dtype_bytes = torch.finfo(volumes.dtype).bits / 8
-        size_tensor = dtype_bytes * C * D * H * W
-        size_allocated = size_tensor * 8 * 2  # empirical result
-        max_batch = (math.floor(total_memory / size_allocated),)
+    if func == "gd_importance_sampling_3d":
+        image_shape, N = func_args
         shape = (N,)
-
-    if func == "fftn":
-        x, spatial_dims = func_args
-        batch_dims = np.ones((x.ndim,), dtype=bool)
-        batch_dims[list(spatial_dims)] = False
-        batch_dims = tuple(batch_dims.nonzero()[0])
-        sizes = torch.as_tensor(x.size())
-        spatial_size = sizes[list(spatial_dims)]
-        dtype_bytes = torch.finfo(x.dtype).bits / 8
-        size_tensor = dtype_bytes * spatial_size.prod()
-        if x.is_complex():
-            mul_factor = 2
-        else:
-            mul_factor = 6
-        size_allocated = size_tensor * mul_factor
-        total_batch = total_memory / size_allocated
-
-        if len(batch_dims) > 0:
-            max_batch_ = math.floor(total_batch ** (1 / len(batch_dims)))
-            max_batch = tuple([max_batch_ for _ in range(len(batch_dims))])
-        else:
-            max_batch = (total_batch,)
-        shape = torch.as_tensor(x.shape)[list(batch_dims)]
-        if len(shape) > 0:
-            shape = tuple(shape.tolist())
-        else:
-            shape = None
-
+        max_batch = (None,)
     return max_batch, shape
 
 
