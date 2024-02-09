@@ -13,7 +13,6 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     parser.add_argument("file", type=str, help="path to the image to annotate")
     parser.add_argument("output", type=str, help="path to the output csv file")
-    parser.add_argument("--size", type=int, default=10, help="size of the box")
     parser.add_argument(
         "--spacing", type=float, default=None, nargs="+", help="Voxel size (ZYX)"
     )
@@ -27,7 +26,7 @@ def main(args: argparse.Namespace) -> None:
     else:
         assert len(args.spacing) == 3
         spacing = args.spacing
-    annotate(args.file, p + ".csv", size=args.size, spacing=spacing)
+    annotate(args.file, p + ".csv", spacing=spacing)
 
 
 if __name__ == "__main__":
