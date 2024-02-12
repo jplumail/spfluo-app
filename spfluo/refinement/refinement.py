@@ -10,7 +10,7 @@ import torch
 from tqdm import tqdm
 
 import spfluo.utils.debug as debug
-from spfluo.utils._torch_functions.volume import fftn, pad_to_size
+from spfluo.utils._torch_functions.volume import pad_to_size
 from spfluo.utils.memory import split_batch_func
 from spfluo.utils.transform import get_transform_matrix, symmetrize_poses
 from spfluo.utils.volume import (
@@ -150,10 +150,10 @@ def reconstruction_L2(
         ).view(end1 - start1, end2 - start2, N, D, D, D)
         H_ = H_.type(torch.complex64)
 
-        fftn(H_, dim=(-3, -2, -1), out=H_)
+        torch.fft.fftn(H_, dim=(-3, -2, -1), out=H_)
 
         # Compute numerator
-        fftn(torch.fft.fftshift(y, dim=(-3, -2, -1)), dim=(-3, -2, -1), out=y)
+        torch.fft.fftn(torch.fft.fftshift(y, dim=(-3, -2, -1)), dim=(-3, -2, -1), out=y)
         y = H_.conj() * y
         num[start1:end1] += torch.sum(y, dim=(-5, -4))  # reduce symmetry and N dims
 

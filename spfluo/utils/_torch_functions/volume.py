@@ -4,8 +4,6 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from spfluo.utils.memory import split_batch_func
-
 
 def affine_transform_batched_multichannel_pytorch(
     input: torch.Tensor,
@@ -106,102 +104,20 @@ def _affine_transform(input, rotMat, tvec, output_shape, mode, **tensor_kwargs):
     )
     c = torch.tensor([0 for d in output_shape], **tensor_kwargs)
     input_shape = torch.as_tensor(input.shape[2:], **tensor_kwargs)
-    for start, end in split_batch_func("affine_transform", input, rotMat):
-        grid_batch = (
-            (rotMat[start:end, None, None, None] @ ((grid - c)[None, ..., None]))[
-                ..., 0
-            ]
-            + c
-            + tvec[start:end, None, None, None, :]
-        )
-        grid_batch = -1 + 1 / input_shape + 2 * grid_batch / input_shape
-        rotated_vol[start:end] = F.grid_sample(
-            input[start:end],
-            grid_batch[:, :, :, :, [2, 1, 0]],
-            mode="bilinear",
-            align_corners=False,
-            padding_mode=mode,
-        )
-        del grid_batch
-    rotated_vol[:, :, : output_shape[0], : output_shape[1], : output_shape[2]]
+    grid = (
+        (rotMat[:, None, None, None] @ ((grid - c)[None, ..., None]))[..., 0]
+        + c
+        + tvec[:, None, None, None, :]
+    )
+    grid = -1 + 1 / input_shape + 2 * grid / input_shape
+    rotated_vol = F.grid_sample(
+        input,
+        grid[:, :, :, :, [2, 1, 0]],
+        mode="bilinear",
+        align_corners=False,
+        padding_mode=mode,
+    )
     return rotated_vol
-
-
-def fftn(x: torch.Tensor, dim: Tuple[int] = None, out=None) -> torch.Tensor:
-    """Computes N dimensional FFT of x in batch. Tries to avoid out-of-memory errors.
-
-    Args:
-        x: data
-        dim: tuple of size N, dimensions where FFTs will be computed
-        out: the output tensor
-    Returns:
-        y: data in the Fourier domain, shape of x
-    """
-    if dim is None or len(dim) == x.ndim:
-        return torch.fft.fftn(x, out=out)
-    else:
-        if x.is_complex():
-            dtype = x.dtype
-        else:
-            if x.dtype is torch.float32:
-                dtype = torch.complex64
-            elif x.dtype is torch.float64:
-                dtype = torch.complex128
-        batch_indices = torch.ones((x.ndim,), dtype=bool)
-        batch_indices[list(dim)] = False
-        batch_indices = batch_indices.nonzero()[:, 0]
-        batch_slices = [slice(None, None) for i in range(x.ndim)]
-
-        if out is not None:
-            y = out
-        else:
-            y = x.new_empty(size=x.size(), dtype=dtype)
-        for batch_idx in split_batch_func("fftn", x, dim):
-            if type(batch_idx) is tuple:
-                batch_idx = [batch_idx]
-            for d, (start, end) in zip(batch_indices, batch_idx):
-                batch_slices[d] = slice(start, end)
-            torch.fft.fftn(x[tuple(batch_slices)], dim=dim, out=y[tuple(batch_slices)])
-        return y
-
-
-def ifftn(x: torch.Tensor, dim: Tuple[int] = None, out=None) -> torch.Tensor:
-    """Computes N dimensional inverse FFT of x in batch.
-    Tries to avoid out-of-memory errors.
-
-    Args:
-        x: data
-        dim: tuple of size N, dimensions where FFTs will be computed
-        out: the output tensor
-    Returns:
-        y: data in the Fourier domain, shape of x
-    """
-    if dim is None or len(dim) == x.ndim:
-        return torch.fft.ifftn(x, out=out)
-    else:
-        if x.is_complex():
-            dtype = x.dtype
-        else:
-            if x.dtype is torch.float32:
-                dtype = torch.complex64
-            elif x.dtype is torch.float64:
-                dtype = torch.complex128
-        batch_indices = torch.ones((x.ndim,), dtype=bool)
-        batch_indices[list(dim)] = False
-        batch_indices = batch_indices.nonzero()[:, 0]
-        batch_slices = [slice(None, None) for i in range(x.ndim)]
-
-        if out is not None:
-            y = out
-        else:
-            y = x.new_empty(size=x.size(), dtype=dtype)
-        for batch_idx in split_batch_func("fftn", x, dim):
-            if type(batch_idx) is tuple:
-                batch_idx = [batch_idx]
-            for d, (start, end) in zip(batch_indices, batch_idx):
-                batch_slices[d] = slice(start, end)
-            torch.fft.ifftn(x[tuple(batch_slices)], dim=dim, out=y[tuple(batch_slices)])
-        return y
 
 
 def pad_to_size(volume: torch.Tensor, output_size: torch.Size) -> torch.Tensor:
@@ -351,7 +267,7 @@ def cross_correlation_max(
     if normalization == "phase":
         eps = torch.finfo(z.real.dtype).eps
         z /= torch.max(z.abs(), torch.as_tensor(100 * eps))
-    cc = ifftn(z, dim=spatial_dims)
+    cc = torch.fft.ifftn(z, dim=spatial_dims)
     cc = torch.mul(cc, cc.conj(), out=cc).real
     cc = torch.flatten(cc, start_dim=-nb_spatial_dims)
     maxi, max_idx = torch.max(cc, dim=-1)
