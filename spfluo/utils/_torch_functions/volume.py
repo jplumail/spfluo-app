@@ -42,7 +42,7 @@ def affine_transform_batched_multichannel_pytorch(
     N, C, D, H, W = input.size()
     tensor_kwargs = dict(device=input.device, dtype=input.dtype)
 
-    if type(offset) == float:
+    if isinstance(offset, float):
         tvec = torch.tensor([offset, offset, offset], **tensor_kwargs).expand(N, 3)
     elif offset.shape == (3,):
         tvec = torch.as_tensor(offset, **tensor_kwargs).expand(N, 3)
