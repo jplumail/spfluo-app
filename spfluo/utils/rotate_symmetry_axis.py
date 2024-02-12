@@ -89,7 +89,7 @@ def main(
     if output_volume_path:
         rotated_volume = affine_transform(
             volume,
-            get_transform_matrix_from_pose(pose),
+            get_transform_matrix_from_pose(volume.shape, pose, convention=convention),
         )
         tifffile.imwrite(output_volume_path, rotated_volume)
     if poses_path:
