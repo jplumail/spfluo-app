@@ -8,7 +8,7 @@ import napari
 import numpy as np
 from napari.layers import Shapes
 from napari.utils.events import Event
-from napari_bbox.boundingbox import Boundingbox, Mode
+from napari_bbox.boundingbox import BoundingBoxLayer
 
 from spfluo.visualisation.multiple_viewer_widget import add_orthoviewer_widget, init_qt
 
@@ -35,7 +35,7 @@ def annotate(
 
     init_qt()
 
-    bbox_layer = Boundingbox(
+    bbox_layer = BoundingBoxLayer(
         ndim=3,
         edge_color=[0, 0, 255, 255],
         face_color=[0, 0, 0, 0],
@@ -180,7 +180,7 @@ def annotate(
         save_annotations()
         bbox_layer.events.data.connect(save_annotations)
 
-        bbox_layer.mode = Mode.ADD_BOUNDING_BOX
+        bbox_layer.mode = "ADD_BOUNDING_BOX"
         atexit.register(lambda: f.close())
 
     napari.run()

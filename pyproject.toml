@@ -63,9 +63,9 @@ refinement = [
   "torch; sys_platform == 'win32'", # torch cpu on PyPI by default on windows
 ] # User should install torch cpu version by hand on linux
 visualisation = [
-  "napari[all]>=0.4.18",
+  "napari[all]>=0.4.18,<0.4.19",
   "napari-spfluo",
-  "napari-bbox"
+  "napari-bbox>=0.0.7"
 ]
 all = [
   "spfluo[manual-picking]",

@@ -344,7 +344,7 @@ class MultipleViewerWidget(QSplitter):
         if (
             isinstance(layer_added, Labels)
             or isinstance(layer_added, Points)
-            or isinstance(layer_added, napari_bbox.Boundingbox)
+            or isinstance(layer_added, napari_bbox.BoundingBoxLayer)
         ):
             layer_added.events.set_data.connect(self._set_data_refresh)
             self.viewer_model1.layers[layer_added.name].events.set_data.connect(
