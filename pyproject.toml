@@ -8,7 +8,7 @@ dynamic = ["version"]
 description = "A plugin to use spfluo within napari"
 readme = "README.md"
 license = "MIT"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 authors = [
     { name = "Jean Plumail", email = "jplumail@unistra.fr" },
 ]
@@ -21,9 +21,9 @@ classifiers = [
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
     "Topic :: Scientific/Engineering :: Image Processing",
 ]
 dependencies = [
@@ -31,6 +31,7 @@ dependencies = [
     "numpy",
     "qtpy",
     "scikit-image",
+    "spfluo[ab-initio-reconstruction,refinement]>=0.1b8",
 ]
 
 [project.optional-dependencies]
@@ -67,7 +68,7 @@ include = [
 
 [tool.black]
 line-length = 79
-target-version = ['py38', 'py39', 'py310']
+target-version = ['py39', 'py310', 'py311']
 
 
 [tool.ruff]
@@ -113,5 +114,5 @@ exclude = [
     "*_vendor*",
 ]
 
-target-version = "py38"
+target-version = "py39"
 fix = true
