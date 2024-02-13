@@ -94,14 +94,25 @@ def write_csv(filename, data):
         csvwriter.writerows(data)
 
 
-def read_translations(csv_file: str) -> Iterator[Tuple[Coordinate3D, float]]:
+def read_boundingboxes(csv_file: str) -> Iterator[Tuple[Coordinate3D, float]]:
     with open(csv_file, "r") as f:
         data = csv.reader(f)
         next(data)
         for row in data:
             coord = Coordinate3D()
-            coord.setPosition(float(row[1]), float(row[2]), float(row[3]))
-            yield coord, float(row[4])
+
+            coord.setPosition(
+                (float(row[1]) + float(row[4])) / 2,
+                (float(row[2]) + float(row[5])) / 2,
+                (float(row[3]) + float(row[6])) / 2,
+            )
+            w, h, d = (
+                float(row[4]) - float(row[1]),
+                float(row[5]) - float(row[2]),
+                float(row[6]) - float(row[3]),
+            )
+            coord.setDim(w, h, d)
+            yield coord, max(w, h, d)
 
 
 def read_poses(poses_csv: str):

@@ -9,7 +9,7 @@ from pyworkflow.gui.dialog import askYesNo
 from pyworkflow.protocol import Form
 from pyworkflow.utils.properties import Message
 
-from singleparticle.convert import read_translations
+from singleparticle.convert import read_boundingboxes
 from singleparticle.viewers.view_picking import PickingView
 
 
@@ -72,17 +72,17 @@ class ProtSingleParticlePickingNapari(ProtFluoPicking):
         vs_xy, vs_z = fluoimages.getVoxelSize()
         coords3D.setVoxelSize((vs_xy, vs_z))
         coords3D.enableAppend()
-        box_size = None
+        max_box_size = None
         for imfluo in fluoimages.iterItems():
             # get csv filename
             _, csv_path = self.getCsvPath(imfluo)
             if os.path.exists(csv_path):
-                for coord, box_size in read_translations(csv_path):
+                for coord, box_size in read_boundingboxes(csv_path):
                     coord.setFluoImage(imfluo)
                     coord.setImageId(imfluo.getImgId())
                     coords3D.append(coord)
-        if box_size:
-            coords3D.setBoxSize(box_size)
+                    if (not max_box_size) or box_size > max_box_size:
+                        max_box_size = box_size
         coords3D.write()
 
         name = self.OUTPUT_PREFIX + suffix

@@ -134,8 +134,6 @@ class PickingDialog(ToolbarListDialog):
         args = [
             path,
             csv_path,
-            "--size",
-            f"{self.size}",
             "--spacing",
             str(self.spacing[1]),
             str(self.spacing[0]),
