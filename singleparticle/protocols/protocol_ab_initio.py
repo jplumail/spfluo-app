@@ -96,6 +96,14 @@ class ProtSingleParticleAbInitio(Protocol, ProtFluoBase):
             label="Use GPU?",
         )
         form.addParam(
+            "minibatch",
+            params.IntParam,
+            default=0,
+            label="Size of a minibatch",
+            expertLevel=params.LEVEL_ADVANCED,
+            help="The smaller the size, the less memory will be used.",
+        )
+        form.addParam(
             "pad",
             params.BooleanParam,
             default=True,
