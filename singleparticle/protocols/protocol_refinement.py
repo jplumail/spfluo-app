@@ -57,6 +57,7 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
             pointerClass="Particle",
             label="Initial volume",
             expertLevel=params.LEVEL_ADVANCED,
+            allowsNull=True,
         )
         form.addParam(
             "channel",
