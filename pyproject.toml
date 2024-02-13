@@ -8,8 +8,8 @@ authors = [
   { name="Jean Plumail", email="jplumail@unistra.fr" },
 ]
 dependencies = [
-  "scipion-fluo-singleparticle ~= 0.1",
-  "scipion-app ~= 3.3"
+  "scipion-fluo-singleparticle",
+  "scipion-app"
 ]
 dynamic = ["version"]
 
