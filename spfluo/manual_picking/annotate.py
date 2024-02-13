@@ -2,15 +2,17 @@ import atexit
 import csv
 import itertools
 import os
-from typing import Tuple
+from typing import TYPE_CHECKING, Tuple
 
 import napari
 import numpy as np
-from napari.layers import Shapes
 from napari.utils.events import Event
 from napari_bbox.boundingbox import BoundingBoxLayer
 
 from spfluo.visualisation.multiple_viewer_widget import add_orthoviewer_widget, init_qt
+
+if TYPE_CHECKING:
+    from napari.components import ViewerModel
 
 
 def annotate(
@@ -80,15 +82,22 @@ def annotate(
 
     view.open(im_path, layer_type="image", scale=spacing_normalized)
 
-    def on_move_point(event: Event):
-        layer: Shapes = event.source
-        viewers = [
-            dock_widget.viewer,
-            dock_widget.viewer_model1,
-            dock_widget.viewer_model2,
-        ]
+    viewers: list[ViewerModel] = [
+        dock_widget.viewer,
+        dock_widget.viewer_model1,
+        dock_widget.viewer_model2,
+    ]
+
+    def update_viewer(layer: BoundingBoxLayer, event: Event):
+        dragged = False
+        yield
+        while event.type == "mouse_move":
+            dragged = True
+            yield
         if len(layer.selected_data) > 0:
             idx_point = list(layer.selected_data)[0]
+            if dragged:
+                layer.data = layer.data  # seems stupid but very important
             try:
                 bbox = tuple(layer.data[idx_point])
             except IndexError:
@@ -122,8 +131,7 @@ def annotate(
                 ).astype(int)
             )
 
-    # ne fonctionne pas avec des bbox
-    # bbox_layer.events.set_data.connect(on_move_point)
+    bbox_layer.mouse_drag_callbacks.append(update_viewer)
 
     view.add_layer(bbox_layer)
     view.scale_bar.visible = True
