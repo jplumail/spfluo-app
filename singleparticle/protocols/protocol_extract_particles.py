@@ -65,15 +65,15 @@ class ProtSingleParticleExtractParticles(Protocol, ProtFluoBase):
         particles = self._createSetOfParticles()
         coords: SetOfCoordinates3D = self.inputCoordinates.get()
         fluoimages = coords.getPrecedents()
-        box_size = coords.getBoxSize()
+        vs_xy, vs_z = fluoimages.getVoxelSize()
         for im in fluoimages.iterItems():
             im: FluoImage
             image_data = im.getData()
             for coord_im in coords.iterCoordinates(im):
                 particle_data = self.extract_particle(
                     image_data,
-                    coord_im.getMatrix(),
-                    box_size,
+                    coord_im.getPosition(),
+                    coord_im.getDim(),
                     voxel_size=im.getVoxelSize(),
                     subpixel=self.subpixel.get(),
                 )
@@ -84,7 +84,7 @@ class ProtSingleParticleExtractParticles(Protocol, ProtFluoBase):
                 filepath = self._getExtraPath(name)
 
                 extracted_particle = Particle.from_data(
-                    particle_data, filepath, voxel_size=im.getVoxelSize()
+                    particle_data, filepath, voxel_size=(vs_xy, vs_z)
                 )
                 extracted_particle.setCoordinate3D(coord_im)
                 extracted_particle.setImageName(im.getFileName())
@@ -99,8 +99,8 @@ class ProtSingleParticleExtractParticles(Protocol, ProtFluoBase):
     @staticmethod
     def extract_particle(
         image_data: np.ndarray,
-        mat: np.ndarray,
-        box_size: float,
+        pos: tuple[float, float, float],
+        box_size: tuple[float, float, float],
         voxel_size=tuple[float, float],
         subpixel: bool = False,
     ) -> np.ndarray:
@@ -109,11 +109,12 @@ class ProtSingleParticleExtractParticles(Protocol, ProtFluoBase):
         def world_to_data_coord(pos):
             return pos / np.asarray([vs_z, vs_xy, vs_xy])
 
-        mat[:3, 3] = world_to_data_coord(mat[:3, 3])  # World coordinates to data coords
-        box_size_world = np.asarray([box_size, box_size, box_size], dtype=float)
+        pos = world_to_data_coord(np.asarray(pos))  # World coordinates to data coords
+        box_size_world = np.asarray(box_size, dtype=float)
         box_size_data = np.rint(world_to_data_coord(box_size_world)).astype(int)
+        mat = np.eye(4)
+        mat[:3, 3] = pos
         mat[:3, 3] -= box_size_data / 2
-        mat[:3, :3] = np.eye(3)
         C = image_data.shape[0]
         particle_data = np.empty((C,) + tuple(box_size_data), dtype=image_data.dtype)
         if not subpixel:
