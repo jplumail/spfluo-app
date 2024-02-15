@@ -1,7 +1,7 @@
 import argparse
 
 from spfluo.ab_initio_reconstruction.api import AbInitioReconstruction
-from spfluo.ab_initio_reconstruction.manage_files.read_save_files import (
+from spfluo.utils.read_save_files import (
     read_image,
     read_images_in_folder,
 )

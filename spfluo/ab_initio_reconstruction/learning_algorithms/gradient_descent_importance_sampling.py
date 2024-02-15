@@ -17,17 +17,17 @@ import spfluo
 from spfluo.ab_initio_reconstruction.volume_representation.pixel_representation import (
     Fourier_pixel_representation,
 )
-from spfluo.utils.array import Array, array_namespace, numpy, to_device, torch
+from spfluo.utils.array import Array, array_namespace, numpy, to_numpy, torch
 from spfluo.utils.memory import split_batch_func
 from spfluo.utils.transform import get_transform_matrix
 from spfluo.utils.volume import fourier_shift, phase_cross_correlation
 
+from ...utils.read_save_files import make_dir, save, write_array_csv
 from ..common_image_processing_methods.others import normalize, stopping_criteria
 from ..common_image_processing_methods.rotation_translation import (
     conversion_2_first_eulers_angles_cartesian,
     rotation,
 )
-from ..manage_files.read_save_files import make_dir, save, write_array_csv
 from ..volume_representation.gaussian_mixture_representation.GMM_grid_evaluation import (  # noqa: E501
     one_d_gaussian,
 )
@@ -170,9 +170,6 @@ def gd_importance_sampling_3d(
                 )
                 # transforms represents transformation from reference volume
                 # to the views
-
-                def to_numpy(x):
-                    return np.asarray(to_device(x, "cpu"))
 
                 # inverse_transforms represents transformation from the views
                 # to the reference volume

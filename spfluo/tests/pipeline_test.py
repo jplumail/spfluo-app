@@ -13,11 +13,11 @@ from spfluo import data
 from spfluo.ab_initio_reconstruction.learning_algorithms.gradient_descent_importance_sampling import (  # noqa: E501
     compute_energy,
 )
-from spfluo.ab_initio_reconstruction.manage_files.read_save_files import (
+from spfluo.utils.loading import read_poses
+from spfluo.utils.read_save_files import (
     read_image,
     read_images_in_folder,
 )
-from spfluo.utils.loading import read_poses
 from spfluo.utils.transform import get_transform_matrix
 from spfluo.utils.volume import affine_transform, interpolate_to_size
 
