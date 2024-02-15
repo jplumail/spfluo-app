@@ -7,7 +7,8 @@ from typing import Dict, Optional, Tuple
 import imageio
 import numpy as np
 import tifffile
-import torch
+
+from spfluo.utils.array import torch
 
 try:
     import cupy as cp
