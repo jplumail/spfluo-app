@@ -1,6 +1,8 @@
 import numpy as np
 import scipy.ndimage as scp
 
+from spfluo.utils.array import array_namespace
+
 
 def threshold(im, thresh_val):
     im_out = (im >= thresh_val) * im
@@ -32,11 +34,12 @@ def crop_center(image, size):
 
 
 def normalize(arr, min=0, max=1):
-    m, M = np.min(arr), np.max(arr)
+    xp = array_namespace(arr)
+    m, M = xp.min(arr), xp.max(arr)
     if M > m:
         norm_0_1 = (arr - m) / (M - m)
     else:
-        norm_0_1 = np.zeros_like(arr)
+        norm_0_1 = xp.zeros_like(arr, device=xp.device(arr))
     norm = (max - min) * norm_0_1 + min
     return norm
 
