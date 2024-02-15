@@ -1,9 +1,11 @@
 from typing import Any, Callable, Optional
 
+import numpy as np
+
 from spfluo.ab_initio_reconstruction.common_image_processing_methods.others import (
     normalize,
 )
-from spfluo.utils.array import numpy as np
+from spfluo.utils.array import Array, array_namespace, to_numpy
 from spfluo.utils.volume import (
     discretize_sphere_uniformly,
 )
@@ -28,10 +30,9 @@ class AbInitioReconstruction:
 
     def fit(
         self,
-        X: np.ndarray,
-        psf: Optional[np.ndarray] = None,
+        X: Array,
+        psf: Optional[Array] = None,
         output_dir: Optional[str] = None,
-        gpu: Optional[str] = None,
         minibatch_size: Optional[int] = None,
         particles_names: Optional[list[str]] = None,
     ):
@@ -41,47 +42,32 @@ class AbInitioReconstruction:
         if output_dir is None:
             output_dir = "./ab-initio-output"
 
-        if gpu == "pytorch":
-            from spfluo.utils.array import torch
-
-            xp = torch
-            device = "cuda"
-        elif gpu == "cupy":
-            from spfluo.utils.array import cupy
-
-            xp = cupy
-            device = None
-        elif gpu is None:
-            xp = np
-            device = None
-        else:
-            raise ValueError(f"Found {gpu=}")
-
         params_learning_alg = ParametersMainAlg(**self.params)
         fourier_volume = Fourier_pixel_representation(
             3,
             psf.shape[0],
-            psf,
+            to_numpy(psf),
             init_vol=None,
             random_init=True,
-            dtype=params_learning_alg.dtype,
+            dtype=np.dtype(params_learning_alg.dtype),
         )
 
         N = X.shape[0]
         # normalize views
-        X = np.stack([normalize(X[i]) for i in range(N)])
+        xp = array_namespace(X)
+        X = xp.stack([normalize(X[i]) for i in range(N)])
 
         uniform_sphere_discretization = discretize_sphere_uniformly(
-            np,
+            xp,
             params_learning_alg.M_axes,
             params_learning_alg.M_rot,
-            dtype=np.float64,
+            dtype=xp.float64,
         )
         imp_distrs_axes = (
-            np.ones((N, params_learning_alg.M_axes)) / params_learning_alg.M_axes
+            xp.ones((N, params_learning_alg.M_axes)) / params_learning_alg.M_axes
         )
         imp_distrs_rot = (
-            np.ones((N, params_learning_alg.M_rot)) / params_learning_alg.M_rot
+            xp.ones((N, params_learning_alg.M_rot)) / params_learning_alg.M_rot
         )
 
         (
@@ -111,14 +97,16 @@ class AbInitioReconstruction:
             file_names=None,
             folder_views_selected=None,
             xp=xp,
-            device=device,
+            device=xp.device(X),
             minibatch_size=minibatch_size,
             callback=self.callback,
             particles_names=particles_names,
         )
-        self._volume = volume_representation.get_image_from_fourier_representation()
-        self._energies = np.mean(energies_each_view, axis=0)
+        self._volume = xp.asarray(
+            volume_representation.get_image_from_fourier_representation()
+        )
+        self._energies = xp.mean(xp.asarray(energies_each_view), axis=0)
         self._num_iter = itr
-        self._poses = ests_poses
+        self._poses = xp.asarray(ests_poses)
 
         return self

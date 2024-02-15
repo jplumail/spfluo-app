@@ -4,6 +4,7 @@ import numpy as np
 from numpy import fft
 from scipy.ndimage import center_of_mass, fourier_shift
 
+from spfluo.utils.array import Array, array_namespace
 
 from ...utils.read_save_files import save
 from ..common_image_processing_methods.others import crop_center
@@ -16,8 +17,15 @@ from ..common_image_processing_methods.registration import (
 
 class Fourier_pixel_representation:
     def __init__(
-        self, nb_dim, size, psf, init_vol=None, random_init=True, dtype=np.float32
+        self,
+        nb_dim: int,
+        size: tuple[int, ...],
+        psf: Array,
+        init_vol: Array | None = None,
+        random_init: bool = True,
+        dtype: np.dtype = np.dtype("float32"),
     ):
+        xp = array_namespace(psf)
         if init_vol is None:
             if random_init:
                 volume_fourier = np.random.randn(*psf.shape) + 1j * np.random.randn(
@@ -33,13 +41,14 @@ class Fourier_pixel_representation:
             np.dtype("float32"): np.complex64,
             np.dtype("float64"): np.complex128,
         }
+        assert dtype in complex_type_promotion, f"{dtype} is not a real floating dtype."
         self.volume_fourier = volume_fourier.astype(
             complex_type_promotion[np.dtype(dtype)]
         )
         self.nb_dim = nb_dim
         self.size = size
-        self.psf = psf.astype(dtype)
-        self.psf /= np.sum(self.psf)
+        self.psf = xp.asarray(psf, dtype=getattr(xp, dtype.name))
+        self.psf /= xp.sum(self.psf)
 
     def gd_step(self, grad, lr, reg_coeff=0):
         self.volume_fourier -= lr * grad

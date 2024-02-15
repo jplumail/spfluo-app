@@ -43,7 +43,7 @@ def create_parser():
     parser.add_argument("--random_sampling", type=bool, default=False)
 
     # GPU acceleration
-    parser.add_argument("--gpu", type=str, default=None)
+    parser.add_argument("--gpu", action="store_true")
     parser.add_argument("--minibatch_size", type=int, default=None)
 
     # Ouput directory
@@ -53,8 +53,10 @@ def create_parser():
 
 
 def main(args):
-    particles, names = read_images_in_folder(args.particles_dir)
-    psf = read_image(args.psf_path)
+    particles, names = read_images_in_folder(
+        args.particles_dir, gpu=args.gpu, dtype=args.dtype
+    )
+    psf = read_image(args.psf_path, gpu=args.gpu, dtype=args.dtype)
     ab_initio_params = dict(vars(args))
     for k in ["output_dir", "gpu", "psf_path", "particles_dir", "minibatch_size"]:
         ab_initio_params.pop(k)
@@ -63,7 +65,6 @@ def main(args):
     reconstruction.fit(
         particles,
         psf=psf,
-        gpu=args.gpu,
         output_dir=args.output_dir,
         minibatch_size=args.minibatch_size,
         particles_names=names,

@@ -1,10 +1,16 @@
+from typing import TYPE_CHECKING
+
 import numpy as np
 import pytest
 
 import spfluo
 from spfluo.ab_initio_reconstruction.api import AbInitioReconstruction
+from spfluo.utils.array import cupy, get_namespace_device, numpy, torch
 from spfluo.utils.transform import distance_family_poses
 from spfluo.utils.volume import interpolate_to_size
+
+if TYPE_CHECKING:
+    from spfluo.utils.array import array_api_module
 
 SEED = 123
 
@@ -22,24 +28,35 @@ params_long_run = {
 }
 
 
-def run(long, gpu, generated_data_anisotropic, tmpdir):
+def run(
+    long: bool,
+    xp: "array_api_module",
+    gpu: bool,
+    generated_data_anisotropic,
+    tmpdir: str,
+):
     volumes_arr, poses_arr, psf_array, groundtruth_array = generated_data_anisotropic
     np.random.seed(SEED)
     args = params_long_run if long else params_minimal_run
     ab_initio = AbInitioReconstruction(**args)
     psf_array = interpolate_to_size(psf_array, volumes_arr.shape[1:])
-    ab_initio.fit(volumes_arr, psf=psf_array, gpu=gpu, output_dir=tmpdir)
+    _, device = get_namespace_device(xp=xp, gpu=gpu)
+    ab_initio.fit(
+        xp.asarray(volumes_arr, device=device),
+        psf=xp.asarray(psf_array, device=device),
+        output_dir=tmpdir,
+    )
 
     return ab_initio, tmpdir
 
 
 @pytest.fixture(scope="module")
 def gpu_run(request, generated_data_anisotropic, tmp_path_factory):
-    gpu, long = request.param
+    xp, long = request.param
     run_name = "long-run" if long else "minimal-run"
-    run_name += f"_{gpu}"
+    run_name += f"_{xp.__name__}"
     tmpdir = tmp_path_factory.mktemp(run_name)
-    return run(long, gpu, generated_data_anisotropic, tmpdir)
+    return run(long, xp, True, generated_data_anisotropic, tmpdir)
 
 
 @pytest.fixture(scope="module")
@@ -47,7 +64,7 @@ def numpy_run(request, generated_data_anisotropic, tmp_path_factory):
     long = request.param
     run_name = "long-run_numpy" if long else "minimal-run_numpy"
     tmpdir = tmp_path_factory.mktemp(run_name)
-    return run(long, None, generated_data_anisotropic, tmpdir)
+    return run(long, numpy, False, generated_data_anisotropic, tmpdir)
 
 
 @pytest.mark.parametrize("numpy_run", [False], indirect=True)
@@ -74,11 +91,7 @@ def test_files_exist(numpy_run):
     assert ab_initio._num_iter == len(ab_initio._energies)
 
 
-GPU_LIBS = []
-if spfluo.has_torch:
-    GPU_LIBS.append("pytorch")
-if spfluo.has_cupy:
-    GPU_LIBS.append("cucim")
+GPU_LIBS = [lib for lib in (torch, cupy) if lib is not None]
 
 
 @pytest.mark.parametrize(
@@ -96,14 +109,14 @@ def test_same_results_gpu(gpu_run, numpy_run):
     not (spfluo.has_torch and spfluo.has_torch_cuda),
     reason="Too long to test if CUDA is not available",
 )
-@pytest.mark.parametrize("gpu_run", [("pytorch", True)], indirect=True)
+@pytest.mark.parametrize("gpu_run", [(torch, True)], indirect=True)
 def test_energy_threshold(gpu_run):
     ab_initio, _ = gpu_run
     assert ab_initio._energies[-1] < 200
 
 
 @pytest.mark.skip(reason="not finished")
-@pytest.mark.parametrize("gpu_run", [("pytorch", True)], indirect=True)
+@pytest.mark.parametrize("gpu_run", [(torch, True)], indirect=True)
 def test_poses_aligned(gpu_run):
     ab_initio, folder = gpu_run
     distance_family_poses

@@ -33,7 +33,7 @@ from ..volume_representation.gaussian_mixture_representation.GMM_grid_evaluation
 )
 
 if TYPE_CHECKING:
-    from spfluo.utils.array import array_api_module
+    from spfluo.utils.array import Device, array_api_module
 
 
 def gd_importance_sampling_3d(
@@ -50,12 +50,15 @@ def gd_importance_sampling_3d(
     ground_truth=None,
     file_names=None,
     folder_views_selected=None,
-    xp: "array_api_module" = np,
-    device="cuda",
+    xp: "array_api_module" = numpy,
+    device: "Device" = "cpu",
     minibatch_size=None,
     callback: Callable[[np.ndarray, int], Any] | None = None,
     particles_names: list[str] = None,
 ):
+    imp_distrs_axes, imp_distrs_rot = to_numpy(imp_distrs_axes, imp_distrs_rot)
+    thetas, phis, psis = to_numpy(*uniform_sphere_discretization[0])
+    views = to_numpy(views)
     unif_prop_axes, unif_prop_rot = unif_prop
     epoch_length = (
         params_learning_alg.epoch_length
@@ -73,7 +76,6 @@ def gd_importance_sampling_3d(
 
     make_dir(output_dir)
     # print('number of views', len(views))
-    (thetas, phis, psis), _ = uniform_sphere_discretization
     x, y, z = conversion_2_first_eulers_angles_cartesian(thetas, phis)
     axes = np.array([x, y, z])
     M_axes = len(thetas)
