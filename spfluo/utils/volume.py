@@ -572,7 +572,9 @@ def discretize_sphere_uniformly(
     epsilon = 0.5
     goldenRatio = (1 + 5**0.5) / 2
     i = xp.arange(0, N, device=device, dtype=dtype)
-    theta = xp.remainder(2 * xp.pi * i / goldenRatio, 2 * xp.pi)
+    theta = xp.remainder(
+        2 * xp.pi * i / goldenRatio, xp.asarray(2 * xp.pi, device=device, dtype=dtype)
+    )
     phi = xp.acos(1 - 2 * (i + epsilon) / N)
     psi = xp.linspace(0, 2 * np.pi / symmetry, M, device=device, dtype=dtype)
     if product:
