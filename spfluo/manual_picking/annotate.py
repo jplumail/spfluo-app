@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Tuple
 import napari
 import numpy as np
 from napari.utils.events import Event
-from napari_bbox.boundingbox import BoundingBoxLayer
+from napari_bbox import BoundingBoxLayer
 
 from spfluo.visualisation.multiple_viewer_widget import add_orthoviewer_widget, init_qt
 

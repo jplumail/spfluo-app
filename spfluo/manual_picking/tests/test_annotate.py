@@ -1,6 +1,6 @@
 import napari
 import numpy as np
-from napari_bbox import Boundingbox
+from napari_bbox import BoundingBoxLayer
 
 from spfluo.visualisation.multiple_viewer_widget import add_orthoviewer_widget
 
@@ -14,7 +14,7 @@ def create_multiviewer_with_data(viewer):
 
 
 def add_bbox_layer(viewer):
-    bbox_layer = Boundingbox(ndim=3)
+    bbox_layer = BoundingBoxLayer(ndim=3)
     viewer.add_layer(bbox_layer)
     bbox_layer.add(
         [
@@ -52,7 +52,7 @@ def test_data(make_napari_viewer_proxy):
 def test_data_after_move(make_napari_viewer_proxy):
     viewer: napari.Viewer = make_napari_viewer_proxy(show=True)
     widget, image_layer = create_multiviewer_with_data(viewer)
-    bbox_layer = Boundingbox(ndim=3)
+    bbox_layer = BoundingBoxLayer(ndim=3)
     viewer.add_layer(bbox_layer)
     bbox_layer = add_bbox_layer(viewer)
 
