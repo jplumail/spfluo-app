@@ -2,6 +2,7 @@
 select = [
     "E", "F", # default
     "I", # isort
+    "TID251",
 ]
 
 [lint.isort]
