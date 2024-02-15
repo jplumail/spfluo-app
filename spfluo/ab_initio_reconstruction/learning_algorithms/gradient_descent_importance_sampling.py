@@ -2,22 +2,20 @@ import copy
 import json
 import os
 import shutil
-from functools import partial
 from typing import TYPE_CHECKING, Any, Callable, Tuple
 
 import numpy as np
 import pandas as pd
-import scipy.fft
+from numpy.core.numeric import normalize_axis_tuple
 from scipy.spatial.transform import Rotation as R
 from skimage import io
 from skimage.metrics import structural_similarity as ssim
 from tqdm.auto import tqdm
 
-import spfluo
 from spfluo.ab_initio_reconstruction.volume_representation.pixel_representation import (
     Fourier_pixel_representation,
 )
-from spfluo.utils.array import Array, array_namespace, numpy, to_numpy, torch
+from spfluo.utils.array import Array, array_namespace, numpy, to_numpy
 from spfluo.utils.memory import split_batch_func
 from spfluo.utils.transform import get_transform_matrix
 from spfluo.utils.volume import fourier_shift, phase_cross_correlation
@@ -484,18 +482,6 @@ def compute_shifts(
     interp_order: int = 1,
 ) -> Tuple[Array, Array, Array]:
     xp = array_namespace(inverse_transforms, view)
-    if spfluo.has_torch and xp == torch:
-
-        def pytorch_fftn_wrapper(x, s=None, axes=None, norm="backward"):
-            from torch.fft import fftn as fftn_torch
-
-            return fftn_torch(x, s=s, dim=axes, norm=norm)
-
-        fftn = pytorch_fftn_wrapper
-    elif xp == numpy:
-        fftn = partial(scipy.fft.fftn, overwrite_x=True)
-    else:
-        fftn = xp.fft.fftn
 
     (device,) = set([str(xp.device(inverse_transforms)), str(xp.device(view))])
     psf = xp.asarray(psf, device=device)
@@ -510,7 +496,7 @@ def compute_shifts(
         inverse_transforms,
         order=interp_order,
     )
-    psfs_rotated_fft = fftn(psfs_rotated, axes=(1, 2, 3))
+    psfs_rotated_fft = xp.fft.fftn(psfs_rotated, axes=(1, 2, 3))
 
     # Rotate the view back to the volume
     view_rotated = rotation(
@@ -518,7 +504,7 @@ def compute_shifts(
         inverse_transforms,
         order=interp_order,
     )
-    view_rotated_fft = fftn(view_rotated, axes=(1, 2, 3))
+    view_rotated_fft = xp.fft.fftn(view_rotated, axes=(1, 2, 3))
 
     shift, _, _ = phase_cross_correlation(
         psfs_rotated_fft * volume_fourier,
@@ -538,8 +524,22 @@ def compute_energy(reference_volume_fft, psf_rotated_fft, view_rotated_fft):
     reference_volume_fft = xp.asarray(reference_volume_fft, device=device)
     psf_rotated_fft = xp.asarray(psf_rotated_fft, device=device)
     image_size = xp.prod(xp.asarray(reference_volume_fft.shape[-3:], device=device))
+
+    def vector_norm(x: Array, axis: tuple[int]):
+        normalized_axis = normalize_axis_tuple(axis, x.ndim)
+        rest = tuple(i for i in range(x.ndim) if i not in normalized_axis)
+        newshape = axis + rest
+        x = xp.reshape(
+            xp.permute_dims(x, newshape),
+            (
+                int(np.prod([x.shape[i] for i in axis], dtype=int)),
+                *[x.shape[i] for i in rest],
+            ),
+        )
+        return xp.linalg.vector_norm(x, axis=0, ord=2)
+
     energy = (
-        xp.linalg.vector_norm(
+        vector_norm(
             psf_rotated_fft * reference_volume_fft - view_rotated_fft,
             axis=(-3, -2, -1),
         )

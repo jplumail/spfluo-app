@@ -6,6 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "spfluo"
 dependencies = [
   "numpy",
+  "array_api_compat",
   "scipy",
   "scikit-image",
   "scikit-learn",
@@ -44,6 +45,7 @@ gpu = [
 ]
 dev = [
   "pytest",
+  "pytest-mock",
   "hypothesis",
   "pyfigtree",
   "scikit-image[data]",

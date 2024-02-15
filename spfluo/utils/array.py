@@ -1,28 +1,36 @@
 import functools
 from typing import TYPE_CHECKING, TypeAlias
 
+from array_api_compat import (
+    array_namespace as _array_namespace,
+)
+from array_api_compat import (
+    is_array_api_obj,
+    numpy,
+    to_device,
+)
 from numpy.array_api._typing import Array as ArrayAPIArray
 from numpy.array_api._typing import Device as ArrayAPIDevice
 from numpy.array_api._typing import Dtype as ArrayAPIDtype
 
 import spfluo
-from spfluo._vendored.array_api_compat import (
-    array_namespace,
-    is_array_api_obj,
-    numpy,
-    to_device,
-)
 
 libs = [numpy]
 if spfluo.has_torch:
-    from spfluo._vendored.array_api_compat import torch
+    from array_api_compat import torch
+    from torch.fft import fftn as torch_fft
+
+    def pytorch_fftn_wrapper(x, s=None, axes=None, norm="backward"):
+        return torch_fft(x, s=s, dim=axes, norm=norm)
+
+    torch.fft.fftn = pytorch_fftn_wrapper
 
     libs.append(torch)
 else:
     torch = None
 
 if spfluo.has_cupy:
-    from spfluo._vendored.array_api_compat import cupy
+    from array_api_compat import cupy
 
     libs.append(cupy)
 else:
@@ -33,7 +41,28 @@ Device: TypeAlias = ArrayAPIDevice
 Dtype: TypeAlias = ArrayAPIDtype
 
 if TYPE_CHECKING:
-    from spfluo._vendored.array_api_compat.common._helpers import array_api_module
+    import numpy.array_api
+
+    array_api_module: TypeAlias = numpy.array_api
+
+
+def array_namespace(*xs, api_version=None, _use_compat=True) -> "array_api_module":
+    """
+    Get the array API compatible namespace for the arrays `xs`.
+
+    `xs` should contain one or more arrays.
+
+    Typical usage is
+
+        def your_function(x, y):
+            xp = array_api_compat.array_namespace(x, y)
+            # Now use xp as the array library namespace
+            return xp.mean(x, axis=0) + 2*xp.std(y, axis=0)
+
+    api_version should be the newest version of the spec that you need support
+    for (currently the compat library wrapped APIs only support v2021.12).
+    """
+    return _array_namespace(*xs, api_version=api_version, _use_compat=_use_compat)
 
 
 def numpy_only_compatibility(numpy_func):
