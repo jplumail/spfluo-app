@@ -2,24 +2,22 @@ from functools import partial
 from typing import TYPE_CHECKING
 
 import pytest
-import torch
 from hypothesis import given, settings
 from hypothesis import strategies as st
 from hypothesis.extra.numpy import arrays
-from scipy.ndimage import affine_transform
+from scipy.ndimage import affine_transform as affine_transform_scipy
 from scipy.ndimage import fourier_shift as fourier_shift_scipy
 from scipy.ndimage import shift as shift_scipy
-from scipy.spatial.transform import Rotation as R
 from skimage import data, util
 from skimage.registration import (
     phase_cross_correlation as phase_cross_correlation_skimage,
 )
 
-import spfluo
-import spfluo.utils
-from spfluo.tests.helpers import assert_allclose, testing_libs
+from spfluo.tests.helpers import assert_allclose, random_pose, testing_libs
 from spfluo.utils.array import numpy as np
-from spfluo.utils.volume import fourier_shift, phase_cross_correlation
+from spfluo.utils.array import to_numpy
+from spfluo.utils.transform import get_transform_matrix_from_pose
+from spfluo.utils.volume import affine_transform, fourier_shift, phase_cross_correlation
 
 if TYPE_CHECKING:
     from spfluo.utils.array import array_api_module
@@ -104,32 +102,6 @@ def test_broadcasting_phase_cross_correlation():  # TODO
 ####################################################
 
 
-def affine_transform_gpu(
-    vol,
-    mat,
-    offset=0.0,
-    output_shape=None,
-    device="cpu",
-    batch=False,
-    multichannel=False,
-):
-    out = spfluo.utils.volume.affine_transform(
-        torch.as_tensor(vol, device=device),
-        torch.as_tensor(mat, device=device),
-        offset=offset,
-        output_shape=output_shape,
-        batch=batch,
-        multichannel=multichannel,
-        prefilter=False,
-        order=1,
-    )
-    return out.cpu().numpy()
-
-
-def create_2d_rot_mat(theta):
-    return np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
-
-
 def is_affine_close(im1, im2):
     """Scipy's and pytorch interpolations at borders don't behave equivalently
     So we add a margin"""
@@ -137,55 +109,52 @@ def is_affine_close(im1, im2):
     return np.isclose(im1, im2).sum() > (D * W * H - 2 * (H * D + D * W + W * H))
 
 
-def test_affine_transform_simple():
-    N = 10
-    image = util.img_as_float(data.cells3d()[:, 1, :, :])
-    matrices = np.empty((N, 4, 4))
-    for i in range(N):
-        matrices[i] = np.eye(4)
-        matrices[i, :3, :3] = np.eye(3) + R.random().as_matrix() * 0.1
-        matrices[i, :3, 3] = np.random.randn(3)
-
-    out_scipy = [affine_transform(image, m, order=1) for m in matrices]
-    out_pt = list(affine_transform_gpu(np.stack([image] * N), matrices, batch=True))
-    assert all([is_affine_close(x, y) for x, y in zip(out_scipy, out_pt)])
-
-
-def test_affine_transform_output_shape():
-    output_shapes = [
-        (64, 32, 32),
-        (32, 32, 32),
-        (64, 128, 256),
-        (128, 128, 57),
-        (57, 56, 55),
-    ]
-    image = util.img_as_float(data.cells3d()[:, 1, :, :])
-    matrix = np.eye(4)
-    matrix[:3, :3] = np.eye(3) + R.random().as_matrix() * 0.1
-    matrix[:3, 3] = np.random.randn(3)
-
-    out_scipy = [
-        affine_transform(image, matrix, order=1, output_shape=o) for o in output_shapes
-    ]
-    out_pt = [
-        affine_transform_gpu(image[None], matrix[None], output_shape=o, batch=True)
-        for o in output_shapes
-    ]
-    assert all([is_affine_close(x, y) for x, y in zip(out_scipy, out_pt)])
-
-
-def test_affine_transform_offset():
-    N = 10
-    image = util.img_as_float(data.cells3d()[:, 1, :, :])
-    matrix = np.eye(3) + R.random().as_matrix() * 0.1
-    matrices = np.stack([matrix] * N)
-    offsets = np.random.randn(N, 3)
-
-    out_scipy = [affine_transform(image, matrix, order=1, offset=o) for o in offsets]
-    out_pt = affine_transform_gpu(
-        np.stack([image] * N), matrices, offset=offsets, batch=True
+@settings(deadline=None)  # necessary for GPU testing
+@given(
+    pose=random_pose(),
+    order=st.just(1),
+    mode=st.sampled_from(["constant", "nearest", "reflect"]),
+    cval=st.just(0.0),
+    prefilter=st.just(True),
+    d=st.data(),
+)
+@pytest.mark.parametrize(
+    "xp, device",
+    testing_libs,
+)
+@pytest.mark.parametrize("input", [util.img_as_float(data.cells3d()[:, 0, :60, :60])])
+def test_correctness_affine_transform(
+    xp: "array_api_module", input, device, pose, order, mode, cval, prefilter, d
+):
+    output_shape = d.draw(
+        st.tuples(
+            *[
+                st.integers(min_value=input.shape[i] // 2, max_value=input.shape[i] * 2)
+                for i in range(input.ndim)
+            ],
+        )
     )
-    assert all([is_affine_close(x, y) for x, y in zip(out_scipy, out_pt)])
+    matrix = get_transform_matrix_from_pose(output_shape, pose)
+    input_xp = xp.asarray(input, device=device)
+    matrix_xp = xp.asarray(matrix, device=device)
+
+    output_xp, output = [
+        func(
+            input_,
+            matrix_,
+            output_shape=output_shape,
+            order=order,
+            mode=mode,
+            cval=cval,
+            prefilter=prefilter,
+        )
+        for func, input_, matrix_ in [
+            (affine_transform, input_xp, matrix_xp),
+            (affine_transform_scipy, input, matrix),
+        ]
+    ]
+
+    assert is_affine_close(to_numpy(output_xp), output)
 
 
 #################################################
