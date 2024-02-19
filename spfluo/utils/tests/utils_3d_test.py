@@ -1,7 +1,9 @@
 from functools import partial
 from typing import TYPE_CHECKING
 
+import numpy
 import pytest
+import torch
 from hypothesis import given, settings
 from hypothesis import strategies as st
 from hypothesis.extra.numpy import arrays
@@ -16,31 +18,19 @@ from skimage.registration import (
 
 import spfluo
 import spfluo.utils
-from spfluo.utils.array import array_namespace
+from spfluo.tests.helpers import testing_libs
+from spfluo.utils.array import Array, to_numpy
 from spfluo.utils.array import numpy as np
 from spfluo.utils.volume import fourier_shift, phase_cross_correlation
 
 if TYPE_CHECKING:
     from spfluo.utils.array import array_api_module
 
-libs = [(np, None)]
-if spfluo.has_cupy:
-    from spfluo.utils.array import cupy
 
-    libs.append((cupy, None))
-if spfluo.has_torch:
-    from spfluo.utils.array import torch
-
-    libs.append((torch, "cpu"))
-    from torch import cuda
-
-    if cuda.is_available():
-        libs.append((torch, "cuda"))
-
-
-def assert_allclose(a, b, rtol=1e-7, atol=0):
-    xp = array_namespace(a, b)
-    assert xp.all(xp.abs(a - b) <= atol + rtol * xp.abs(b))
+def assert_allclose(actual: Array, desired: Array, rtol=1e-7, atol=0):
+    numpy.testing.assert_allclose(
+        to_numpy(actual), to_numpy(desired), rtol=rtol, atol=atol
+    )
 
 
 ##################################################################
@@ -68,7 +58,7 @@ phase_cross_correlation_skimage = partial(
 )
 @pytest.mark.parametrize(
     "xp, device",
-    libs,
+    testing_libs,
 )
 @pytest.mark.parametrize("image", [data.camera(), data.cells3d()[:, 0, :60, :60]])
 def test_correctness_phase_cross_correlation(
@@ -223,7 +213,7 @@ def test_affine_transform_offset():
 )
 @pytest.mark.parametrize(
     "xp, device",
-    libs,
+    testing_libs,
 )
 @pytest.mark.parametrize("image", [data.camera(), data.cells3d()[:, 0, :60, :60]])
 def test_correctness_fourier_shift(
