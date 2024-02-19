@@ -20,7 +20,11 @@ if spfluo.has_torch:
     from array_api_compat import torch
     from torch.fft import fftn as torch_fft
 
-    def pytorch_fftn_wrapper(x, s=None, axes=None, norm="backward"):
+    def pytorch_fftn_wrapper(x, s=None, axes=None, norm="backward", dim=None, out=None):
+        if dim is not None:
+            axes = dim
+        if out is not None:
+            return torch_fft(x, s=s, dim=axes, norm=norm, out=out)
         return torch_fft(x, s=s, dim=axes, norm=norm)
 
     torch.fft.fftn = pytorch_fftn_wrapper
