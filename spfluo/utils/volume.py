@@ -258,10 +258,11 @@ def interpolate_to_size(
     """
     xp = array_namespace(volume)
     volume = xp.asarray(volume)
+    array_kwargs = dict(dtype=volume.dtype, device=xp.device(volume))
     D, H, W = output_size
-    input_center = (xp.asarray(volume.shape[-3:], device=xp.device(volume)) - 1) / 2
-    output_center = (xp.asarray(output_size, device=xp.device(volume)) - 1) / 2
-    mat = xp.eye(4, device=xp.device(volume))
+    input_center = (xp.asarray(volume.shape[-3:], **array_kwargs) - 1) / 2
+    output_center = (xp.asarray(output_size, **array_kwargs) - 1) / 2
+    mat = xp.eye(4, **array_kwargs)
     mat[:3, 3] = output_center - input_center
     inv_mat = xp.linalg.inv(mat)
     if batch:
