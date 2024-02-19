@@ -7,6 +7,7 @@ from hypothesis import strategies as st
 from hypothesis.extra.numpy import arrays
 from scipy.ndimage import affine_transform
 from scipy.ndimage import fourier_shift as fourier_shift_scipy
+from scipy.ndimage import shift as shift_scipy
 from scipy.spatial.transform import Rotation as R
 from skimage import data, util
 from skimage.registration import (
@@ -62,6 +63,7 @@ phase_cross_correlation_skimage = partial(
         ),
     ),
     upsample_factor=st.integers(min_value=1, max_value=100),
+    space=st.sampled_from(["fourier", "real"]),
     normalization=st.sampled_from(["phase", None]),
 )
 @pytest.mark.parametrize(
@@ -70,11 +72,21 @@ phase_cross_correlation_skimage = partial(
 )
 @pytest.mark.parametrize("image", [data.camera(), data.cells3d()[:, 0, :60, :60]])
 def test_correctness_phase_cross_correlation(
-    xp: "array_api_module", device, image, translation, upsample_factor, normalization
+    xp: "array_api_module",
+    device,
+    image,
+    translation,
+    upsample_factor,
+    space,
+    normalization,
 ):
-    reference_image = np.fft.fftn(util.img_as_float(image))
-    translation = translation[: reference_image.ndim]
-    moving_image = fourier_shift(reference_image, translation)
+    translation = translation[: image.ndim]
+    if space == "fourier":
+        reference_image = np.fft.fftn(util.img_as_float(image))
+        moving_image = fourier_shift(reference_image, translation)
+    else:
+        reference_image = util.img_as_float(image)
+        moving_image = shift_scipy(reference_image, translation)
 
     reference_image_xp = xp.asarray(reference_image, device=device)
     moving_image_xp = xp.asarray(moving_image, device=device)
@@ -83,7 +95,7 @@ def test_correctness_phase_cross_correlation(
         func(
             reference_image_,
             moving_image_,
-            space="fourier",
+            space=space,
             upsample_factor=upsample_factor,
             normalization=normalization,
         )
@@ -97,9 +109,8 @@ def test_correctness_phase_cross_correlation(
         assert_allclose(
             xp.asarray(shift[i]), xp.asarray(shift_skimage[i]), atol=1 / upsample_factor
         )
-    assert_allclose(error, xp.asarray(error_skimage), atol=1e7, rtol=0.01)
-    if xp != torch:
-        assert_allclose(phasediff, xp.asarray(phasediff_skimage), atol=1e7, rtol=0.01)
+    assert_allclose(error, xp.asarray(error_skimage), rtol=0.02, atol=1e-3)
+    # Phasediff not tested because not implemented in pytorch
 
 
 def test_broadcasting_phase_cross_correlation():  # TODO

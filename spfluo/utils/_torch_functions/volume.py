@@ -311,8 +311,6 @@ def phase_cross_correlation_broadcasted_pytorch(
         error (torch.Tensor): tensor of shape (...)
         shift (Tuple[torch.Tensor]): tuple of N tensors of size (...)
     """
-    if space == "real":
-        raise NotImplementedError("Space should be 'fourier'")
     if disambiguate:
         raise NotImplementedError(
             "pytorch masked cross correlation disambiguate is not implemented"
@@ -325,6 +323,16 @@ def phase_cross_correlation_broadcasted_pytorch(
     )
     if nb_spatial_dims is None:
         nb_spatial_dims = len(output_shape)
+    if space == "real":
+        reference_image_freq = torch.fft.fftn(
+            reference_image, dim=tuple(range(-nb_spatial_dims, 0))
+        )
+        moving_image_freq = torch.fft.fftn(
+            moving_image, dim=tuple(range(-nb_spatial_dims, 0))
+        )
+    elif space == "fourier":
+        reference_image_freq = reference_image
+        moving_image_freq = moving_image
     spatial_dims = list(range(len(output_shape) - nb_spatial_dims, len(output_shape)))
     other_dims = list(range(0, len(output_shape) - nb_spatial_dims))
     spatial_shapes = output_shape[spatial_dims]
@@ -335,7 +343,10 @@ def phase_cross_correlation_broadcasted_pytorch(
 
     # Single pixel registration
     error, shift, image_product = cross_correlation_max(
-        reference_image, moving_image, normalization, nb_spatial_dims=nb_spatial_dims
+        reference_image_freq,
+        moving_image_freq,
+        normalization,
+        nb_spatial_dims=nb_spatial_dims,
     )
 
     # Now change shifts so that they represent relative shifts and not indices
@@ -344,23 +355,28 @@ def phase_cross_correlation_broadcasted_pytorch(
     )
     shift[shift > midpoints] -= spatial_shapes_broadcasted[shift > midpoints]
 
-    spatial_size = torch.prod(spatial_shapes).type(reference_image.dtype)
+    spatial_size = torch.prod(spatial_shapes).type(reference_image_freq.dtype)
 
     if upsample_factor == 1:
         rg00 = (
             torch.sum(
-                (reference_image * reference_image.conj()),
+                (reference_image_freq * reference_image_freq.conj()),
                 dim=tuple(
-                    range(reference_image.ndim - nb_spatial_dims, reference_image.ndim)
+                    range(
+                        reference_image_freq.ndim - nb_spatial_dims,
+                        reference_image_freq.ndim,
+                    )
                 ),
             )
             / spatial_size
         )
         rf00 = (
             torch.sum(
-                (moving_image * moving_image.conj()),
+                (moving_image_freq * moving_image_freq.conj()),
                 dim=tuple(
-                    range(moving_image.ndim - nb_spatial_dims, moving_image.ndim)
+                    range(
+                        moving_image_freq.ndim - nb_spatial_dims, moving_image_freq.ndim
+                    )
                 ),
             )
             / spatial_size
@@ -395,14 +411,19 @@ def phase_cross_correlation_broadcasted_pytorch(
         shift += maxima / upsample_factor
 
         rg00 = torch.sum(
-            (reference_image * reference_image.conj()),
+            (reference_image_freq * reference_image_freq.conj()),
             dim=tuple(
-                range(reference_image.ndim - nb_spatial_dims, reference_image.ndim)
+                range(
+                    reference_image_freq.ndim - nb_spatial_dims,
+                    reference_image_freq.ndim,
+                )
             ),
         )
         rf00 = torch.sum(
-            (moving_image * moving_image.conj()),
-            dim=tuple(range(moving_image.ndim - nb_spatial_dims, moving_image.ndim)),
+            (moving_image_freq * moving_image_freq.conj()),
+            dim=tuple(
+                range(moving_image_freq.ndim - nb_spatial_dims, moving_image_freq.ndim)
+            ),
         )
 
     error = torch.tensor([1.0], device=device) - error / (rg00.real * rf00.real)
