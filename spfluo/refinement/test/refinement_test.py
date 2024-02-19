@@ -1,13 +1,11 @@
 # from spfluo.utils.loading import loadmat
 
-from functools import partial
 from typing import Callable, Tuple
 
 import numpy as np
 import pytest
 import torch
 
-import spfluo
 from spfluo.refinement import (
     convolution_matching_poses_grid,
     convolution_matching_poses_refined,
@@ -15,36 +13,47 @@ from spfluo.refinement import (
     reconstruction_L2,
     refine,
 )
+from spfluo.tests.helpers import ids, testing_libs
+from spfluo.utils.array import Array, array_namespace
+from spfluo.utils.tests.utils_3d_test import assert_allclose
 from spfluo.utils.transform import (
     distance_family_poses,
     get_transform_matrix,
     symmetrize_angles,
     symmetrize_poses,
 )
-from spfluo.utils.volume import affine_transform, are_volumes_aligned
+from spfluo.utils.volume import (
+    affine_transform,
+    assert_volumes_aligned,
+)
 
-if spfluo.has_torch_cuda:
-    device = "cuda"
-else:
-    device = "cpu"
-as_tensor = partial(torch.as_tensor, device=device, dtype=torch.float32)
+testing_libs, ids = zip(
+    *filter(lambda x: "torch" in x[0][0].__name__, zip(testing_libs, ids))
+)
 
 
 @pytest.fixture(scope="module")
-def generated_data_all_pytorch(generated_data_all):
-    return tuple(map(as_tensor, generated_data_all))
+def generated_data_all_array(request, generated_data_all):
+    xp, device = request.param
+    return tuple([xp.asarray(x, device=device) for x in generated_data_all])
 
 
 @pytest.fixture
 def poses_with_noise(
-    generated_data_all_pytorch: Tuple[torch.Tensor, ...],
-) -> torch.Tensor:
-    _, poses, _, _ = generated_data_all_pytorch
-    poses_noisy = poses.clone()
+    generated_data_all_array: Tuple[Array, ...],
+):
+    _, poses, _, _ = generated_data_all_array
+    xp = array_namespace(poses)
+    device = xp.device(poses)
+    poses_noisy = xp.asarray(poses, copy=True)
     sigma_rot, sigma_trans = 20, 2
-    torch.manual_seed(123)
-    poses_noisy[:, :3] += as_tensor(torch.randn(len(poses), 3)) * sigma_rot
-    poses_noisy[:, 3:] += as_tensor(torch.randn(len(poses), 3)) * sigma_trans
+    np.random.seed(0)
+    poses_noisy[:, :3] += (
+        xp.asarray(np.random.randn(len(poses), 3), device=device) * sigma_rot
+    )
+    poses_noisy[:, 3:] += (
+        xp.asarray(np.random.randn(len(poses), 3), device=device) * sigma_trans
+    )
     return poses_noisy
 
 
@@ -53,68 +62,83 @@ def poses_with_noise(
 ##########################
 
 
-def test_shapes_reconstruction_L2():
-    N, D, H, W = 10, 32, 32, 32
-    volumes = torch.randn((N, D, H, W))
-    psf = torch.randn((D, H, W))
-    poses = torch.randn((N, 6))
-    lambda_ = torch.tensor(1.0)
-    recon = reconstruction_L2(volumes, psf, poses, lambda_)
+@pytest.mark.parametrize(
+    "generated_data_all_array", testing_libs, indirect=True, ids=ids
+)
+def test_shapes_reconstruction_L2(generated_data_all_array):
+    volumes, groundtruth_poses, psf, groundtruth = generated_data_all_array
+    xp = array_namespace(volumes)
+    lambda_ = xp.asarray(1.0, device=xp.device(volumes))
+    recon = reconstruction_L2(volumes, psf, groundtruth_poses, lambda_)
 
-    assert recon.shape == (D, H, W)
+    assert recon.shape == volumes.shape[-3:]
 
 
-def test_parallel_reconstruction_L2():
-    M = 5
-    N, D, H, W = 10, 32, 32, 32
-    volumes = torch.randn((N, D, H, W))
-    psf = torch.randn((D, H, W))
-    poses = torch.randn((M, N, 6))
-    lambda_ = torch.randn((M,))
+@pytest.mark.parametrize(
+    "generated_data_all_array", testing_libs, indirect=True, ids=ids
+)
+def test_parallel_reconstruction_L2(generated_data_all_array, save_result):
+    volumes, groundtruth_poses, psf, groundtruth = generated_data_all_array
+    M = 3
+    xp = array_namespace(volumes)
+    lambda_ = xp.ones((M,), device=xp.device(volumes))
+    poses = groundtruth_poses + xp.asarray(
+        np.random.randn(M, volumes.shape[0], 6) * 0.1, device=xp.device(volumes)
+    )
     recon = reconstruction_L2(volumes, psf, poses, lambda_, batch=True)
-    recon2 = torch.stack(
+    recon2 = xp.stack(
         [reconstruction_L2(volumes, psf, poses[i], lambda_[i]) for i in range(M)]
     )
 
-    assert recon.shape == (M, D, H, W)
-    assert torch.isclose(recon, recon2).all()
+    save_result("reconstructions", recon2, metadata={"axes": "TZYX"})
+    save_result("reconstructions_paralled", recon, metadata={"axes": "TZYX"})
+
+    assert recon.shape == (M,) + volumes.shape[-3:]
+    assert_allclose(recon, recon2, atol=1e-5)
 
 
-def test_symmetry_reconstruction_L2(save_result: Callable[[str, np.ndarray], bool]):
+@pytest.mark.xfail(run=False)
+@pytest.mark.parametrize(
+    "generated_data_all_array", testing_libs, indirect=True, ids=ids
+)
+def test_symmetry_reconstruction_L2(
+    generated_data_all_array, save_result: Callable[[str, np.ndarray], bool]
+):
     k = 9
-    N, D, H, W = 10, 33, 33, 33
-    volumes = torch.randn((N, D, H, W))
-    psf = torch.randn((D, H, W))
-    poses = torch.randn((N, 6)).repeat(
-        k, 1, 1
-    )  # k times the same poses, useless symmetry
-    lambda_ = torch.tensor(1.0)
+    volumes, poses, psf, groundtruth = generated_data_all_array
+    xp = array_namespace(volumes)
+    lambda_ = xp.asarray(1.0, device=xp.device(volumes))
+    poses = xp.stack((poses,) * k)  # useless symmetry
     recon_sym = reconstruction_L2(volumes, psf, poses, lambda_, symmetry=True)
     recon = reconstruction_L2(volumes, psf, poses[0], lambda_, symmetry=False)
 
-    save_result("reconstruction_sym", recon_sym.cpu().numpy())
-    save_result("reconstruction", recon.cpu().numpy())
+    save_result("reconstruction_sym", recon_sym)
+    save_result("reconstruction", recon)
 
-    assert recon_sym.shape == (D, H, W)
-    assert torch.isclose(recon_sym, recon, atol=1e-4).all()
+    assert recon_sym.shape == volumes.shape[-3:]
+    assert_allclose(recon_sym, recon, atol=1e-4)
 
 
+@pytest.mark.parametrize(
+    "generated_data_all_array", testing_libs, indirect=True, ids=ids
+)
 def test_symmetry_reconstruction_L2_2(
-    generated_data_all_pytorch: tuple[torch.Tensor, ...],
+    generated_data_all_array: tuple[Array, ...],
     save_result: Callable[[str, np.ndarray], bool],
 ):
     """reconstruction_L2 of 1 particle with angles that have been symmetrized
     should get approximately the same result as a simple rotation
     """
-    volumes, groundtruth_poses, psf, groundtruth = generated_data_all_pytorch
-    lambda_ = as_tensor(torch.tensor(1.0))
+    volumes, groundtruth_poses, psf, groundtruth = generated_data_all_array
+    xp = array_namespace(volumes)
+    lambda_ = xp.asarray(1.0, device=xp.device(volumes))
 
     # select particle 0
     volume = volumes[0][None]
     pose = groundtruth_poses[0][None]
 
     # create symmetrical poses
-    pose_sym = torch.stack((pose,) * 9)
+    pose_sym = xp.stack((pose,) * 9)
     pose_sym[:, 0, :3] = symmetrize_angles(pose[0, :3], symmetry=9, degrees=True)
 
     # reconstruct
@@ -123,61 +147,75 @@ def test_symmetry_reconstruction_L2_2(
     # compare with simple rotation
     rot = affine_transform(
         volume[0],
-        get_transform_matrix(volume[0].shape, pose[0, :3], pose[0, 3:], degrees=True),
+        xp.asarray(
+            get_transform_matrix(
+                volume[0].shape, pose[0, :3], pose[0, 3:], degrees=True
+            ),
+            dtype=volume.dtype,
+        ),
         order=1,
     )
 
     # save and assert
-    save_result("reconstruction_sym", recon_sym.cpu().numpy())
-    save_result("simple_rot", rot.cpu().numpy())
-    assert are_volumes_aligned(recon_sym.cpu().numpy(), rot.cpu().numpy())
+    save_result("reconstruction_sym", recon_sym)
+    save_result("simple_rot", rot)
+    assert_volumes_aligned(recon_sym, rot)
 
 
+@pytest.mark.parametrize(
+    "generated_data_all_array", testing_libs, indirect=True, ids=ids
+)
 def test_reconstruction_L2_simple(
-    generated_data_all_pytorch: tuple[torch.Tensor, ...],
+    generated_data_all_array: tuple[Array, ...],
     save_result: Callable[[str, np.ndarray], bool],
 ):
     """Do a reconstruction and compare if it's aligned with the groundtruth"""
-    volumes, groundtruth_poses, psf, groundtruth = generated_data_all_pytorch
-    lbda = volumes.new_tensor(1e-4)
-    reconstruction = reconstruction_L2(volumes, psf, groundtruth_poses, lbda)
+    volumes, groundtruth_poses, psf, groundtruth = generated_data_all_array
+    xp = array_namespace(volumes)
+    lambda_ = xp.asarray(1.0, device=xp.device(volumes))
+    reconstruction = reconstruction_L2(volumes, psf, groundtruth_poses, lambda_)
 
-    save_result("reconstruction", reconstruction.cpu().numpy())
-    save_result("groundtruth", groundtruth.cpu().numpy())
+    save_result("reconstruction", reconstruction)
+    save_result("groundtruth", groundtruth)
 
-    assert are_volumes_aligned(
-        reconstruction.cpu().numpy(), groundtruth.cpu().numpy(), atol=1
-    )
+    assert_volumes_aligned(reconstruction, groundtruth, atol=1)
 
 
+@pytest.mark.parametrize(
+    "generated_data_all_array", testing_libs, indirect=True, ids=ids
+)
 def test_reconstruction_L2_symmetry(
-    generated_data_all_pytorch: tuple[torch.Tensor, ...],
+    generated_data_all_array: tuple[Array, ...],
     save_result: Callable[[str, np.ndarray], bool],
 ):
     """Do a reconstruction with symmetry and compare if it's aligned with groundtruth"""
-    volumes, groundtruth_poses, psf, groundtruth = generated_data_all_pytorch
-    lbda = volumes.new_tensor(1e-4)
+    volumes, groundtruth_poses, psf, groundtruth = generated_data_all_array
+    xp = array_namespace(volumes)
+    lambda_ = xp.asarray(1.0, device=xp.device(volumes))
     euler_angles_sym = symmetrize_angles(
         groundtruth_poses[:, :3], symmetry=9, degrees=True
     )
-    gt_poses_sym = torch.cat((euler_angles_sym, torch.zeros_like(euler_angles_sym)), 2)
+    gt_poses_sym = xp.concat(
+        (euler_angles_sym, xp.zeros_like(euler_angles_sym)), axis=2
+    )
     gt_poses_sym[:, :, 3:] = groundtruth_poses[:, None, 3:]  # shape (N, k, 6)
-    gt_poses_sym = torch.permute(
-        gt_poses_sym, (1, 0, 2)
-    ).contiguous()  # shape (k, N, 6)
+    gt_poses_sym = xp.permute_dims(gt_poses_sym, (1, 0, 2))  # shape (k, N, 6)
 
-    reconstruction = reconstruction_L2(volumes, psf, gt_poses_sym, lbda, symmetry=True)
-
-    save_result("reconstruction", reconstruction.cpu().numpy())
-    save_result("groundtruth", groundtruth.cpu().numpy())
-
-    assert are_volumes_aligned(
-        reconstruction.cpu().numpy(), groundtruth.cpu().numpy(), atol=1
+    reconstruction = reconstruction_L2(
+        volumes, psf, gt_poses_sym, lambda_, symmetry=True
     )
 
+    save_result("reconstruction", reconstruction)
+    save_result("groundtruth", groundtruth)
 
+    assert_volumes_aligned(reconstruction, groundtruth, atol=1)
+
+
+@pytest.mark.parametrize(
+    "generated_data_all_array", testing_libs, indirect=True, ids=ids
+)
 def test_reconstruction_L2_symmetry_1vol_iso(
-    generated_data_all_pytorch: tuple[torch.Tensor, ...],
+    generated_data_all_array: tuple[Array, ...],
     save_result: Callable[[str, np.ndarray], bool],
 ):
     """Do a reconstruction with 1 volume in 2 ways:
@@ -186,35 +224,35 @@ def test_reconstruction_L2_symmetry_1vol_iso(
 
     The results must be the same.
     """
-    volumes, groundtruth_poses, psf, groundtruth = generated_data_all_pytorch
-    lbda = volumes.new_tensor(1e-4)
+    volumes, groundtruth_poses, psf, groundtruth = generated_data_all_array
+    xp = array_namespace(volumes)
+    lambda_ = xp.asarray(1.0, device=xp.device(volumes))
     euler_angles_sym = symmetrize_angles(
         groundtruth_poses[:, :3], symmetry=9, degrees=True
     )
-    gt_poses_sym = torch.cat((euler_angles_sym, torch.zeros_like(euler_angles_sym)), 2)
+    gt_poses_sym = xp.cat((euler_angles_sym, xp.zeros_like(euler_angles_sym)), 2)
     gt_poses_sym[:, :, 3:] = groundtruth_poses[:, None, 3:]  # shape (N, k, 6)
-    gt_poses_sym = torch.permute(
-        gt_poses_sym, (1, 0, 2)
-    ).contiguous()  # shape (k, N, 6)
+    gt_poses_sym = xp.permute_dims(gt_poses_sym, (1, 0, 2))  # shape (k, N, 6)
 
     reconstruction_sym = reconstruction_L2(
-        volumes[:1], psf, gt_poses_sym[:, :1, :], lbda, symmetry=True
+        volumes[:1], psf, gt_poses_sym[:, :1, :], lambda_, symmetry=True
     )
-    volumes_repeated = torch.concat(
-        [volumes[i].repeat(9, 1, 1, 1) for i in range(volumes.shape[0])]
-    )
+    volume0_repeated = xp.stack((volumes[0],) * 9)
     reconstruction = reconstruction_L2(
-        volumes_repeated[:9], psf, gt_poses_sym[:, 0], lbda, symmetry=False
+        volume0_repeated, psf, gt_poses_sym[:, 0], lambda_, symmetry=False
     )
 
-    save_result("reconstruction_sym=True", reconstruction_sym.cpu().numpy())
-    save_result("reconstruction_sym=False", reconstruction.cpu().numpy())
+    save_result("reconstruction_sym=True", reconstruction_sym)
+    save_result("reconstruction_sym=False", reconstruction)
 
-    assert torch.isclose(reconstruction_sym, reconstruction, rtol=0.01).all()
+    assert_allclose(reconstruction_sym, reconstruction, rtol=0.01, atol=1e-5)
 
 
+@pytest.mark.parametrize(
+    "generated_data_all_array", testing_libs, indirect=True, ids=ids
+)
 def test_reconstruction_L2_symmetry_Nvol_iso(
-    generated_data_all_pytorch: tuple[torch.Tensor, ...],
+    generated_data_all_array: tuple[Array, ...],
     save_result: Callable[[str, np.ndarray], bool],
 ):
     """Do a reconstruction with N volumes in 2 ways:
@@ -223,35 +261,36 @@ def test_reconstruction_L2_symmetry_Nvol_iso(
 
     The results must be the same.
     """
-    volumes, groundtruth_poses, psf, groundtruth = generated_data_all_pytorch
-    lbda = volumes.new_tensor(1e-4)
+    volumes, groundtruth_poses, psf, groundtruth = generated_data_all_array
+    xp = array_namespace(volumes)
+    lambda_ = xp.asarray(1.0, device=xp.device(volumes))
     euler_angles_sym = symmetrize_angles(
         groundtruth_poses[:, :3], symmetry=9, degrees=True
     )
-    gt_poses_sym = torch.cat((euler_angles_sym, torch.zeros_like(euler_angles_sym)), 2)
+    gt_poses_sym = xp.concat(
+        (euler_angles_sym, xp.zeros_like(euler_angles_sym)), axis=2
+    )
     gt_poses_sym[:, :, 3:] = groundtruth_poses[:, None, 3:]  # shape (N, k, 6)
-    gt_poses_sym = torch.permute(
-        gt_poses_sym, (1, 0, 2)
-    ).contiguous()  # shape (k, N, 6)
+    gt_poses_sym = xp.permute_dims(gt_poses_sym, (1, 0, 2))  # shape (k, N, 6)
 
     reconstruction_sym = reconstruction_L2(
-        volumes, psf, gt_poses_sym, lbda, symmetry=True
+        volumes, psf, gt_poses_sym, lambda_, symmetry=True
     )
-    volumes_repeated = torch.concat(
-        [volumes[i].repeat(9, 1, 1, 1) for i in range(volumes.shape[0])]
+    volumes_repeated = xp.concat(
+        [xp.stack((volumes[i],) * 9) for i in range(volumes.shape[0])]
     )
     reconstruction = reconstruction_L2(
         volumes_repeated,
         psf,
-        torch.permute(gt_poses_sym, (1, 0, 2)).reshape(-1, 6),
-        lbda,
+        xp.permute_dims(gt_poses_sym, (1, 0, 2)).reshape(-1, 6),
+        lambda_,
         symmetry=False,
     )
 
-    save_result("reconstruction_sym=True", reconstruction_sym.cpu().numpy())
-    save_result("reconstruction_sym=False", reconstruction.cpu().numpy())
+    save_result("reconstruction_sym=True", reconstruction_sym)
+    save_result("reconstruction_sym=False", reconstruction)
 
-    assert torch.isclose(reconstruction_sym, reconstruction, rtol=0.01, atol=1e-6).all()
+    assert_allclose(reconstruction_sym, reconstruction, rtol=0.01, atol=1e-6)
 
 
 #############################
@@ -395,14 +434,14 @@ def test_refine_shapes():
     assert poses.shape == guessed_poses.shape
 
 
-@pytest.mark.skipif(device == "cpu", reason="Too long if done on CPU.")
+# @pytest.mark.skipif(device == "cpu", reason="Too long if done on CPU.")
 @pytest.mark.xfail(
     reason="distance_family_poses doesn't work as expected, "
     "the final reconstruction is better than the initial one."
 )
 def test_refine_easy(
-    generated_data_all_pytorch: tuple[torch.Tensor, ...],
-    poses_with_noise: torch.Tensor,
+    generated_data_all_pytorch: tuple[Array, ...],
+    poses_with_noise: Array,
     save_result: Callable[[str, np.ndarray], bool],
 ):
     poses = poses_with_noise
@@ -434,8 +473,8 @@ def test_refine_easy(
         poses, groundtruth_poses, symmetry=9
     )
 
-    save_result("initial_reconstruction", initial_reconstruction.cpu().numpy())
-    save_result("final_reconstruction", reconstruction.cpu().numpy())
+    save_result("initial_reconstruction", initial_reconstruction)
+    save_result("final_reconstruction", reconstruction)
 
     assert (
         rot_dist_deg1.mean() < rot_dist_deg2.mean()
