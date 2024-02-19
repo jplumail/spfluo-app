@@ -9,6 +9,7 @@ import pytest
 import tifffile
 
 from spfluo import data
+from spfluo.utils.array import Array, to_numpy
 
 
 def pytest_addoption(parser: pytest.Parser):
@@ -33,12 +34,12 @@ def save_result(image_directory: Union[Path, None], request: pytest.FixtureReque
 
     functools.wraps(tifffile.imwrite)
 
-    def inner(name: str, arr: np.ndarray, *args, **kwargs):
+    def inner(name: str, arr: Array, *args, **kwargs):
         saved = False
         if image_directory:
             tifffile.imwrite(
                 str(image_directory / (base_name + "-" + name + ".ome.tiff")),
-                arr,
+                to_numpy(arr),
                 *args,
                 **kwargs,
             )
