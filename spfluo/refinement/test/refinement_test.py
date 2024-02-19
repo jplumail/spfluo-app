@@ -4,7 +4,6 @@ from typing import Callable, Tuple
 
 import numpy as np
 import pytest
-import torch
 
 from spfluo.refinement import (
     convolution_matching_poses_grid,
@@ -300,33 +299,44 @@ def test_reconstruction_L2_symmetry_Nvol_iso(
 # Test convolution_matching #
 #############################
 
+gpu_libs, gpu_ids = zip(
+    *filter(
+        lambda x: "cuda" in x[0][1] or "cupy" in x[0][0].__name__,
+        zip(testing_libs, ids),
+    )
+)
 
-def test_memory_convolution_matching_poses_grid():
-    device = "cuda"
-    D = 32
-    for N in [1, 10]:
-        N = int(N)
-        M = int(100 / N**0.5)
-        reference = torch.randn((D, D, D), device=device)
-        volumes = torch.randn((N, D, D, D), device=device)
-        psf = torch.randn((D, D, D), device=device)
-        potential_poses = torch.randn((M, 6), device=device)
 
-        best_poses, errors = convolution_matching_poses_grid(
-            reference, volumes, psf, potential_poses
+@pytest.mark.parametrize(
+    "generated_data_all_array", gpu_libs, indirect=True, ids=gpu_ids
+)
+def test_memory_convolution_matching_poses_grid(generated_data_all_array):
+    """Test if a out of memory error occurs"""
+    volumes, groundtruth_poses, psf, groundtruth = generated_data_all_array
+    xp = array_namespace(volumes)
+    # 10 volumes of size 50^3, float32 -> 5 Mo
+    # M = 10_000 -> 50 Go to transfer to GPU
+    for M in [1, 10, 100, 1_000, 10_000]:
+        potential_poses = xp.asarray(
+            np.random.randn(M, 6), device=xp.device(volumes), dtype=volumes.dtype
         )
 
-        assert best_poses.shape == (N, 6)
-        assert errors.shape == (N,)
+        best_poses, errors = convolution_matching_poses_grid(
+            groundtruth, volumes, psf, potential_poses
+        )
+
+        assert best_poses.shape == (volumes.shape[0], 6)
+        assert errors.shape == (volumes.shape[0],)
 
 
-def test_shapes_convolution_matching_poses_grid():
+@pytest.mark.parametrize("xp,device", testing_libs, ids=ids)
+def test_shapes_convolution_matching_poses_grid(xp, device):
     M, d = 5, 6
-    N, D, H, W = 100, 32, 32, 32
-    reference = torch.randn((D, H, W))
-    volumes = torch.randn((N, D, H, W))
-    psf = torch.randn((D, H, W))
-    potential_poses = torch.randn((M, d))
+    N, D, H, W = 10, 32, 32, 32
+    reference = xp.asarray(np.random.randn(D, H, W), device=device)
+    volumes = xp.asarray(np.random.randn(N, D, H, W), device=device)
+    psf = xp.asarray(np.random.randn(D, H, W), device=device)
+    potential_poses = xp.asarray(np.random.randn(M, d), device=device)
 
     best_poses, errors = convolution_matching_poses_grid(
         reference, volumes, psf, potential_poses
@@ -375,13 +385,14 @@ def test_shapes_convolution_matching_poses_grid():
 #     assert ((best_poses - best_poses_matlab) < eps).all()
 
 
-def test_shapes_convolution_matching_poses_refined():
+@pytest.mark.parametrize("xp,device", testing_libs, ids=ids)
+def test_shapes_convolution_matching_poses_refined(xp, device):
     M, d = 5, 6
     N, D, H, W = 10, 32, 32, 32
-    reference = torch.randn((D, H, W))
-    volumes = torch.randn((N, D, H, W))
-    psf = torch.randn((D, H, W))
-    potential_poses = torch.randn((N, M, d))
+    reference = xp.asarray(np.random.randn(D, H, W), device=device)
+    volumes = xp.asarray(np.random.randn(N, D, H, W), device=device)
+    psf = xp.asarray(np.random.randn(D, H, W), device=device)
+    potential_poses = xp.asarray(np.random.randn(N, M, d), device=device)
 
     best_poses, errors = convolution_matching_poses_refined(
         reference, volumes, psf, potential_poses
@@ -396,16 +407,12 @@ def test_shapes_convolution_matching_poses_refined():
 ###################
 
 
-def test_shapes_find_angles_grid():
-    if torch.cuda.is_available():
-        device = "cuda"
-    else:
-        device = "cpu"
-
+@pytest.mark.parametrize("xp,device", testing_libs, ids=ids)
+def test_shapes_find_angles_grid(xp, device):
     N, D, H, W = 15, 32, 32, 32
-    reconstruction = torch.randn((D, H, W), device=device)
-    patches = torch.randn((N, D, H, W), device=device)
-    psf = torch.randn((D, H, W), device=device)
+    reconstruction = xp.asarray(np.random.randn(D, H, W), device=device)
+    patches = xp.asarray(np.random.randn(N, D, H, W), device=device)
+    psf = xp.asarray(np.random.randn(D, H, W), device=device)
 
     best_poses, errors = find_angles_grid(reconstruction, patches, psf, precision=10)
 
@@ -418,15 +425,12 @@ def test_shapes_find_angles_grid():
 ###############
 
 
-def test_refine_shapes():
-    if torch.cuda.is_available():
-        device = "cuda"
-    else:
-        device = "cpu"
+@pytest.mark.parametrize("xp,device", testing_libs, ids=ids)
+def test_refine_shapes(xp, device):
     N, D, H, W = 15, 32, 32, 32
-    patches = torch.randn((N, D, H, W), device=device)
-    psf = torch.randn((D, H, W), device=device)
-    guessed_poses = torch.randn((N, 6), device=device)
+    patches = xp.asarray(np.random.randn(N, D, H, W), device=device)
+    psf = xp.asarray(np.random.randn(D, H, W), device=device)
+    guessed_poses = xp.asarray(np.random.randn(N, 6), device=device)
 
     S = 2
     steps = [(S * S, S), S * S * S]
@@ -440,22 +444,27 @@ def test_refine_shapes():
 # @pytest.mark.skipif(device == "cpu", reason="Too long if done on CPU.")
 @pytest.mark.xfail(
     reason="distance_family_poses doesn't work as expected, "
-    "the final reconstruction is better than the initial one."
+    "the final reconstruction is better than the initial one.",
+    run=True,
+)
+@pytest.mark.parametrize(
+    "generated_data_all_array", gpu_libs, indirect=True, ids=gpu_ids
 )
 def test_refine_easy(
-    generated_data_all_pytorch: tuple[Array, ...],
+    generated_data_all_array: tuple[Array, ...],
     poses_with_noise: Array,
     save_result: Callable[[str, np.ndarray], bool],
 ):
     poses = poses_with_noise
-    volumes, groundtruth_poses, psf, groundtruth = generated_data_all_pytorch
+    volumes, groundtruth_poses, psf, groundtruth = generated_data_all_array
+    xp = array_namespace(volumes)
 
-    lbda = lbda = volumes.new_tensor(1e-2)
+    lambda_ = xp.asarray(1.0, device=xp.device(volumes))
     initial_reconstruction = reconstruction_L2(
         volumes,
         psf,
-        torch.moveaxis(symmetrize_poses(poses, 9), 1, 0),
-        lbda,
+        xp.permute_dims(symmetrize_poses(poses, 9), (1, 0, 2)),
+        lambda_,
         symmetry=True,
     )
 
@@ -479,7 +488,6 @@ def test_refine_easy(
     save_result("initial_reconstruction", initial_reconstruction)
     save_result("final_reconstruction", reconstruction)
 
-    assert (
-        rot_dist_deg1.mean() < rot_dist_deg2.mean()
-        and trans_dist_pix1.mean() < trans_dist_pix2.mean()
-    )
+    assert xp.mean(rot_dist_deg1) < xp.mean(rot_dist_deg2) and xp.mean(
+        trans_dist_pix1
+    ) < xp.mean(trans_dist_pix2)
