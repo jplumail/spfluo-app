@@ -868,12 +868,14 @@ def are_volumes_aligned(vol1, vol2, atol=0.1, nb_spatial_dims=3):
     return n <= atol
 
 
-def assert_volumes_aligned(vol1, vol2, atol=0.1, nb_spatial_dims=3):
+def assert_volumes_aligned(
+    vol1: Array, vol2: Array, atol: float = 0.1, nb_spatial_dims: int = 3
+):
     (dz, dy, dx), _, _ = phase_cross_correlation(
         vol1,
         vol2,
         upsample_factor=10,
-        disambiguate=True,
+        disambiguate=False,
         normalization=None,
         nb_spatial_dims=nb_spatial_dims,
     )
