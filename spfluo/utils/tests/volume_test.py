@@ -1,7 +1,6 @@
 from functools import partial
 from typing import TYPE_CHECKING
 
-import numpy
 import pytest
 import torch
 from hypothesis import given, settings
@@ -18,19 +17,12 @@ from skimage.registration import (
 
 import spfluo
 import spfluo.utils
-from spfluo.tests.helpers import testing_libs
-from spfluo.utils.array import Array, to_numpy
+from spfluo.tests.helpers import assert_allclose, testing_libs
 from spfluo.utils.array import numpy as np
 from spfluo.utils.volume import fourier_shift, phase_cross_correlation
 
 if TYPE_CHECKING:
     from spfluo.utils.array import array_api_module
-
-
-def assert_allclose(actual: Array, desired: Array, rtol=1e-7, atol=0):
-    numpy.testing.assert_allclose(
-        to_numpy(actual), to_numpy(desired), rtol=rtol, atol=atol
-    )
 
 
 ##################################################################

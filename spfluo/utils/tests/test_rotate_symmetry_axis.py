@@ -5,6 +5,7 @@ from hypothesis import strategies as st
 from scipy.spatial.transform import Rotation as R
 
 import spfluo.data as data
+from spfluo.tests.helpers import assert_volumes_aligned
 from spfluo.utils.rotate_symmetry_axis import (
     find_pose_from_z_axis_to_centriole_axis,
 )
@@ -17,7 +18,6 @@ from spfluo.utils.transform import (
 )
 from spfluo.utils.volume import (
     affine_transform,
-    assert_volumes_aligned,
 )
 
 

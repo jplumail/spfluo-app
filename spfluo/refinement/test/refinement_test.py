@@ -13,9 +13,13 @@ from spfluo.refinement import (
     reconstruction_L2,
     refine,
 )
-from spfluo.tests.helpers import ids, testing_libs
+from spfluo.tests.helpers import (
+    assert_allclose,
+    assert_volumes_aligned,
+    ids,
+    testing_libs,
+)
 from spfluo.utils.array import Array, array_namespace
-from spfluo.utils.tests.utils_3d_test import assert_allclose
 from spfluo.utils.transform import (
     distance_family_poses,
     get_transform_matrix,
@@ -24,7 +28,6 @@ from spfluo.utils.transform import (
 )
 from spfluo.utils.volume import (
     affine_transform,
-    assert_volumes_aligned,
 )
 
 testing_libs, ids = zip(
