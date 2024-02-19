@@ -1,4 +1,7 @@
 import numpy
+from hypothesis import assume
+from hypothesis import strategies as st
+from scipy.spatial.transform import Rotation as R
 
 import spfluo
 from spfluo.utils.array import Array, to_numpy
@@ -21,6 +24,38 @@ if spfluo.has_torch:
     if spfluo.has_torch_cuda:
         testing_libs.append((torch, "cuda"))
         ids.append("torch-cuda")
+
+
+@st.composite
+def random_pose(
+    draw,
+    quaternions=st.tuples(
+        st.floats(0, 1, allow_infinity=False, allow_nan=False),
+        st.floats(0, 1, allow_infinity=False, allow_nan=False),
+        st.floats(0, 1, allow_infinity=False, allow_nan=False),
+        st.floats(0, 1, allow_infinity=False, allow_nan=False),
+    ),
+    translation=st.tuples(
+        st.floats(0, 1, allow_infinity=False, allow_nan=False),
+        st.floats(0, 1, allow_infinity=False, allow_nan=False),
+        st.floats(0, 1, allow_infinity=False, allow_nan=False),
+    ),
+    translation_magnitude=st.floats(0, 1, allow_infinity=False, allow_nan=False),
+):
+    quaternions = draw(quaternions)
+    translation = draw(translation)
+    translation_magnitude = draw(translation_magnitude)
+
+    assume(np.linalg.norm(quaternions) > 0)
+    assume(not np.isinf(np.linalg.norm(quaternions)))
+    assume(np.linalg.norm(translation) > 0)
+    assume(not np.isinf(np.linalg.norm(translation)))
+
+    euler = R.from_quat(quaternions).as_euler("XZX", degrees=True)
+    translation /= np.linalg.norm(translation)
+    translation *= translation_magnitude
+    pose = np.concatenate((euler, translation))
+    return pose
 
 
 def assert_volumes_aligned(

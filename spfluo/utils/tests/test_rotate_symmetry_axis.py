@@ -1,11 +1,10 @@
 import numpy as np
 import pytest
-from hypothesis import HealthCheck, assume, given, settings
-from hypothesis import strategies as st
+from hypothesis import HealthCheck, given, settings
 from scipy.spatial.transform import Rotation as R
 
 import spfluo.data as data
-from spfluo.tests.helpers import assert_volumes_aligned
+from spfluo.tests.helpers import assert_volumes_aligned, random_pose
 from spfluo.utils.rotate_symmetry_axis import (
     find_pose_from_z_axis_to_centriole_axis,
 )
@@ -44,24 +43,6 @@ def create_data():
     return (volumes, poses_rotated, gt_rotated), (volumes, poses, gt)
 
 
-def create_data_random(quaternions, translation, translation_magnitude, create_data):
-    _, (volumes, poses, gt) = create_data
-    assume(np.linalg.norm(quaternions) > 0)
-    assume(not np.isinf(np.linalg.norm(quaternions)))
-    assume(np.linalg.norm(translation) > 0)
-    assume(not np.isinf(np.linalg.norm(translation)))
-
-    euler = R.from_quat(quaternions).as_euler("XZX", degrees=True)
-    translation /= np.linalg.norm(translation)
-    translation *= translation_magnitude * 5
-    pose = np.concatenate((euler, translation))
-    gt_rotated = affine_transform(
-        gt, np.linalg.inv(get_transform_matrix_from_pose(volumes[0].shape, pose))
-    )
-    poses_rotated = compose_poses(invert_pose(pose), poses)
-    return (volumes, poses_rotated, gt_rotated), (volumes, poses, gt), pose
-
-
 def test_data(create_data, save_result):
     (volumes, poses, reconstruction), _ = create_data
     # Vérification que les données sont bonnes
@@ -91,34 +72,24 @@ def test_find_rot_mat_easy(create_data):
     derandomize=True,
     print_blob=True,
 )
-@given(
-    quaternions=st.tuples(
-        st.floats(0, 1, allow_infinity=False, allow_nan=False),
-        st.floats(0, 1, allow_infinity=False, allow_nan=False),
-        st.floats(0, 1, allow_infinity=False, allow_nan=False),
-        st.floats(0, 1, allow_infinity=False, allow_nan=False),
-    ),
-    translation=st.tuples(
-        st.floats(0, 1, allow_infinity=False, allow_nan=False),
-        st.floats(0, 1, allow_infinity=False, allow_nan=False),
-        st.floats(0, 1, allow_infinity=False, allow_nan=False),
-    ),
-    translation_magnitude=st.floats(0, 1, allow_infinity=False, allow_nan=False),
-)
-def test_find_pose(
-    quaternions, translation, translation_magnitude, create_data, save_result
-):
-    (
-        (volumes, poses, reconstruction),
-        (_, poses_true_aligned, gt),
-        true_pose,
-    ) = create_data_random(quaternions, translation, translation_magnitude, create_data)
+@given(true_pose=random_pose())
+def test_find_pose(true_pose, create_data, save_result):
+    _, (volumes, poses_truely_aligned, gt) = create_data
+
+    # Reconstruction is rotated by true_pose, we rotate all the poses accordingly
+    reconstruction = affine_transform(
+        gt, np.linalg.inv(get_transform_matrix_from_pose(volumes[0].shape, true_pose))
+    )
+    poses_reconstruction = compose_poses(invert_pose(true_pose), poses_truely_aligned)
+
+    # Find the pose to go from reconstruction to Z axis
     pose = find_pose_from_z_axis_to_centriole_axis(reconstruction)
+    poses_aligned = compose_poses(pose, poses_reconstruction)
 
-    poses_aligned = compose_poses(pose, poses)
-
-    # assess errors
-    err_rot1, err_trans1 = distance_poses(poses_aligned, poses_true_aligned, symmetry=9)
+    # assess errors, compare poses_aligned with poses_truely_aligned
+    err_rot1, err_trans1 = distance_poses(
+        poses_aligned, poses_truely_aligned, symmetry=9
+    )
     err_rot1_corrected = err_rot1.copy()
     err_rot1_corrected[err_rot1 > 20] = err_rot1[err_rot1 > 20] - 40
 
@@ -126,7 +97,7 @@ def test_find_pose(
     transformation_sym = np.asarray([0, 180, 0, 0, 0, 0], dtype=float)
     poses_aligned_sym = compose_poses(transformation_sym, poses_aligned)
     err_rot2, err_trans2 = distance_poses(
-        poses_aligned_sym, poses_true_aligned, symmetry=9
+        poses_aligned_sym, poses_truely_aligned, symmetry=9
     )
     err_rot2_corrected = err_rot2.copy()
     err_rot2_corrected[err_rot2 > 20] = err_rot2[err_rot2 > 20] - 40
