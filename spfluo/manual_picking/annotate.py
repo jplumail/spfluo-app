@@ -34,6 +34,14 @@ def annotate(
     """
     # correct spacing, see https://github.com/napari/napari/issues/6627
     spacing_normalized = np.asarray(spacing) / np.min(spacing)
+    edge_width = max(
+        (
+            0.4  # 0.4um: length of a centriole
+            / 10  # 1/10th of the length of a centriole
+            / spacing[1]  # in pixel space
+        ),
+        2,
+    )
 
     init_qt()
 
@@ -131,9 +139,12 @@ def annotate(
                 ).astype(int)
             )
 
-    bbox_layer.mouse_drag_callbacks.append(update_viewer)
-
     view.add_layer(bbox_layer)
+    for v in viewers:
+        for layer in v.layers:
+            if isinstance(layer, BoundingBoxLayer):
+                layer.mouse_drag_callbacks.append(update_viewer)
+                layer.edge_width = edge_width
     view.scale_bar.visible = True
     view.scale_bar.unit = "um"
 
