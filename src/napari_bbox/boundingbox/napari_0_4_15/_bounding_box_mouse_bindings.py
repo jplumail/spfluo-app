@@ -132,12 +132,12 @@ def _add_bounding_box(layer, event, data):
         min = data.min(0)
         max = data.max(0)
         size = max-min
-        visible_size = size[layer._dims_displayed]
         max[layer._dims_displayed] = np.nan
         min[layer._dims_displayed] = np.nan
         if layer.size_mode == "average":
-            data[:] = np.where(data == max, coordinates+visible_size.mean()/2*layer.size_multiplier, data)
-            data[:] = np.where(data == min, coordinates-visible_size.mean()/2*layer.size_multiplier, data)
+            visible_size_world = layer.data_to_world(size)[layer._slice_input.displayed]
+            data[:] = np.where(data == max, layer.world_to_data(np.asarray(event.position) + visible_size_world.mean() / 2)*layer.size_multiplier, data)
+            data[:] = np.where(data == min, layer.world_to_data(np.asarray(event.position) - visible_size_world.mean() / 2)*layer.size_multiplier, data)
         elif not const_set and layer.size_mode == "constant":
             data[:] = np.where(data == max, np.asarray(coordinates) + layer.size_constant/2, data)
             data[:] = np.where(data == min, np.asarray(coordinates) - layer.size_constant/2, data)
