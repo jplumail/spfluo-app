@@ -1,6 +1,5 @@
 import argparse
 
-import numpy as np
 import tifffile
 import torch
 
@@ -8,6 +7,7 @@ from spfluo.ab_initio_reconstruction.common_image_processing_methods.others impo
     normalize,
 )
 from spfluo.refinement import refine
+from spfluo.utils.array import numpy as np
 from spfluo.utils.loading import read_poses, save_poses
 from spfluo.utils.log import base_parser, set_logging_level
 from spfluo.utils.read_save_files import (
@@ -74,11 +74,13 @@ def create_parser():
 
 
 def main(args):
-    particles, _ = read_images_in_folder(args.particles_dir, alphabetic_order=True)
+    particles, _ = read_images_in_folder(
+        args.particles_dir, alphabetic_order=True, xp=np, dtype="float32"
+    )
     particles = np.stack(
         [normalize(particles[i].astype(float)) for i in range(particles.shape[0])]
     )
-    psf = normalize(read_image(args.psf_path).astype(float))
+    psf = normalize(read_image(args.psf_path, xp=np).astype(float))
     if args.initial_volume_path:
         initial_volume = normalize(read_image(args.initial_volume_path).astype(float))
     else:

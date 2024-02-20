@@ -21,7 +21,8 @@ def read_image(
 ) -> Array:
     xp, device = get_namespace_device(xp, device, gpu)
     arr = numpy.asarray(
-        imageio.mimread(path, memtest=False), dtype=getattr(numpy, dtype)
+        imageio.mimread(path, memtest=False),
+        dtype=getattr(numpy, dtype) if dtype else None,
     )
     return xp.asarray(arr, device=device)
 
