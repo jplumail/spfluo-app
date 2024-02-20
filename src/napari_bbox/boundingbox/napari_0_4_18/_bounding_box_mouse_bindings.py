@@ -17,6 +17,8 @@ if TYPE_CHECKING:
 
     import numpy.typing as npt
     from vispy.app.canvas import MouseEvent
+    from napari_bbox.boundingbox.napari_0_4_18.bounding_boxes import BoundingBoxLayer
+
 
 
 
@@ -177,7 +179,7 @@ def add_bounding_box(layer, event: MouseEvent) -> None:
 
 
 def _add_bounding_box(
-    layer, event: MouseEvent, data: npt.NDArray
+    layer: "BoundingBoxLayer", event: MouseEvent, data: npt.NDArray
 ) -> None:
     """Helper function for adding a bounding box.
 
@@ -210,12 +212,12 @@ def _add_bounding_box(
         min = data.min(0)
         max = data.max(0)
         size = max - min
-        visible_size = size[layer._slice_input.displayed]
         max[layer._slice_input.displayed] = np.nan
         min[layer._slice_input.displayed] = np.nan
         if layer.size_mode == "average":
-            data[:] = np.where(data == max, coordinates + visible_size.mean() / 2 * layer.size_multiplier, data)
-            data[:] = np.where(data == min, coordinates - visible_size.mean() / 2 * layer.size_multiplier, data)
+            visible_size_world = np.asarray(layer.data_to_world(size))[layer._slice_input.displayed]
+            data[:] = np.where(data == max, np.asarray(layer.world_to_data(event.position + visible_size_world.mean() / 2))*layer.size_multiplier, data)
+            data[:] = np.where(data == min, np.asarray(layer.world_to_data(event.position - visible_size_world.mean() / 2))*layer.size_multiplier, data)
         elif not const_set and layer.size_mode == "constant":
             data[:] = np.where(data == max, np.asarray(coordinates) + layer.size_constant / 2, data)
             data[:] = np.where(data == min, np.asarray(coordinates) - layer.size_constant / 2, data)
