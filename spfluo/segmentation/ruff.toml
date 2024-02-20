@@ -1,0 +1,3 @@
+extend = "../../ruff.toml"
+
+exclude = ["losses.py", "unet_3d.py"]

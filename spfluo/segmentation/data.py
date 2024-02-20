@@ -722,7 +722,7 @@ class Voxelise(_AbstractTransform):
 
     @staticmethod
     def get_FOV(
-        pointcloud: Union[torch.Tensor, np.ndarray]
+        pointcloud: Union[torch.Tensor, np.ndarray],
     ) -> Tuple[Tuple[float, float], ...]:
         """Get the Field Of View of a point cloud.
 
@@ -1151,7 +1151,7 @@ class GeneratorDataset(torch.utils.data.Dataset):
 def unbatch_dict(d):
     res = []
     for k in d:
-        if type(d[k]) is dict:
+        if isinstance(d[k], dict):
             r = unbatch_dict(d[k])
             for i in range(len(r)):
                 if len(res) < i + 1:
@@ -1168,7 +1168,7 @@ def unbatch_dict(d):
 def infos_to_dataframe(infos):
     b = {}
     for k in infos:
-        if type(infos[k]) is dict:
+        if isinstance(infos[k], dict):
             for k2 in infos[k]:
                 if len(infos[k][k2].shape) == 1:
                     b[k + "_" + k2] = infos[k][k2]

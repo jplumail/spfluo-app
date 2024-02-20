@@ -158,7 +158,7 @@ def transform_patch(patch, R, ty, tx, pad=False):
 
 def build_particle(patches, tree, R, ty, tx):
     r_, ty_, tx_ = tree[3]
-    if type(tree[2]) is list:
+    if isinstance(tree[2], list):
         m = tree[0]
         p = patches[tree[1]]
         return (
@@ -178,7 +178,7 @@ def fill_params(params, tree, R, ty, tx):
     r_, ty_, tx_ = tree[3]
     params[tree[1]] = (R % 360, ty, tx)
     R_rad = R * np.pi / 180
-    if type(tree[2]) is list:
+    if isinstance(tree[2], list):
         fill_params(
             params,
             tree[2],

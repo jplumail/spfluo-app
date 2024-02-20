@@ -31,7 +31,7 @@ def affine_transform_batched_multichannel_cupy(
         output = cp.empty((N, C) + output_shape, dtype=output)
     else:
         return_none = True
-    if type(offset) is float or type(offset) is tuple:
+    if isinstance(offset, float) or isinstance(offset, tuple):
 
         def offset_gen(_):
             return offset

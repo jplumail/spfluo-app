@@ -135,7 +135,7 @@ def extract_annotations(
         print(f"No patch size provided, chosing {ps}.", file=sys.stdout)
     else:
         ps = patch_size
-        if type(ps) == list:
+        if isinstance(ps, list):
             ps = max(ps)
 
     # Save annotations
