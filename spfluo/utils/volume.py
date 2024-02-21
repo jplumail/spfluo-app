@@ -246,6 +246,34 @@ def resample(
     )
 
 
+def pad(volume: Array, pad_width: Tuple[int]):
+    xp = array_namespace(volume)
+    pad_width = xp.asarray(pad_width)
+    if pad_width.ndim == 1:
+        pad_width = xp.broadcast_to(xp.reshape(pad_width, (-1, 1)), (volume.ndim, 2))
+    assert pad_width.shape == (volume.ndim, 2)
+    padded_volume = xp.zeros(
+        tuple(
+            [
+                s + int(before) + int(after)
+                for s, (before, after) in zip(volume.shape, pad_width)
+            ]
+        ),
+        dtype=volume.dtype,
+        device=xp.device(volume),
+    )
+    padded_volume[
+        tuple(
+            [
+                slice(before, s - after)
+                for (before, after), s in zip(pad_width, padded_volume.shape)
+            ]
+        )
+    ] = volume
+
+    return padded_volume
+
+
 def interpolate_to_size(
     volume: Array,
     output_size: Tuple[int, int, int],
