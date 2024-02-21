@@ -8,13 +8,13 @@ from spfluo.utils.array import Array, to_numpy
 from spfluo.utils.array import numpy as np
 from spfluo.utils.volume import phase_cross_correlation
 
-testing_libs = [(np, None)]
+testing_libs = [(np, "cpu")]
 ids = ["numpy"]
 
 if spfluo.has_cupy:
     from spfluo.utils.array import cupy
 
-    testing_libs.append((cupy, None))
+    testing_libs.append((cupy, cupy.cuda.Device(0)))
     ids.append("cupy")
 if spfluo.has_torch:
     from spfluo.utils.array import torch
