@@ -97,10 +97,13 @@ def numpy_only_compatibility(numpy_func):
                 arg_ = xp.to_device(arg_, "cpu")
             numpy_kwargs[k] = arg_
 
-        devices = set(map(xp.device, array_args + array_kwargs))
-        if len(devices) != 1:
-            raise TypeError(f"Multiple devices found in args: {devices}")
-        (device,) = devices
+        try:
+            devices = set(map(xp.device, array_args + array_kwargs))
+            if len(devices) != 1:
+                raise TypeError(f"Multiple devices found in args: {devices}")
+            (device,) = devices
+        except TypeError:
+            device = xp.device(array_args[0])
 
         return xp.asarray(numpy_func(*numpy_args, **numpy_kwargs), device=device)
 
