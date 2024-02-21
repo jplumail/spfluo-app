@@ -38,7 +38,9 @@ def affine_transform_batched_multichannel_pytorch(
         torch.Tensor: Rotated volumes of shape (N, C, D, H, W)
     """
     N, C, D, H, W = input.size()
-    tensor_kwargs = dict(device=input.device, dtype=input.dtype)
+    (dtype,) = set((input.dtype, matrix.dtype))
+    (device,) = set((input.device, matrix.device))
+    tensor_kwargs = dict(device=device, dtype=dtype)
 
     if isinstance(offset, float):
         tvec = torch.tensor([offset, offset, offset], **tensor_kwargs).expand(N, 3)
