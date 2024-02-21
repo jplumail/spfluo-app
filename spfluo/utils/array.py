@@ -18,16 +18,34 @@ import spfluo
 libs = [numpy]
 if spfluo.has_torch:
     from array_api_compat import torch
-    from torch.fft import fftn as torch_fft
+    from torch.fft import fftn as torch_fftn
+    from torch.fft import fftshift as torch_fftshift
+    from torch.fft import ifftn as torch_ifftn
 
     def pytorch_fftn_wrapper(x, s=None, axes=None, norm="backward", dim=None, out=None):
         if dim is not None:
             axes = dim
         if out is not None:
-            return torch_fft(x, s=s, dim=axes, norm=norm, out=out)
-        return torch_fft(x, s=s, dim=axes, norm=norm)
+            return torch_fftn(x, s=s, dim=axes, norm=norm, out=out)
+        return torch_fftn(x, s=s, dim=axes, norm=norm)
+
+    def pytorch_ifftn_wrapper(
+        x, s=None, axes=None, norm="backward", dim=None, out=None
+    ):
+        if dim is not None:
+            axes = dim
+        if out is not None:
+            return torch_ifftn(x, s=s, dim=axes, norm=norm, out=out)
+        return torch_ifftn(x, s=s, dim=axes, norm=norm)
+
+    def pytorch_fftshift_wrapper(x, /, *, axes=None, norm="backward", dim=None):
+        if dim is not None:
+            axes = dim
+        return torch_fftshift(x, dim=axes)
 
     torch.fft.fftn = pytorch_fftn_wrapper
+    torch.fft.ifftn = pytorch_ifftn_wrapper
+    torch.fft.fftshift = pytorch_fftshift_wrapper
 
     libs.append(torch)
 else:
