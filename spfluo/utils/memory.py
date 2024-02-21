@@ -287,6 +287,38 @@ def split_batch(
                     yield o
 
 
+def find_minibatch(shape: tuple[int], max_size: int) -> tuple[int]:
+    if len(shape) == 0:
+        return ()
+    cumproduct = np.cumprod(np.flip(np.asarray(shape)))
+    i = np.sum(cumproduct <= max_size)
+    if i == 0:
+        return (max_size,)
+    else:
+        return (
+            find_minibatch(shape[:-i], math.floor(max_size / cumproduct[i - 1]))
+            + shape[-i:]
+        )
+
+
+def split_batch2(
+    shape: Tuple[int],
+    max_batch: int | None = None,
+    use_memory: bool = False,
+) -> Generator[int | Tuple[int], None, None]:
+    if use_memory:
+        raise NotImplementedError()
+
+    if max_batch is None:
+        yield from split_batch(tuple([None for _ in range(len(shape))]), shape)
+        return
+
+    minibatch = find_minibatch(shape, max_batch)
+    yield from split_batch(
+        tuple([0 for i in range(len(shape) - len(minibatch))]) + minibatch, shape
+    )
+
+
 if __name__ == "__main__":
     for o in split_batch((8, None, 10), (100, 120, 17)):
         print(o)
