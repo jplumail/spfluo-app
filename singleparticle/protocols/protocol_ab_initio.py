@@ -101,7 +101,9 @@ class ProtSingleParticleAbInitio(Protocol, ProtFluoBase):
             default=0,
             label="Size of a minibatch",
             expertLevel=params.LEVEL_ADVANCED,
-            help="The smaller the size, the less memory will be used.",
+            help="The smaller the size, the less memory will be used.\n"
+            "0 for automatic minibatch.",
+            condition="gpu",
         )
         form.addParam(
             "pad",
@@ -236,8 +238,10 @@ class ProtSingleParticleAbInitio(Protocol, ProtFluoBase):
         args += ["--N_rot", f"{self.N_rot.get()}"]
         args += ["--eps", self.eps.get()]
         if self.gpu.get():
-            args += ["--gpu", "pytorch"]
+            args += ["--gpu"]
             args += ["--interp_order", str(1)]
+            if self.minibatch.get() > 0:
+                args += ["--minibatch", self.minibatch.get()]
         print("Launching reconstruction")
         Plugin.runJob(self, Plugin.getSPFluoProgram(AB_INITIO_MODULE), args=args)
         os.link(
