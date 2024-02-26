@@ -505,7 +505,7 @@ def refine(
     symmetry: int = 1,
     convention: str = "XZX",
     device: Optional[Device] = None,
-    batch_size: int = 1,
+    batch_size: Optional[int] = None,
 ):
     """
     Args:
@@ -520,7 +520,9 @@ def refine(
     assert lambda_ > 0, f"lambda should be greater than 1, found {lambda_}"
     refinement_logger.debug("Calling function refine")
     xp = array_namespace(patches, psf, guessed_poses)
-    array_kwargs = dict(dtype=patches.dtype, device=xp.device(patches))
+    host_device = xp.device(patches)
+    compute_device = device
+    array_kwargs = dict(dtype=patches.dtype, device=host_device)
     lambda_ = xp.asarray(lambda_, **array_kwargs)
 
     if initial_volume is not None:
@@ -537,7 +539,7 @@ def refine(
             guessed_poses_sym,
             lambda_,
             symmetry=True,
-            device=device,
+            device=compute_device,
             batch_size=batch_size,
         )
         initial_reconstruction = interpolate_to_size(
@@ -577,7 +579,7 @@ def refine(
                 patches,
                 psf,
                 potential_poses,
-                device=device,
+                device=compute_device,
                 batch_size=batch_size,
             )
             refinement_logger.debug(
@@ -595,7 +597,7 @@ def refine(
                 current_poses,
                 ranges[i],
                 s,
-                device=device,
+                device=compute_device,
                 batch_size=batch_size,
             )
             refinement_logger.debug(f"[refine_poses] Done in {time.time()-t0:.3f}s")
@@ -614,7 +616,12 @@ def refine(
         )
         current_poses_sym = xp.permute_dims(current_poses_sym, (1, 0, 2))
         current_reconstruction = reconstruction_L2(
-            patches, psf, current_poses_sym, lambda_, symmetry=True, device=device
+            patches,
+            psf,
+            current_poses_sym,
+            lambda_,
+            symmetry=True,
+            device=compute_device,
         )
         current_reconstruction = interpolate_to_size(
             current_reconstruction, patches[0].shape

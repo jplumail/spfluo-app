@@ -1,13 +1,12 @@
 import argparse
 
 import tifffile
-import torch
 
 from spfluo.ab_initio_reconstruction.common_image_processing_methods.others import (
     normalize,
 )
 from spfluo.refinement import refine
-from spfluo.utils.array import numpy as np
+from spfluo.utils.array import array_namespace
 from spfluo.utils.loading import read_poses, save_poses
 from spfluo.utils.log import base_parser, set_logging_level
 from spfluo.utils.read_save_files import (
@@ -67,36 +66,39 @@ def create_parser():
         "The symmetry is cylindrical around the X-axis.",
     )
 
+    parser.add_argument("--dtype", type=str, default="float32")
+
     # GPU
     parser.add_argument("--gpu", action="store_true")
+    parser.add_argument("--minibatch_size", type=int, default=None)
 
     return parser
 
 
 def main(args):
     particles, _ = read_images_in_folder(
-        args.particles_dir, alphabetic_order=True, xp=np, dtype="float32"
+        args.particles_dir, alphabetic_order=True, gpu=True, dtype=args.dtype
     )
-    particles = np.stack(
-        [normalize(particles[i].astype(float)) for i in range(particles.shape[0])]
+    xp = array_namespace(particles)
+    compute_device = xp.device(particles)
+    particles = xp.to_device(particles, "cpu")
+    host_device = xp.device(particles)
+    particles = xp.stack([normalize(particles[i]) for i in range(particles.shape[0])])
+    psf = normalize(
+        read_image(args.psf_path, xp=xp, device=host_device, dtype=args.dtype)
     )
-    psf = normalize(read_image(args.psf_path, xp=np).astype(float))
     if args.initial_volume_path:
-        initial_volume = normalize(read_image(args.initial_volume_path).astype(float))
+        initial_volume = normalize(
+            read_image(
+                args.initial_volume_path, xp=xp, device=host_device, dtype=args.dtype
+            )
+        )
     else:
         initial_volume = None
     guessed_poses, names = read_poses(args.guessed_poses_path, alphabetic_order=True)
-
-    # Transfer to GPU
-    def as_tensor(arr):
-        device = "cuda" if torch.cuda.is_available() and args.gpu else "cpu"
-        return torch.as_tensor(
-            arr.astype(np.float32), dtype=torch.float32, device=device
-        )
-
-    particles, psf, guessed_poses = map(as_tensor, (particles, psf, guessed_poses))
-    if initial_volume is not None:
-        initial_volume = as_tensor(initial_volume)
+    guessed_poses = xp.asarray(
+        guessed_poses, device=host_device, dtype=getattr(xp, args.dtype)
+    )
 
     reconstruction, poses = refine(
         particles,
@@ -107,6 +109,8 @@ def main(args):
         initial_volume,
         args.lambda_,
         args.symmetry,
+        device=compute_device,
+        batch_size=args.minibatch_size,
     )
 
     reconstruction, poses = reconstruction.cpu().numpy(), poses.cpu().numpy()
