@@ -166,7 +166,7 @@ class ProtSingleParticleAbInitio(Protocol, ProtFluoBase):
     def _insertAllSteps(self):
         self.particlesDir = os.path.abspath(self._getExtraPath("particles"))
         self.outputDir = os.path.abspath(self._getExtraPath("working_dir"))
-        self.psfPath = os.path.abspath(self._getExtraPath("psf.tif"))
+        self.psfPath = os.path.abspath(self._getExtraPath("psf.ome.tiff"))
         self.final_reconstruction = self._getExtraPath("final_reconstruction.tif")
         self._insertFunctionStep(self.prepareStep)
         self._insertFunctionStep(self.reconstructionStep)
@@ -182,7 +182,7 @@ class ProtSingleParticleAbInitio(Protocol, ProtFluoBase):
 
         # PSF Path
         psf: PSFModel = self.inputPSF.get()
-        save_image(self.psfPath, psf)
+        save_image(self.psfPath, psf, channel=channel)
 
         # Make isotropic
         vs = particles.getVoxelSize()

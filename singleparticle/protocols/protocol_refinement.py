@@ -132,8 +132,10 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
     def _insertAllSteps(self):
         self.root_dir = os.path.abspath(self._getExtraPath("root"))
         self.outputDir = os.path.abspath(self._getExtraPath("working_dir"))
-        self.psfPath = os.path.join(self.root_dir, "psf.tif")
-        self.initial_volume_path = os.path.join(self.root_dir, "initial_volume.tif")
+        self.psfPath = os.path.join(self.root_dir, "psf.ome.tiff")
+        self.initial_volume_path = os.path.join(
+            self.root_dir, "initial_volume.ome.tiff"
+        )
         self.final_reconstruction = os.path.abspath(
             self._getExtraPath("final_reconstruction.tif")
         )
@@ -152,12 +154,12 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
 
         # PSF Path
         psf: PSFModel = self.inputPSF.get()
-        save_image(self.psfPath, psf)
+        save_image(self.psfPath, psf, channel=channel)
 
         # Initial volume path
         initial_volume: Particle = self.initialVolume.get()
         if initial_volume:
-            save_image(self.initial_volume_path, initial_volume)
+            save_image(self.initial_volume_path, initial_volume, channel=channel)
 
         # Make isotropic
         vs = particles.getVoxelSize()

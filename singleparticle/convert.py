@@ -238,13 +238,18 @@ def save_particles_and_poses(
     return particles_paths, max_dim
 
 
-def save_image(new_path: str, image: Image):
+def save_image(new_path: str, image: Image, channel: int = None):
     image_path = os.path.abspath(image.getFileName())
     ext = os.path.splitext(image_path)[1]
-    if ext != ".tif" and ext != ".tiff":
-        raise NotImplementedError(
-            f"Found ext {ext} in particles: {image_path}."
-            "Only tiff file are supported."
+    if image.getNumChannels() > 1 and channel is not None:
+        Particle.from_data(
+            image.getData()[channel][None], new_path, voxel_size=image.getVoxelSize()
         )
     else:
-        os.link(image_path, new_path)
+        if ext.endswith(".tiff") or ext.endswith(".tif"):
+            os.link(image_path, new_path)
+        else:
+            raise NotImplementedError(
+                f"Found ext {ext} in particles: {image}."
+                "Only tiff file are supported."
+            )
