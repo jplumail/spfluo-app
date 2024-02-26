@@ -5,8 +5,6 @@ import os
 from typing import Dict, Iterator, List, Tuple
 
 import numpy as np
-from aicsimageio.aics_image import AICSImage
-from aicsimageio.transforms import reshape_data
 from pwfluo.objects import (
     Coordinate3D,
     Image,
@@ -154,20 +152,20 @@ def save_particles(
         im_path = os.path.abspath(im.getFileName())
         ext = os.path.splitext(im_path)[1]
         im_name = im.strId()
-        im_newPath = os.path.join(particles_dir, im_name + ".tif")
+        im_newPath = os.path.join(particles_dir, im_name + ".ome.tiff")
         particles_paths.append(im_newPath)
         if im.getNumChannels() > 1 and channel is not None:
-            AICSImage(
-                reshape_data(im.getData(), im.img.dims.order, "TCZYX", C=channel)
-            ).save(im_newPath)
+            Particle.from_data(
+                im.getData()[channel][None], im_newPath, voxel_size=im.getVoxelSize()
+            )
         else:
-            if ext != ".tif" and ext != ".tiff":
+            if ext.endswith(".tiff") or ext.endswith(".tif"):
+                os.link(im_path, im_newPath)
+            else:
                 raise NotImplementedError(
                     f"Found ext {ext} in particles: {im_path}."
                     "Only tiff file are supported."
-                )  # FIXME: allow formats accepted by AICSImageio
-            else:
-                os.link(im_path, im_newPath)
+                )
 
     return particles_paths, max_dim
 
@@ -209,20 +207,22 @@ def save_particles_and_poses(
             im_path = os.path.abspath(im.getFileName())
             ext = os.path.splitext(im_path)[1]
             im_name = im.strId()
-            im_newPath = os.path.join(particles_dir, im_name + ".tif")
+            im_newPath = os.path.join(particles_dir, im_name + ".ome.tiff")
             particles_paths.append(im_newPath)
             if channel is not None and im.getNumChannels() > 1:
-                AICSImage(
-                    reshape_data(im.getData(), im.img.dims.order, "TCZYX", C=channel)
-                ).save(im_newPath)
+                Particle.from_data(
+                    im.getData()[channel][None],
+                    im_newPath,
+                    voxel_size=im.getVoxelSize(),
+                )
             else:
-                if ext != ".tif" and ext != ".tiff":
+                if ext.endswith(".tiff") or ext.endswith(".tif"):
+                    os.link(im_path, im_newPath)
+                else:
                     raise NotImplementedError(
                         f"Found ext {ext} in particles: {im_path}."
                         "Only tiff file are supported."
-                    )  # FIXME: allow formats accepted by AICSImageio
-                else:
-                    os.link(im_path, im_newPath)
+                    )
 
             # Write pose
             rotMat = im.getTransform().getRotationMatrix()

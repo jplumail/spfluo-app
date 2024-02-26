@@ -10,7 +10,7 @@
 # **************************************************************************
 
 import os
-from typing import List, Optional, Union
+from typing import List, Union
 
 import pyworkflow as pw
 import pyworkflow.utils as pwutils
@@ -86,11 +86,8 @@ class Plugin(plugin.Plugin):
         return command
 
     @classmethod
-    def getNapariProgram(cls, plugin: Optional[str] = "napari-aicsimageio"):
-        napari_cmd = "python -m napari"
-        if plugin:
-            napari_cmd += f" --plugin {plugin}"
-        return napari_cmd
+    def getNapariProgram(cls):
+        return "python -m napari"
 
     @classmethod
     def getMicroTipiProgram(cls, program: str):
