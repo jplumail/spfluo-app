@@ -233,7 +233,11 @@ def save_particles_and_poses(
                 )
             )
             trans = list(map(str, im.getTransform().getShifts().tolist()))
-            csvwriter.writerow([im_newPath] + euler_angles + trans)
+            csvwriter.writerow(
+                [os.path.join("particles", im_name + ".ome.tiff")]
+                + euler_angles
+                + trans
+            )
 
     return particles_paths, max_dim
 

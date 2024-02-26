@@ -6,7 +6,6 @@ from pwfluo.objects import (
     AverageParticle,
     Particle,
     PSFModel,
-    SetOfCoordinates3D,
     SetOfParticles,
 )
 from pwfluo.protocols import ProtFluoBase
@@ -15,12 +14,12 @@ from pyworkflow.protocol import Protocol
 
 from singleparticle import Plugin
 from singleparticle.constants import REFINEMENT_MODULE, UTILS_MODULE
-from singleparticle.convert import save_image, save_particles_and_poses
+from singleparticle.convert import read_poses, save_image, save_particles_and_poses
 
 
 class outputs(Enum):
     reconstructedVolume = AverageParticle
-    coordinates = SetOfCoordinates3D
+    particles = SetOfParticles
 
 
 class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
@@ -69,10 +68,19 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
         form.addParam(
             "gpu",
             params.BooleanParam,
-            default=False,
-            expertLevel=params.LEVEL_ADVANCED,
+            default=True,
             label="Use GPU?",
             help="This protocol can use the GPU but it's unstable.",
+        )
+        form.addParam(
+            "minibatch",
+            params.IntParam,
+            default=0,
+            label="Size of a minibatch",
+            expertLevel=params.LEVEL_ADVANCED,
+            help="The smaller the size, the less memory will be used.\n"
+            "0 for automatic minibatch.",
+            condition="gpu",
         )
         form.addParam(
             "pad",
@@ -245,6 +253,8 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
         ]
         if self.gpu:
             args += ["--gpu"]
+            if self.minibatch.get() > 0:
+                args += ["--minibatch", self.minibatch.get()]
         Plugin.runJob(self, Plugin.getSPFluoProgram(REFINEMENT_MODULE), args=args)
 
     def createOutputStep(self):
@@ -253,4 +263,36 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
         reconstruction = AverageParticle.from_filename(
             self.final_reconstruction, num_channels=1, voxel_size=(vs, vs)
         )
-        self._defineOutputs(**{outputs.reconstructedVolume.name: reconstruction})
+
+        # Output 2 : particles rotated
+        output_particles = self._createSetOfParticles()
+        transforms = {img_id: t for t, img_id in read_poses(self.final_poses)}
+        for particle in self.inputParticles.get():
+            particle: Particle
+
+            rotated_transform = transforms[
+                "particles/" + particle.strId() + ".ome.tiff"
+            ]  # new coords
+
+            # New file (link to particle)
+            rotated_particle_path = self._getExtraPath(particle.getBaseName())
+            os.link(particle.getFileName(), rotated_particle_path)
+
+            # Creating the particle
+            rotated_particle = Particle.from_filename(
+                rotated_particle_path, voxel_size=particle.getVoxelSize()
+            )
+            rotated_particle.setTransform(rotated_transform)
+            rotated_particle.setImageName(particle.getImageName())
+            rotated_particle.setImgId(os.path.basename(rotated_particle_path))
+
+            output_particles.append(rotated_particle)
+
+        output_particles.write()
+
+        self._defineOutputs(
+            **{
+                outputs.reconstructedVolume.name: reconstruction,
+                outputs.particles.name: output_particles,
+            }
+        )
