@@ -21,6 +21,9 @@ from singleparticle.protocols.protocol_picking_predict import (
 from singleparticle.protocols.protocol_picking_train import (
     ProtSingleParticlePickingTrain,
 )
+from singleparticle.protocols.protocol_reconstruction import (
+    ProtSingleParticleReconstruction,
+)
 from singleparticle.protocols.protocol_refinement import ProtSingleParticleRefinement
 from singleparticle.protocols.protocol_separate import ProtSingleParticleSeparate
 from singleparticle.protocols.protocol_utils import ProtSingleParticleUtils
@@ -37,4 +40,5 @@ __all__ = [
     ProtSingleParticleDeconv,
     ProtSingleParticleBlindDeconv,
     ProtSingleParticleSeparate,
+    ProtSingleParticleReconstruction,
 ]
