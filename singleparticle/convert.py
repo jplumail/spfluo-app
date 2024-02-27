@@ -121,7 +121,7 @@ def read_poses(poses_csv: str):
             t = Transform()
             matrix = np.eye(4)
             matrix[:3, :3] = Rotation.from_euler(
-                "XZX", [float(row[1]), float(row[2]), float(row[3])]
+                "XZX", [float(row[1]), float(row[2]), float(row[3])], degrees=True
             ).as_matrix()
             t.setMatrix(matrix)
             t.setShifts(float(row[4]), float(row[5]), float(row[6]))
