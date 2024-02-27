@@ -279,7 +279,7 @@ def get_spacing(im_path: str) -> Tuple[Tuple[float], str]:
 
 
 def isotropic_resample(
-    im_paths: str, folder_path: str, spacing: Tuple[float, float, float] = None
+    im_paths: list[str], folder_path: str, spacing: Tuple[float, float, float] = None
 ) -> None:
     if spacing is None:
         spacings = np.array([get_spacing(p)[0] for p in im_paths], dtype=float)
@@ -291,6 +291,9 @@ def isotropic_resample(
     os.makedirs(folder_path, exist_ok=True)
     for im_path, zoom in zip(im_paths, zooms):
         im = tifffile.imread(im_path)
+        zoom = tuple(zoom)
+        if im.ndim == 4:
+            zoom = (1,) + zoom
         im = get_cupy_array(im)
         im = ndimage.zoom(im, zoom)
         im = get_numpy_array(im)
@@ -301,7 +304,11 @@ def resize(im_paths: str, size: int, folder_path: str):
     os.makedirs(folder_path, exist_ok=True)
     for im_path in im_paths:
         im = tifffile.imread(im_path)
-        im_resized = crop_center(im, (size,) * 3)
+        if im.ndim == 4:
+            s = (im.shape[0],) + (size,) * 3
+        else:
+            s = (size,) * 3
+        im_resized = crop_center(im, s)
         tifffile.imwrite(
             os.path.join(folder_path, os.path.basename(im_path)), im_resized
         )
@@ -336,7 +343,7 @@ def read_poses(path: str, alphabetic_order=True):
     for row in content:
         if len(row) > 0:
             poses.append(np.array(row[1:], dtype=float))
-            fnames.append(os.path.basename(row[0]))
+            fnames.append(row[0])
     if alphabetic_order:
         fnames, poses = zip(*sorted(zip(fnames, poses), key=lambda x: x[0]))
     poses = np.stack(poses)
