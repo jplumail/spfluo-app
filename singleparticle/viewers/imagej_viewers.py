@@ -59,6 +59,7 @@ class ImageJ:
             temp_file = os.path.join(temp_dir, "temp.ome.tiff")
             with tifffile.TiffWriter(temp_file, ome=True, bigtiff=True) as tif:
                 for i, im in enumerate(images):
+                    multichannel = im.getNumChannels() > 1
                     vs_xy, vs_z = im.getVoxelSize() if im.getVoxelSize() else (1, 1)
                     metadata = {
                         "axes": "CZYX",
@@ -78,9 +79,10 @@ class ImageJ:
                     else:
                         raise ValueError(f"Data is None for {im}.")
             series_str = " ".join(["series_" + str(i + 1) for i in range(len(images))])
+            color_mode = "Composite" if multichannel else "Default"
             script = (
                 "run('Bio-Formats', "
-                f"'open={temp_file} autoscale color_mode=Default "
+                f"'open={temp_file} autoscale color_mode={color_mode} "
                 "concatenate_series rois_import=[ROI manager] view=Hyperstack "
                 f"stack_order=XYCZT {series_str}');"
             )
