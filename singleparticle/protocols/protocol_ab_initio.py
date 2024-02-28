@@ -177,7 +177,11 @@ class ProtSingleParticleAbInitio(Protocol, ProtFluoBase):
     def prepareStep(self):
         # Image links for particles
         particles: SetOfParticles = self.inputParticles.get()
-        channel = self.channel.get() if particles.getNumChannels() > 0 else None
+        channel = (
+            self.channel.get()
+            if particles.getNumChannels() and particles.getNumChannels() > 0
+            else None
+        )
         particles_paths, max_dim = save_particles(
             self.particlesDir, particles, channel=channel
         )
