@@ -46,6 +46,23 @@ class ProtSingleParticleReconstruction(Protocol, ProtFluoBase):
             help="Select the PSF.",
         )
         form.addParam(
+            "gpu",
+            params.BooleanParam,
+            default=True,
+            label="Use GPU?",
+            help="This protocol can use the GPU.",
+        )
+        form.addParam(
+            "minibatch",
+            params.IntParam,
+            default=0,
+            label="Size of a minibatch",
+            expertLevel=params.LEVEL_ADVANCED,
+            help="The smaller the size, the less memory will be used.\n"
+            "0 for automatic minibatch.",
+            condition="gpu",
+        )
+        form.addParam(
             "pad",
             params.BooleanParam,
             default=True,
@@ -136,6 +153,7 @@ class ProtSingleParticleReconstruction(Protocol, ProtFluoBase):
             os.path.join(self.root_dir, fname) for _, fname in read_poses(poses_path)
         ]
 
+        minibatch = self.minibatch.get() if self.minibatch.get() > 0 else None
         reconstruction(
             particles_paths,
             poses_path,
@@ -143,6 +161,8 @@ class ProtSingleParticleReconstruction(Protocol, ProtFluoBase):
             self.final_reconstruction,
             self.lbda.get(),
             self.sym.get(),
+            self.gpu.get(),
+            minibatch,
         )
 
     def createOutputStep(self):
