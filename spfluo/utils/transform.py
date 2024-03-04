@@ -56,15 +56,13 @@ def invert_pose(pose: Array, convention="XZX"):
     return new_pose
 
 
-def get_transform_matrix_around_center(
-    shape: Tuple[int, int, int], rotation_matrix: Array
-):
+def get_transform_matrix_around_center(shape: Tuple[int, ...], rotation_matrix: Array):
     """
     Params:
         - shape
-        - rotation_matrix: Array of shape (..., 3, 3)
+        - rotation_matrix: Array of shape (..., ndim, ndim)
     Returns:
-        Array of shape (..., 4, 4)
+        Array of shape (..., ndim+1, ndim+1)
     """
     xp = array_namespace(rotation_matrix)
     array_kwargs = {
@@ -72,13 +70,16 @@ def get_transform_matrix_around_center(
         "device": xp.device(rotation_matrix),
     }
     center = (xp.asarray(shape, **array_kwargs) - 1) / 2
-    H_rot = xp.zeros((rotation_matrix.shape[:-2]) + (4, 4), **array_kwargs)
-    H_rot[..., 3, 3] = 1.0
+    ndim = rotation_matrix.shape[-1]
+    H_rot = xp.zeros(
+        (rotation_matrix.shape[:-2]) + (ndim + 1, ndim + 1), **array_kwargs
+    )
+    H_rot[..., ndim, ndim] = 1.0
     H_center = xp.asarray(H_rot, copy=True)
-    H_center[..., :3, 3] = -center  # 1. translation to (0,0,0)
-    H_center[..., [0, 1, 2], [0, 1, 2]] = 1.0  # diag to 1
-    H_rot[..., :3, :3] = rotation_matrix  # 2. rotation
-    H_rot[..., :3, 3] = center  # 3. translation to center of image.
+    H_center[..., :ndim, ndim] = -center  # 1. translation to (0,0,0)
+    H_center[..., list(range(ndim)), list(range(ndim))] = 1.0  # diag to 1
+    H_rot[..., :ndim, :ndim] = rotation_matrix  # 2. rotation
+    H_rot[..., :ndim, ndim] = center  # 3. translation to center of image.
 
     #   3-2 <- 1
     H = H_rot @ H_center
