@@ -82,6 +82,21 @@ def test_separate(create_data_monochannel, save_result):
 def test_separate_multichannel(create_data, save_result):
     im, (im1, im2), good_channel = create_data
 
+    im11, im22 = separate_centrioles(im, (50, 50, 50), channel=good_channel)
+
+    save_and_assert(
+        save_result,
+        im[good_channel],
+        im1[good_channel],
+        im2[good_channel],
+        im11[good_channel],
+        im22[good_channel],
+    )
+
+
+def test_separate_coords_multichannel(create_data, save_result):
+    im, (im1, im2), good_channel = create_data
+
     im11, im22 = separate_centrioles_coords(
         im, (50, 25, 25), (100, 50, 50), (50, 50, 50), channel=good_channel
     )
