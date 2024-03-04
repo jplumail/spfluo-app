@@ -1,4 +1,5 @@
 import itertools
+import math
 from typing import TYPE_CHECKING, Optional, Sequence, Tuple, Union
 
 import matplotlib.pyplot as plt
@@ -709,9 +710,11 @@ def disp3D(*ims, fig=None, axis_off=False):
             ax.set_axis_off()
 
 
-def disp2D(fig, *ims, **imshowkwargs):
-    h = int(np.floor(len(ims) ** 0.5))
-    w = int(np.ceil(len(ims) / h))
+def disp2D(*ims, fig=None, **imshowkwargs):
+    if fig is None:
+        fig = plt.figure()
+    h = int(math.floor(len(ims) ** 0.5))
+    w = int(math.ceil(len(ims) / h))
     axes = fig.subplots(h, w)
     if type(axes) == np.ndarray:
         axes = axes.flatten()
