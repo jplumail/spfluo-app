@@ -9,6 +9,7 @@ import numpy as np
 import tifffile
 
 from spfluo.utils.array import torch
+from spfluo.utils.volume import interpolate_to_size
 
 try:
     import cupy as cp
@@ -19,9 +20,6 @@ except ImportError:
     from scipy import ndimage
 
     use_cupy = False
-from spfluo.ab_initio_reconstruction.common_image_processing_methods.others import (
-    crop_center,
-)
 
 
 def get_cupy_array(image):
@@ -304,11 +302,8 @@ def resize(im_paths: str, size: int, folder_path: str):
     os.makedirs(folder_path, exist_ok=True)
     for im_path in im_paths:
         im = tifffile.imread(im_path)
-        if im.ndim == 4:
-            s = (im.shape[0],) + (size,) * 3
-        else:
-            s = (size,) * 3
-        im_resized = crop_center(im, s)
+        multichannel = im.ndim == 4
+        im_resized = interpolate_to_size(im, (size,) * 3, multichannel=multichannel)
         tifffile.imwrite(
             os.path.join(folder_path, os.path.basename(im_path)), im_resized
         )
