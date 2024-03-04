@@ -6,7 +6,7 @@ from scipy.spatial.transform import Rotation as R
 import spfluo.data as data
 from spfluo.tests.helpers import assert_volumes_aligned, random_pose
 from spfluo.utils.rotate_symmetry_axis import (
-    find_pose_from_z_axis_to_centriole_axis,
+    find_pose_from_z_axis_centered_to_centriole_axis,
 )
 from spfluo.utils.transform import (
     compose_poses,
@@ -56,7 +56,7 @@ def test_data(create_data, save_result):
 
 def test_find_rot_mat_easy(create_data):
     _, (_, _, centriole) = create_data
-    pose = find_pose_from_z_axis_to_centriole_axis(centriole, threshold=0.3)
+    pose = find_pose_from_z_axis_centered_to_centriole_axis(centriole, 9, threshold=0.3)
     assert np.isclose(
         distance_rotation_matrices(
             R.from_euler("XZX", pose[:3], degrees=True).as_matrix(), np.identity(3)
@@ -71,6 +71,7 @@ def test_find_rot_mat_easy(create_data):
     report_multiple_bugs=False,
     derandomize=True,
     print_blob=True,
+    deadline=500,
 )
 @given(true_pose=random_pose())
 def test_find_pose(true_pose, create_data, save_result):
@@ -83,7 +84,7 @@ def test_find_pose(true_pose, create_data, save_result):
     poses_reconstruction = compose_poses(invert_pose(true_pose), poses_truely_aligned)
 
     # Find the pose to go from reconstruction to Z axis
-    pose = find_pose_from_z_axis_to_centriole_axis(reconstruction)
+    pose = find_pose_from_z_axis_centered_to_centriole_axis(reconstruction, 9)
     poses_aligned = compose_poses(pose, poses_reconstruction)
 
     # assess errors, compare poses_aligned with poses_truely_aligned
@@ -130,8 +131,8 @@ def test_apply_transformation_and_sym_to_poses(create_data, save_result):
         (_, poses_true_aligned, reconstruction_true_aligned),
     ) = create_data
 
-    pose_from_axis_to_reconstruction = find_pose_from_z_axis_to_centriole_axis(
-        reconstruction
+    pose_from_axis_to_reconstruction = find_pose_from_z_axis_centered_to_centriole_axis(
+        reconstruction, 9
     )
     reconstruction_aligned = affine_transform(
         reconstruction,

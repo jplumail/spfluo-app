@@ -38,6 +38,7 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument("--factor", type=float, help="Resampling factor", default=1.0)
 
     # rotate_symmetry_axis args
+    parser.add_argument("--symmetry", type=int, help="symmetry degree of the particle")
     parser.add_argument(
         "--convention", type=str, help="scipy rotation convention", default="XZX"
     )
@@ -72,6 +73,7 @@ def main(args: argparse.Namespace) -> None:
     if args.function == "rotate_symmetry_axis":
         rotate_symmetry_axis_main(
             args.input,
+            args.symmetry,
             args.convention,
             args.threshold,
             args.rotated_volume,

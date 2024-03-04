@@ -1,3 +1,4 @@
+import math
 from typing import Optional
 
 import numpy as np
@@ -7,7 +8,12 @@ from sklearn.decomposition import PCA
 
 from spfluo.utils.array import Array, array_namespace
 from spfluo.utils.loading import read_poses, save_poses
-from spfluo.utils.transform import compose_poses, get_transform_matrix_from_pose
+from spfluo.utils.transform import (
+    compose_poses,
+    get_transform_matrix_around_center,
+    get_transform_matrix_from_pose,
+    invert_pose,
+)
 from spfluo.utils.volume import affine_transform
 
 DEFAULT_THRESHOLD = 0.3
@@ -76,8 +82,90 @@ def find_pose_from_z_axis_to_centriole_axis(
     return pose
 
 
+def find_pose_from_centriole_to_center(
+    im: Array, symmetry: int, precision: float = 1, axis_indice: int = 0
+):
+    num = math.ceil(max(im.shape[1:]) / (4 * precision))
+    N_trans = num * num
+    xp = array_namespace(im)
+    im_proj = xp.sum(im, axis=axis_indice)
+    yx_translations = xp.reshape(
+        xp.stack(
+            xp.meshgrid(xp.linspace(-1, 1, num), xp.linspace(-1, 1, num)), axis=-1
+        ),
+        (num * num, 2),
+    )
+    yx_translations = yx_translations * np.asarray(im_proj.shape) / 4
+
+    H_trans = xp.stack((xp.eye(3),) * N_trans)
+    H_trans[:, :2, 2] = yx_translations
+
+    angles = 2 * xp.arange(symmetry, dtype=xp.float64) * xp.pi / symmetry
+    R = xp.permute_dims(
+        xp.asarray(
+            [
+                [xp.cos(angles), -xp.sin(angles)],
+                [xp.sin(angles), xp.cos(angles)],
+            ]
+        ),
+        axes=(2, 0, 1),
+    )
+    H_rot = get_transform_matrix_around_center(im_proj.shape, R)
+
+    H = H_rot[None] @ H_trans[:, None]  # (N_trans, symmetry, 3, 3)
+    H_inv = xp.linalg.inv(H)
+
+    ims_translated_rotated = xp.reshape(
+        affine_transform(
+            xp.stack((im_proj,) * N_trans * symmetry),
+            xp.reshape(H_inv, (-1, 3, 3)),
+            batch=True,
+        ),
+        (N_trans, symmetry, *im_proj.shape),
+    )
+    distances = xp.sum(
+        xp.linalg.vector_norm(
+            ims_translated_rotated - ims_translated_rotated[:, [0]], axis=(-2, -1)
+        ),
+        axis=1,
+    )  # (N_trans,)
+    y_min, x_min = yx_translations[xp.argmin(distances)]
+
+    return xp.asarray([0, 0, 0, 0, y_min, x_min])
+
+
+def find_pose_from_z_axis_centered_to_centriole_axis(
+    centriole_im: Array,
+    symmetry: int,
+    axis_indice=0,
+    threshold: float = DEFAULT_THRESHOLD,
+    center_precision: float = 1,
+    convention="XZX",
+):
+    pose_from_z_axis_to_centriole = find_pose_from_z_axis_to_centriole_axis(
+        centriole_im,
+        axis_indice=axis_indice,
+        threshold=threshold,
+        convention=convention,
+    )
+    volume_z_axis = affine_transform(
+        centriole_im,
+        get_transform_matrix_from_pose(
+            centriole_im.shape, pose_from_z_axis_to_centriole, convention=convention
+        ),
+    )
+    pose_from_z_axis_to_z_axis_centered = find_pose_from_centriole_to_center(
+        volume_z_axis, symmetry, axis_indice=axis_indice, precision=center_precision
+    )
+    print(pose_from_z_axis_to_z_axis_centered)
+    return compose_poses(
+        invert_pose(pose_from_z_axis_to_z_axis_centered), pose_from_z_axis_to_centriole
+    )
+
+
 def main(
     volume_path: str,
+    symmetry: int,
     convention: str = "XZX",
     threshold: float = DEFAULT_THRESHOLD,
     output_volume_path: Optional[str] = None,
@@ -85,7 +173,9 @@ def main(
     output_poses_path: Optional[str] = None,
 ):
     volume = tifffile.imread(volume_path)
-    pose = find_pose_from_z_axis_to_centriole_axis(volume, threshold=threshold)
+    pose = find_pose_from_z_axis_centered_to_centriole_axis(
+        volume, symmetry, threshold=threshold
+    )
     if output_volume_path:
         rotated_volume = affine_transform(
             volume,
