@@ -14,14 +14,17 @@ from ..common_image_processing_methods.registration import (
     shift_registration_exhaustive_search,
 )
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from spfluo.utils.array import Array
 
 class Fourier_pixel_representation:
     def __init__(
         self,
         nb_dim: int,
         size: tuple[int, ...],
-        psf: Array,
-        init_vol: Array | None = None,
+        psf: "Array",
+        init_vol: "Array" | None = None,
         random_init: bool = True,
         dtype: np.dtype = np.dtype("float32"),
     ):

@@ -4,13 +4,15 @@ from typing import TYPE_CHECKING, Tuple
 from scipy.spatial.transform import Rotation
 
 from .array import Array, array_namespace, numpy_only_compatibility
-
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from spfluo.utils.array import Array
 if TYPE_CHECKING:
     pass
 
 
 @numpy_only_compatibility
-def euler_to_matrix(convention: str, euler_angles: Array, degrees=False) -> Array:
+def euler_to_matrix(convention: str, euler_angles: "Array", degrees=False) -> "Array":
     """
     Params:
         convention: str
@@ -21,7 +23,7 @@ def euler_to_matrix(convention: str, euler_angles: Array, degrees=False) -> Arra
 
 
 @numpy_only_compatibility
-def matrix_to_euler(convention: str, matrix: Array, degrees: bool = False):
+def matrix_to_euler(convention: str, matrix: "Array", degrees: bool = False):
     """
     Params:
         convention: str
@@ -31,7 +33,7 @@ def matrix_to_euler(convention: str, matrix: Array, degrees: bool = False):
     return Rotation.from_matrix(matrix).as_euler(convention, degrees=degrees)
 
 
-def compose_poses(pose1: Array, pose2: Array, convention="XZX"):
+def compose_poses(pose1: "Array", pose2: "Array", convention="XZX"):
     """Returns a pose: pose = pose2 ○ pose1
     Params:
         pose1, pose2: Array of shape (3,) or (N, 3)
@@ -46,7 +48,7 @@ def compose_poses(pose1: Array, pose2: Array, convention="XZX"):
     return new_pose
 
 
-def invert_pose(pose: Array, convention="XZX"):
+def invert_pose(pose: "Array", convention="XZX"):
     xp = array_namespace(pose)
     inv_mat = euler_to_matrix(convention, pose[..., :3], degrees=True).T
     t = pose[..., 3:]
@@ -56,7 +58,10 @@ def invert_pose(pose: Array, convention="XZX"):
     return new_pose
 
 
-def get_transform_matrix_around_center(shape: Tuple[int, ...], rotation_matrix: Array):
+def get_transform_matrix_around_center(
+        shape: Tuple[int, ...],
+        rotation_matrix: "Array"
+    ):
     """
     Params:
         - shape
@@ -88,8 +93,8 @@ def get_transform_matrix_around_center(shape: Tuple[int, ...], rotation_matrix: 
 
 def get_transform_matrix(
     shape: Tuple[int, int, int],
-    euler_angles: Array,
-    translation: Array,
+    euler_angles: "Array",
+    translation: "Array",
     convention: str = "XZX",
     degrees: bool = False,
 ):
@@ -143,7 +148,7 @@ def get_transform_matrix(
 
 def get_transform_matrix_from_pose(
     shape: Tuple[int, int, int],
-    pose: Array,
+    pose: "Array",
     *,
     convention: str = "XZX",
 ):
@@ -153,8 +158,8 @@ def get_transform_matrix_from_pose(
 
 
 def symmetrize_angles(
-    euler_angles: Array, symmetry: int, convention: str = "XZX", degrees: bool = False
-) -> Array:
+    euler_angles: "Array", symmetry: int, convention: str = "XZX", degrees: bool = False
+) -> "Array":
     """
     axis of symmetry is around the X-axis (see get_transform_matrix)
     the euler_angles are in the XZX convention, so that the third angle is purely the
@@ -182,7 +187,7 @@ def symmetrize_angles(
     return euler_angles_sym
 
 
-def symmetrize_poses(poses: Array, symmetry: int, convention: str = "XZX") -> Array:
+def symmetrize_poses(poses: "Array", symmetry: int, convention: str = "XZX") -> "Array":
     """
     Params:
         - poses: Array of shape (..., 6)
@@ -204,7 +209,7 @@ def symmetrize_poses(poses: Array, symmetry: int, convention: str = "XZX") -> Ar
 
 
 def distance_poses(
-    p1: Array, p2: Array, convention: str = "XZX", symmetry: int = 1
+    p1: "Array", p2: "Array", convention: str = "XZX", symmetry: int = 1
 ) -> Tuple[Array, Array]:
     """Compute the rotation distance and the euclidean distance between p1 and p2.
     Parameters:
@@ -250,7 +255,10 @@ def distance_poses(
 
 
 def distance_family_poses(
-    guessed_poses: Array, gt_poses: Array, convention: str = "XZX", symmetry: int = 1
+    guessed_poses: "Array",
+    gt_poses: "Array",
+    convention: str = "XZX",
+    symmetry: int = 1
 ):
     """Compute the rotation distance and the euclidean distance between guessed_poses
     and gt_poses.

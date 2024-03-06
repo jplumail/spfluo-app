@@ -8,6 +8,9 @@ from spfluo.utils.array import Array, to_numpy
 from spfluo.utils.array import numpy as np
 from spfluo.utils.volume import phase_cross_correlation
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from spfluo.utils.array import Array
 testing_libs = [(np, "cpu")]
 ids = ["numpy"]
 
@@ -59,7 +62,7 @@ def random_pose(
 
 
 def assert_volumes_aligned(
-    vol1: Array, vol2: Array, atol: float = 0.1, nb_spatial_dims: int = 3
+    vol1: "Array", vol2: "Array", atol: float = 0.1, nb_spatial_dims: int = 3
 ):
     (dz, dy, dx), _, _ = phase_cross_correlation(
         vol1,
@@ -73,7 +76,7 @@ def assert_volumes_aligned(
     assert (n <= atol).all(), f"{n.max()} > {atol}"
 
 
-def assert_allclose(actual: Array, desired: Array, rtol=1e-7, atol=0):
+def assert_allclose(actual: "Array", desired: "Array", rtol=1e-7, atol=0):
     numpy.testing.assert_allclose(
         to_numpy(actual), to_numpy(desired), rtol=rtol, atol=atol
     )

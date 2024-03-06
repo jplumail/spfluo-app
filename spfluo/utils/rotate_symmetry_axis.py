@@ -16,23 +16,26 @@ from spfluo.utils.transform import (
 )
 from spfluo.utils.volume import affine_transform
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from spfluo.utils.array import Array
 DEFAULT_THRESHOLD = 0.3
 
 
-def convert_im_to_point_cloud(im: Array, thesh: float):
+def convert_im_to_point_cloud(im: "Array", thesh: float):
     xp = array_namespace(im)
     coordinates = xp.where(im >= thesh)
     coordinates = xp.stack(coordinates, axis=-1)
     return coordinates
 
 
-def skew_symmetric_cross_product(v: Array):
+def skew_symmetric_cross_product(v: "Array"):
     v1, v2, v3 = v[0], v[1], v[2]
     xp = array_namespace(v)
     return xp.asarray([[0, -v3, v2], [v3, 0, -v1], [-v2, v1, 0]])
 
 
-def find_rotation_between_two_vectors(a: Array, b: Array):
+def find_rotation_between_two_vectors(a: "Array", b: "Array"):
     """returns the rotation matrix that rotates vector a onto vector b
     (the rotation matrix s.t. Ra = b)"""
     xp = array_namespace(a, b)
@@ -45,7 +48,7 @@ def find_rotation_between_two_vectors(a: Array, b: Array):
 
 
 def find_centriole_symmetry_axis(
-    centriole_im: Array, threshold: float = DEFAULT_THRESHOLD
+    centriole_im: "Array", threshold: float = DEFAULT_THRESHOLD
 ):
     xp = array_namespace(centriole_im)
     ma = np.max(centriole_im)
@@ -65,7 +68,7 @@ def find_centriole_symmetry_axis(
 
 
 def find_pose_from_z_axis_to_centriole_axis(
-    centriole_im: Array, axis_indice=0, threshold=DEFAULT_THRESHOLD, convention="XZX"
+    centriole_im: "Array", axis_indice=0, threshold=DEFAULT_THRESHOLD, convention="XZX"
 ):
     """Find the pose of the transformation from the axis to the centriole"""
     xp = array_namespace(centriole_im)
@@ -83,7 +86,7 @@ def find_pose_from_z_axis_to_centriole_axis(
 
 
 def find_pose_from_centriole_to_center(
-    im: Array, symmetry: int, precision: float = 1, axis_indice: int = 0
+    im: "Array", symmetry: int, precision: float = 1, axis_indice: int = 0
 ):
     num = math.ceil(max(im.shape[1:]) / (4 * precision))
     N_trans = num * num
@@ -135,7 +138,7 @@ def find_pose_from_centriole_to_center(
 
 
 def find_pose_from_z_axis_centered_to_centriole_axis(
-    centriole_im: Array,
+    centriole_im: "Array",
     symmetry: int,
     axis_indice=0,
     threshold: float = DEFAULT_THRESHOLD,

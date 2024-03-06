@@ -3,10 +3,19 @@ import numpy as np
 from spfluo.utils.array import Array, array_namespace
 from spfluo.utils.volume import affine_transform as affine_transform_spfluo
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from spfluo.utils.array import Array
+
 interp_order = 3
 
 
-def rotation(volumes: Array, transform: Array, order: int = 1, inverse: bool = False):
+def rotation(
+        volumes: "Array",
+        transform: "Array",
+        order: int = 1,
+        inverse: bool = False
+    ):
     """
     transform: homogeneous transform
     """

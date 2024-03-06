@@ -29,6 +29,10 @@ from ..volume_representation.gaussian_mixture_representation.GMM_grid_evaluation
     one_d_gaussian,
 )
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from spfluo.utils.array import Array
+
 if TYPE_CHECKING:
     from spfluo.utils.array import Device, array_api_module
 
@@ -473,10 +477,10 @@ def update_imp_distr(imp_distr, phi, K, prop, M, v):
 
 
 def compute_shifts(
-    reference_volume_fft: Array,
-    psf: Array,
-    inverse_transforms: Array,
-    view: Array,
+    reference_volume_fft: "Array",
+    psf: "Array",
+    inverse_transforms: "Array",
+    view: "Array",
     interp_order: int = 1,
 ) -> Tuple[Array, Array, Array]:
     xp = array_namespace(inverse_transforms, view)
@@ -523,7 +527,7 @@ def compute_energy(reference_volume_fft, psf_rotated_fft, view_rotated_fft):
     psf_rotated_fft = xp.asarray(psf_rotated_fft, device=device)
     image_size = xp.prod(xp.asarray(reference_volume_fft.shape[-3:], device=device))
 
-    def vector_norm(x: Array, axis: tuple[int]):
+    def vector_norm(x: "Array", axis: tuple[int]):
         normalized_axis = normalize_axis_tuple(axis, x.ndim)
         rest = tuple(i for i in range(x.ndim) if i not in normalized_axis)
         newshape = axis + rest

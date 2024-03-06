@@ -29,6 +29,9 @@ from spfluo.utils.volume import (
     affine_transform,
 )
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from spfluo.utils.array import Array
 
 @pytest.fixture(scope="module")
 def generated_data_all_array(request, generated_data_all):
@@ -473,7 +476,7 @@ def test_refine_shapes(xp, device):
 )
 def test_refine_easy(
     generated_data_all_array: tuple[Array, ...],
-    poses_with_noise: Array,
+    poses_with_noise: "Array",
     save_result: Callable[[str, np.ndarray], bool],
 ):
     poses = poses_with_noise

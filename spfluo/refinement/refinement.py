@@ -21,6 +21,9 @@ from spfluo.utils.volume import (
     pad,
     phase_cross_correlation,
 )
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from spfluo.utils.array import Array
 
 if TYPE_CHECKING:
     from spfluo.utils.array import array_api_module
@@ -28,7 +31,7 @@ if TYPE_CHECKING:
 refinement_logger = logging.getLogger("spfluo.refinement")
 
 
-def rotate(volumes: Array, poses: Array, inverse=False, batch=True):
+def rotate(volumes: "Array", poses: "Array", inverse=False, batch=True):
     xp = array_namespace(volumes, poses)
     H = get_transform_matrix(
         volumes.shape[-3:],
@@ -44,10 +47,10 @@ def rotate(volumes: Array, poses: Array, inverse=False, batch=True):
 
 
 def reconstruction_L2(
-    volumes: Array,
-    psf: Array,
-    poses: Array,
-    lambda_: Array,
+    volumes: "Array",
+    psf: "Array",
+    poses: "Array",
+    lambda_: "Array",
     batch: bool = False,
     symmetry: bool = False,
     device: Optional[Device] = None,
@@ -226,10 +229,10 @@ def reconstruction_L2(
 
 
 def convolution_matching_poses_grid(
-    reference: Array,
-    volumes: Array,
-    psf: Array,
-    poses_grid: Array,
+    reference: "Array",
+    volumes: "Array",
+    psf: "Array",
+    poses_grid: "Array",
     device: Optional[Device] = None,
     batch_size: int = 1,
 ):
@@ -307,10 +310,10 @@ def convolution_matching_poses_grid(
 
 
 def convolution_matching_poses_refined(
-    reference: Array,
-    volumes: Array,
-    psf: Array,
-    potential_poses: Array,
+    reference: "Array",
+    volumes: "Array",
+    psf: "Array",
+    potential_poses: "Array",
     device: Optional[Device] = None,
     batch_size: int = 1,
 ):
@@ -408,9 +411,9 @@ def create_poses_grid(
 
 def find_angles_grid(
     xp: "array_api_module",
-    reconstruction: Array,
-    patches: Array,
-    psf: Array,
+    reconstruction: "Array",
+    patches: "Array",
+    psf: "Array",
     precision: int = 10,
 ):
     L = find_L(precision)
@@ -453,7 +456,7 @@ def get_refined_valuesND(
 
 
 def create_poses_refined(
-    poses: Array,
+    poses: "Array",
     ranges: List[float],
     M: List[int],
 ):
@@ -471,13 +474,13 @@ def create_poses_refined(
 
 
 def refine_poses(
-    reconstruction: Array,
-    patches: Array,
-    psf: Array,
-    guessed_poses: Array,
+    reconstruction: "Array",
+    patches: "Array",
+    psf: "Array",
+    guessed_poses: "Array",
     range: float,
     steps: int,
-    device: Device = None,
+    device: "Device" = None,
     batch_size: int = 1,
 ):
     potential_poses = create_poses_refined(guessed_poses, [range] * 3, [steps] * 3)
@@ -495,9 +498,9 @@ def refine_poses(
 
 
 def refine(
-    patches: Array,
-    psf: Array,
-    guessed_poses: Array,
+    patches: "Array",
+    psf: "Array",
+    guessed_poses: "Array",
     steps: List[Union[Tuple[int, int], int]],
     ranges: List[float],
     initial_volume: Optional[Array] = None,

@@ -1,7 +1,12 @@
+from typing import TYPE_CHECKING
+
 import numpy as np
 import scipy.ndimage as scp
 
-from spfluo.utils.array import Array, array_namespace
+from spfluo.utils.array import array_namespace
+
+if TYPE_CHECKING:
+    from spfluo.utils.array import Array
 
 
 def threshold(im, thresh_val):
@@ -33,7 +38,7 @@ def crop_center(image, size):
     return cropped
 
 
-def normalize(arr: Array, min: float = 0, max: float = 1):
+def normalize(arr: "Array", min: float = 0, max: float = 1):
     xp = array_namespace(arr)
     m, M = xp.min(arr), xp.max(arr)
     if M > m:

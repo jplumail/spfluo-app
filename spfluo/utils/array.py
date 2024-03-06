@@ -9,9 +9,6 @@ from array_api_compat import (
     numpy,
     to_device,
 )
-from numpy.array_api._typing import Array as ArrayAPIArray
-from numpy.array_api._typing import Device as ArrayAPIDevice
-from numpy.array_api._typing import Dtype as ArrayAPIDtype
 
 import spfluo
 
@@ -54,16 +51,15 @@ else:
 if spfluo.has_cupy:
     from array_api_compat import cupy
 
-    libs.append(cupy)
-else:
-    cupy = None
-
-Array: TypeAlias = ArrayAPIArray
-Device: TypeAlias = ArrayAPIDevice
-Dtype: TypeAlias = ArrayAPIDtype
-
 if TYPE_CHECKING:
     import numpy.array_api
+    from numpy.array_api._typing import Array as ArrayAPIArray
+    from numpy.array_api._typing import Device as ArrayAPIDevice
+    from numpy.array_api._typing import Dtype as ArrayAPIDtype
+
+    Array: TypeAlias = ArrayAPIArray
+    Device: TypeAlias = ArrayAPIDevice
+    Dtype: TypeAlias = ArrayAPIDtype
 
     array_api_module: TypeAlias = numpy.array_api
 
@@ -96,7 +92,7 @@ def numpy_only_compatibility(numpy_func):
     """
 
     @functools.wraps(numpy_func)
-    def func(*args, **kwargs) -> Array:
+    def func(*args, **kwargs) -> "Array":
         array_args = list(filter(is_array_api_obj, args))
         array_kwargs = list(filter(is_array_api_obj, kwargs.values()))
         xp = array_namespace(*array_args, *array_kwargs)

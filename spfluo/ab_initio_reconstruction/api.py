@@ -16,6 +16,9 @@ from .learning_algorithms.gradient_descent_importance_sampling import (
 from .params import ParametersMainAlg
 from .volume_representation.pixel_representation import Fourier_pixel_representation
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from spfluo.utils.array import Array
 
 class AbInitioReconstruction:
     def __init__(
@@ -30,7 +33,7 @@ class AbInitioReconstruction:
 
     def fit(
         self,
-        X: Array,
+        X: "Array",
         psf: Optional[Array] = None,
         output_dir: Optional[str] = None,
         minibatch_size: Optional[int] = None,

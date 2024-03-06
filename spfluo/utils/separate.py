@@ -5,9 +5,12 @@ from spfluo.utils.array import Array, array_namespace
 from spfluo.utils.rotate_symmetry_axis import find_rotation_between_two_vectors
 from spfluo.utils.volume import affine_transform, tukey
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from spfluo.utils.array import Array
 
 def extract_particle(
-    image_data: Array,
+    image_data: "Array",
     pos: tuple[float, float, float],
     dim: tuple[float, float, float],
     scale: tuple[float, float, float],
@@ -61,7 +64,7 @@ def extract_particle(
 
 
 def separate_centrioles(
-    im: Array,
+    im: "Array",
     output_size: tuple[int, int, int],
     threshold_percentage: float = 0.5,
     channel: int = 0,
@@ -80,7 +83,7 @@ def separate_centrioles(
 
 
 def separate_centrioles_coords(
-    image: Array,
+    image: "Array",
     pos: tuple[float, float, float],
     dim: tuple[float, float, float],
     output_size: tuple[float, float, float],

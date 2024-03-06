@@ -17,6 +17,9 @@ import spfluo
 from spfluo.utils.array import Array, array_namespace, is_array_api_obj
 from spfluo.utils.array import numpy as np
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from spfluo.utils.array import Array
 if TYPE_CHECKING:
     from spfluo.utils.array import array_api_module
 
@@ -41,8 +44,8 @@ if spfluo.has_torch:
 
 
 def affine_transform(
-    input: Array,
-    matrix: Array,
+    input: "Array",
+    matrix: "Array",
     offset: Union[float, Tuple[float], Array] = 0.0,
     output_shape: Optional[Tuple[int]] = None,
     output: Optional[Union[Array, DTypeLike]] = None,
@@ -53,7 +56,7 @@ def affine_transform(
     *,
     batch: bool = False,
     multichannel: bool = False,
-) -> Array:
+) -> "Array":
     """Apply affine transformations to an image.
     Works with multichannel images and batches.
     Supports numpy, cupy and torch inputs.
@@ -210,7 +213,7 @@ def affine_transform_batched_multichannel_scipy(
 
 
 def resample(
-    volume: Array,
+    volume: "Array",
     sampling: tuple[float],
     order: int = 1,
     batch: bool = False,
@@ -247,7 +250,7 @@ def resample(
     )
 
 
-def pad(volume: Array, pad_width: Tuple[int]):
+def pad(volume: "Array", pad_width: Tuple[int]):
     xp = array_namespace(volume)
     pad_width = xp.asarray(pad_width)
     if pad_width.ndim == 1:
@@ -276,12 +279,12 @@ def pad(volume: Array, pad_width: Tuple[int]):
 
 
 def interpolate_to_size(
-    volume: Array,
+    volume: "Array",
     output_size: Tuple[int, int, int],
     order=1,
     batch=False,
     multichannel=False,
-) -> Array:
+) -> "Array":
     """
     Used for padding. The zoom matrix will zoom-out from the image.
     """
@@ -339,7 +342,7 @@ def fourier_shift_broadcasted_scipy(
 
 
 def fourier_shift(
-    input: Array,
+    input: "Array",
     shift: Union[float, Sequence[float], Array],
     n: int = -1,
     axis: int = -1,
@@ -403,8 +406,8 @@ def fourier_shift(
 
 
 def phase_cross_correlation_broadcasted_skimage(
-    reference_image: Array,
-    moving_image: Array,
+    reference_image: "Array",
+    moving_image: "Array",
     *,
     upsample_factor: int = 1,
     space: str = "real",
@@ -456,8 +459,8 @@ def phase_cross_correlation_broadcasted_skimage(
 
 
 def phase_cross_correlation(
-    reference_image: Array,
-    moving_image: Array,
+    reference_image: "Array",
+    moving_image: "Array",
     *,
     upsample_factor: int = 1,
     space: str = "real",
@@ -619,7 +622,7 @@ def discretize_sphere_uniformly(
     return (theta, phi, psi), (precision_axes, precision_rot)
 
 
-def center_of_mass(volume: Array):
+def center_of_mass(volume: "Array"):
     xp = array_namespace(volume)
     tensor_kwargs = dict(dtype=volume.dtype, device=xp.device(volume))
     zz, yy, xx = xp.meshgrid(

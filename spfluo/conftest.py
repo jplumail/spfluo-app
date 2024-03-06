@@ -2,7 +2,7 @@
 import functools
 import os
 from pathlib import Path
-from typing import Tuple, Union
+from typing import TYPE_CHECKING, Tuple, Union
 
 import numpy as np
 import pytest
@@ -10,6 +10,9 @@ import tifffile
 
 from spfluo import data
 from spfluo.utils.array import Array, to_numpy
+
+if TYPE_CHECKING:
+    from spfluo.utils.array import Array
 
 
 def pytest_addoption(parser: pytest.Parser):
@@ -34,7 +37,7 @@ def save_result(image_directory: Union[Path, None], request: pytest.FixtureReque
 
     functools.wraps(tifffile.imwrite)
 
-    def inner(name: str, arr: Array, *args, **kwargs):
+    def inner(name: str, arr: "Array", *args, **kwargs):
         saved = False
         if image_directory:
             tifffile.imwrite(

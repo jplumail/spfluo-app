@@ -7,6 +7,9 @@ import tifffile
 
 from spfluo.utils.array import Array, array_namespace, get_namespace_device, numpy
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from spfluo.utils.array import Array
 if TYPE_CHECKING:
     from spfluo.utils.array import Device, array_api_module
 
@@ -17,7 +20,7 @@ def read_image(
     xp: "array_api_module | None" = None,  # type: ignore
     device: "Device | None" = None,
     gpu: bool | None = None,
-) -> Array:
+) -> "Array":
     xp, device = get_namespace_device(xp, device, gpu)
     arr = numpy.asarray(
         imageio.mimread(path, memtest=False),
@@ -33,7 +36,7 @@ def read_images_in_folder(
     xp: "array_api_module | None" = None,  # type: ignore
     device: "Device | None" = None,
     gpu: bool | None = None,
-) -> Array:
+) -> "Array":
     """read all the images inside folder fold"""
     files = os.listdir(folder)
     if alphabetic_order:
@@ -47,7 +50,7 @@ def read_images_in_folder(
     return xp.stack(images), files
 
 
-def save(path: str, array: Array):
+def save(path: str, array: "Array"):
     # save with conversion to float32 so that imaej can open it
     tifffile.imwrite(path, np.asarray(array, dtype=np.float32))
 
