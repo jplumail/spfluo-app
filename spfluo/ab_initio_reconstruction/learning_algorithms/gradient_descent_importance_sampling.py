@@ -520,7 +520,9 @@ def compute_shifts(
     return shift, psfs_rotated_fft, view_rotated_fft
 
 
-def compute_energy(reference_volume_fft, psf_rotated_fft, view_rotated_fft):
+def compute_energy(
+    reference_volume_fft: "Array", psf_rotated_fft: "Array", view_rotated_fft: "Array"
+):
     xp = array_namespace(view_rotated_fft)
     device = xp.device(view_rotated_fft)
     reference_volume_fft = xp.asarray(reference_volume_fft, device=device)
