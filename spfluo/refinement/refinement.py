@@ -7,7 +7,6 @@ import time
 from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 
 import numpy as np
-import torch
 from tqdm import tqdm
 
 import spfluo.utils.debug as debug
@@ -21,7 +20,7 @@ from spfluo.utils.volume import (
     pad,
     phase_cross_correlation,
 )
-from typing import TYPE_CHECKING
+
 if TYPE_CHECKING:
     from spfluo.utils.array import Array
 
@@ -662,43 +661,3 @@ def refine(
         refinement_logger.debug("Saving all reconstructions at " + str(p))
 
     return current_reconstruction, current_poses
-
-
-def first_reconstruction(patches, views, poses, psf, step=10):
-    errors = []
-    recons = []
-    lambda_ = 5e-2
-    poses_known = torch.zeros_like(poses)
-    poses_known[views == 0, 1:3] = 0
-    poses_known[views == 1, 1] = 90
-    deltas = torch.arange(0, 360, step, dtype=patches.dtype)
-    for delta in deltas:
-        poses_known[views == 1, 2] = poses[views == 1, 2] + delta
-
-        # reconstruction L2
-        mask_top_side = torch.logical_or(
-            torch.as_tensor(views == 0), torch.as_tensor(views == 1)
-        )
-        recon_noised = reconstruction_L2(
-            patches[mask_top_side], psf, poses_known[mask_top_side], lambda_
-        )
-        recons.append(recon_noised)
-
-        # compute error
-        N = patches[mask_top_side].shape[0]
-        recon_noised_transformed = rotate(
-            recon_noised[None].repeat(N, 1, 1, 1), poses_known[mask_top_side]
-        )
-        error = (
-            ((recon_noised_transformed - patches[mask_top_side]) ** 2)
-            .view(N, -1)
-            .sum(dim=1)
-            ** 0.5
-        ).sum() / N
-        errors.append(error)
-
-    recons = torch.stack(recons)
-    errors = torch.stack(errors)
-    i = errors.argmin()
-
-    return deltas[i], recons[i], errors[i]
