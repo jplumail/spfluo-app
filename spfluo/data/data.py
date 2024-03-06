@@ -2,16 +2,17 @@ import csv
 import io
 import tempfile
 import zipfile
+from contextlib import contextmanager
 from importlib.resources import as_file, files
 from pathlib import Path
 from typing import Dict
 
-import numpy as np
 import requests
 import tifffile
 
 from spfluo.data.constants import ARCHIVE_NAME, REPO_ID, SEAFILE_URL
 from spfluo.data.upload import _file_hash, get_token
+from spfluo.utils.array import numpy as np
 
 
 def _download_data(d: Path):
@@ -47,14 +48,19 @@ def _check_data(d: Path):
     return True
 
 
-def _fetch_dataset(dataset_dir: str) -> Dict[str, np.ndarray]:
-    # Download if necessary
+@contextmanager
+def _get_data_dir():
     with as_file(files("spfluo").joinpath("data")) as data_dir:
         if not _check_data(data_dir):
             _download_data(data_dir)
             if not _check_data(data_dir):
                 raise RuntimeError("Download failed")
+        yield data_dir
 
+
+def _fetch_dataset(dataset_dir: str) -> Dict[str, np.ndarray]:
+    # Download if necessary
+    with _get_data_dir() as data_dir:
         # parse data
         root_dir = data_dir / "generated" / dataset_dir
         poses_path = root_dir / "poses.csv"
