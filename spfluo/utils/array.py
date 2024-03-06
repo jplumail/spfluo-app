@@ -1,4 +1,5 @@
 import functools
+import sys
 from typing import TYPE_CHECKING, TypeAlias
 
 from array_api_compat import (
@@ -12,8 +13,8 @@ from array_api_compat import (
 
 import spfluo
 
-libs = [numpy]
-if spfluo.has_torch:
+
+def get_torch():
     from array_api_compat import torch
     from torch.fft import fftn as torch_fftn
     from torch.fft import fftshift as torch_fftshift
@@ -43,13 +44,20 @@ if spfluo.has_torch:
     torch.fft.fftn = pytorch_fftn_wrapper
     torch.fft.ifftn = pytorch_ifftn_wrapper
     torch.fft.fftshift = pytorch_fftshift_wrapper
+    return torch
 
-    libs.append(torch)
-else:
-    torch = None
 
-if spfluo.has_cupy:
+def get_cupy():
     from array_api_compat import cupy
+
+    return cupy
+
+
+def get_numpy():
+    from array_api_compat import numpy
+
+    return numpy
+
 
 if TYPE_CHECKING:
     import numpy.array_api
@@ -132,6 +140,27 @@ def to_numpy(*xs) -> numpy.ndarray | tuple[numpy.ndarray]:
         return ret
 
 
+def _is_torch_namespace(xp):
+    if "torch" not in sys.modules or not spfluo.has_torch():
+        return False
+
+    return get_torch() == xp
+
+
+def _is_cupy_namespace(xp):
+    if "cupy" not in sys.modules or not spfluo.has_cupy():
+        return False
+
+    return get_cupy() == xp
+
+
+def _is_numpy_namespace(xp):
+    if "numpy" not in sys.modules:
+        return False
+
+    return get_numpy() == xp
+
+
 def get_namespace_device(
     xp: "array_api_module | None" = None,  # type: ignore
     device: "Device | None" = None,
@@ -140,53 +169,53 @@ def get_namespace_device(
     if xp is not None:
         if device is not None:
             return xp, device
-        if xp == torch:
+        if _is_torch_namespace(xp):
             if gpu is None:
-                device = "cuda" if spfluo.has_torch_cuda else "cpu"
+                device = "cuda" if spfluo.has_torch_cuda() else "cpu"
             elif gpu:
                 device = "cuda"
             else:
                 device = "cpu"
-        elif xp == cupy:
+        elif _is_cupy_namespace(xp):
             if gpu is False:
                 raise RuntimeError(f"{xp} cannot create non cuda arrays")
             device = None
-        elif xp == numpy:
+        elif _is_numpy_namespace(xp):
             if gpu is True:
                 raise RuntimeError(f"{xp} cannot create gpu arrays")
             device = "cpu"
         else:
             raise RuntimeError(
-                f"{xp} not supported. Must be one of {(torch, cupy, numpy)}"
+                f"{xp} not supported. Must be one of torch, cupy or {numpy}"
             )
     else:
         if device is not None:
             raise RuntimeError("device provided but xp not provided.")
         if gpu is None:
-            if spfluo.has_torch_cuda:
-                xp = torch
+            if spfluo.has_torch_cuda():
+                xp = get_torch()
                 device = "cuda"
-            elif spfluo.has_cupy:
-                xp = cupy
+            elif spfluo.has_cupy():
+                xp = get_cupy()
                 device = None
-            elif spfluo.has_torch:
-                xp = torch
+            elif spfluo.has_torch():
+                xp = get_torch()
                 device = "cpu"
             else:
                 xp = numpy
                 device = "cpu"
         elif gpu:
-            if spfluo.has_torch_cuda:
-                xp = torch
+            if spfluo.has_torch_cuda():
+                xp = get_torch()
                 device = "cuda"
-            elif spfluo.has_cupy:
-                xp = cupy
+            elif spfluo.has_cupy():
+                xp = get_cupy()
                 device = None
             else:
                 raise RuntimeError("GPU asked but no backend found")
         else:
-            if spfluo.has_torch:
-                xp = torch
+            if spfluo.has_torch():
+                xp = get_torch()
                 device = "cpu"
             else:
                 xp = numpy
@@ -194,7 +223,7 @@ def get_namespace_device(
     return xp, device
 
 
-__all__ = [Array, array_namespace, is_array_api_obj, to_device, *libs, to_numpy]
+__all__ = [array_namespace, is_array_api_obj, to_device, to_numpy]
 
 if TYPE_CHECKING:
     __all__ = [
@@ -202,7 +231,6 @@ if TYPE_CHECKING:
         array_namespace,
         is_array_api_obj,
         to_device,
-        *libs,
         to_numpy,
         array_api_module,
     ]

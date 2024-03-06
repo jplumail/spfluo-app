@@ -1,18 +1,18 @@
-try:
-    import cupy  # noqa: F401
+import importlib.util
 
-    has_cupy = True
-except ImportError:
-    has_cupy = False
 
-try:
-    import torch
+def has_cupy():
+    return importlib.util.find_spec("cupy") is not None
 
-    has_torch = True
-    if torch.cuda.is_available():
-        has_torch_cuda = True
-    else:
-        has_torch_cuda = False
-except ImportError:
-    has_torch = False
-    has_torch_cuda = False
+
+def has_torch():
+    return importlib.util.find_spec("torch") is not None
+
+
+def has_torch_cuda():
+    if has_torch():
+        import torch
+
+        if torch.cuda.is_available():
+            return True
+    return False

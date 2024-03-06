@@ -106,7 +106,7 @@ def test_same_results_gpu(gpu_run, numpy_run):
 
 
 @pytest.mark.skipif(
-    not (spfluo.has_torch and spfluo.has_torch_cuda),
+    not (spfluo.has_torch() and spfluo.has_torch_cuda()),
     reason="Too long to test if CUDA is not available",
 )
 @pytest.mark.parametrize("gpu_run", [(torch, True)], indirect=True)

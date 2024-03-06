@@ -45,9 +45,9 @@ def get_energy(
     return energy
 
 
-@pytest.mark.skipif(not spfluo.has_torch, reason="This test requires torch installed")
+@pytest.mark.skipif(not spfluo.has_torch(), reason="This test requires torch installed")
 @pytest.mark.skipif(
-    not spfluo.has_torch_cuda,
+    not spfluo.has_torch_cuda(),
     reason="This test requires torch CUDA installed."
     "It would be too long without a GPU.",
 )

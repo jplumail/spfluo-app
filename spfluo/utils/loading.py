@@ -1,32 +1,31 @@
 import csv
 import os
 import pickle
-import random
 from typing import Dict, Optional, Tuple
 
 import imageio
 import numpy as np
 import tifffile
 
-from spfluo.utils.array import torch
+import spfluo
 from spfluo.utils.volume import interpolate_to_size
-
-try:
-    import cupy as cp
-    from cupyx.scipy import ndimage
-
-    use_cupy = True
-except ImportError:
-    from scipy import ndimage
-
-    use_cupy = False
 
 
 def get_cupy_array(image):
-    if use_cupy:
+    if spfluo.has_cupy():
+        import cupy as cp
+
         return cp.array(image)
     else:
         return image
+
+
+def get_ndimage():
+    if spfluo.has_cupy():
+        from cupyx.scipy import ndimage
+    else:
+        from scipy import ndimage
+    return ndimage
 
 
 def get_numpy_array(image):
@@ -34,18 +33,6 @@ def get_numpy_array(image):
         return image.get()
     else:
         return image
-
-
-def seed_all(seed_numpy: bool = True) -> None:
-    """For reproductibility.
-
-    But, if we shuffle annotations between runs, we want each shuffling to be unique.
-    Hence the option to choose if numpy must be seeded.
-    """
-    random.seed(0)
-    torch.manual_seed(0)
-    if seed_numpy:
-        np.random.seed(0)
 
 
 def load_array(path: str) -> np.ndarray:
@@ -293,7 +280,7 @@ def isotropic_resample(
         if im.ndim == 4:
             zoom = (1,) + zoom
         im = get_cupy_array(im)
-        im = ndimage.zoom(im, zoom)
+        im = get_ndimage().zoom(im, zoom)
         im = get_numpy_array(im)
         tifffile.imwrite(os.path.join(folder_path, os.path.basename(im_path)), im)
 
@@ -314,7 +301,7 @@ def resample(im_paths: str, folder_path: str, factor: float = 1.0) -> None:
     for im_path in im_paths:
         im = tifffile.imread(im_path)
         im = get_cupy_array(im)
-        im_resampled = ndimage.zoom(im, factor)
+        im_resampled = get_ndimage().zoom(im, factor)
         im_resampled = get_numpy_array(im_resampled)
         tifffile.imwrite(
             os.path.join(folder_path, os.path.basename(im_path)), im_resampled

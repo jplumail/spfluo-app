@@ -1,3 +1,5 @@
+from typing import TYPE_CHECKING
+
 import numpy
 from hypothesis import assume
 from hypothesis import strategies as st
@@ -8,23 +10,22 @@ from spfluo.utils.array import Array, to_numpy
 from spfluo.utils.array import numpy as np
 from spfluo.utils.volume import phase_cross_correlation
 
-from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from spfluo.utils.array import Array
 testing_libs = [(np, "cpu")]
 ids = ["numpy"]
 
-if spfluo.has_cupy:
+if spfluo.has_cupy():
     from spfluo.utils.array import cupy
 
     testing_libs.append((cupy, cupy.cuda.Device(0)))
     ids.append("cupy")
-if spfluo.has_torch:
+if spfluo.has_torch():
     from spfluo.utils.array import torch
 
     testing_libs.append((torch, "cpu"))
     ids.append("torch-cpu")
-    if spfluo.has_torch_cuda:
+    if spfluo.has_torch_cuda():
         testing_libs.append((torch, "cuda"))
         ids.append("torch-cuda")
 

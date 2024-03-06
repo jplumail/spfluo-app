@@ -13,34 +13,20 @@ from skimage.registration import (
     phase_cross_correlation as phase_cross_correlation_skimage,
 )
 
-import spfluo
-from spfluo.utils.array import Array, array_namespace, is_array_api_obj
+from spfluo.utils.array import (
+    Array,
+    _is_cupy_namespace,
+    _is_numpy_namespace,
+    _is_torch_namespace,
+    array_namespace,
+    is_array_api_obj,
+)
 from spfluo.utils.array import numpy as np
 
-from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from spfluo.utils.array import Array
 if TYPE_CHECKING:
     from spfluo.utils.array import array_api_module
-
-# Optional imports
-if spfluo.has_cupy:
-    from spfluo.utils.array import cupy
-
-    from ._cupy_functions.volume import (
-        affine_transform_batched_multichannel_cupy,
-        fourier_shift_broadcasted_cupy,
-        phase_cross_correlation_broadcasted_cucim,
-    )
-
-if spfluo.has_torch:
-    from spfluo.utils.array import torch
-
-    from ._torch_functions.volume import (
-        affine_transform_batched_multichannel_pytorch,
-        fourier_shift_broadcasted_pytorch,
-        phase_cross_correlation_broadcasted_pytorch,
-    )
 
 
 def affine_transform(
@@ -139,11 +125,17 @@ def affine_transform(
     if multichannel is False:
         input = input[:, None]
 
-    if spfluo.has_torch and xp == torch:
+    if _is_torch_namespace(xp):
+        from ._torch_functions.volume import (
+            affine_transform_batched_multichannel_pytorch,
+        )
+
         func = affine_transform_batched_multichannel_pytorch
-    elif spfluo.has_cupy and xp == cupy:
+    elif _is_cupy_namespace(xp):
+        from ._cupy_functions.volume import affine_transform_batched_multichannel_cupy
+
         func = affine_transform_batched_multichannel_cupy
-    elif xp == np:
+    elif _is_numpy_namespace(xp):
         func = affine_transform_batched_multichannel_scipy
     else:
         raise ValueError(f"No backend found for {xp}")
@@ -388,11 +380,15 @@ def fourier_shift(
         The resulting shifted array has the shape ((...), [...])
     """
     xp = array_namespace(input)
-    if spfluo.has_torch and xp == torch:
+    if _is_torch_namespace(xp):
+        from ._torch_functions.volume import fourier_shift_broadcasted_pytorch
+
         func = fourier_shift_broadcasted_pytorch
-    elif xp == np:
+    elif _is_numpy_namespace(xp):
         func = fourier_shift_broadcasted_scipy
-    elif spfluo.has_cupy and xp == cupy:
+    elif _is_cupy_namespace(xp):
+        from ._cupy_functions.volume import fourier_shift_broadcasted_cupy
+
         func = fourier_shift_broadcasted_cupy
 
     output = func(
@@ -545,11 +541,15 @@ def phase_cross_correlation(
         ``return_error`` is "always".
     """
     xp = array_namespace(reference_image, moving_image)
-    if spfluo.has_torch and xp == torch:
+    if _is_torch_namespace(xp):
+        from ._torch_functions.volume import phase_cross_correlation_broadcasted_pytorch
+
         func = phase_cross_correlation_broadcasted_pytorch
-    elif xp == np:
+    elif _is_numpy_namespace(xp):
         func = phase_cross_correlation_broadcasted_skimage
-    elif spfluo.has_cupy and xp == cupy:
+    elif _is_cupy_namespace():
+        from ._cupy_functions.volume import phase_cross_correlation_broadcasted_cucim
+
         func = phase_cross_correlation_broadcasted_cucim
 
     shift, error, phasediff = func(
