@@ -5,7 +5,8 @@ import pytest
 
 import spfluo
 from spfluo.ab_initio_reconstruction.api import AbInitioReconstruction
-from spfluo.utils.array import cupy, get_namespace_device, numpy, torch
+from spfluo.tests.helpers import ids, testing_libs
+from spfluo.utils.array import get_namespace_device, numpy
 from spfluo.utils.transform import distance_family_poses
 from spfluo.utils.volume import interpolate_to_size
 
@@ -13,7 +14,12 @@ if TYPE_CHECKING:
     from spfluo.utils.array import array_api_module
 
 SEED = 123
-
+GPU_LIBS = []
+for x in ["torch-cuda", "cupy"]:
+    try:
+        GPU_LIBS.append(testing_libs[ids.index(x)][0])
+    except ValueError:
+        pass
 
 params_minimal_run = {
     "N_iter_max": 1,
@@ -91,9 +97,6 @@ def test_files_exist(numpy_run):
     assert ab_initio._num_iter == len(ab_initio._energies)
 
 
-GPU_LIBS = [lib for lib in (torch, cupy) if lib is not None]
-
-
 @pytest.mark.parametrize(
     "gpu_run, numpy_run", [((lib, False), False) for lib in GPU_LIBS], indirect=True
 )
@@ -109,14 +112,14 @@ def test_same_results_gpu(gpu_run, numpy_run):
     not (spfluo.has_torch() and spfluo.has_torch_cuda()),
     reason="Too long to test if CUDA is not available",
 )
-@pytest.mark.parametrize("gpu_run", [(torch, True)], indirect=True)
+@pytest.mark.parametrize("gpu_run", [(GPU_LIBS[0], True)], indirect=True)
 def test_energy_threshold(gpu_run):
     ab_initio, _ = gpu_run
     assert ab_initio._energies[-1] < 200
 
 
 @pytest.mark.skip(reason="not finished")
-@pytest.mark.parametrize("gpu_run", [(torch, True)], indirect=True)
+@pytest.mark.parametrize("gpu_run", [(GPU_LIBS[0], True)], indirect=True)
 def test_poses_aligned(gpu_run):
     ab_initio, folder = gpu_run
     distance_family_poses
