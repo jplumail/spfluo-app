@@ -9,7 +9,14 @@ To generate the data yourself, call the `__main__`:
 python spfluo/data/generate_data.py
 ```
 
-To generate the registry file, call `pooch`:
+If you want to add some data, add it. Then generate the registry file and upload the archive.
+
+To generate the registry file, call `make_registry.py`:
 ```bash
-python -c "import pooch; pooch.make_registry('spfluo/data/', 'spfluo/data/registry.txt')"
+python spfluo/data/make_registry.py
+```
+
+Set unistra username/password and upload the files to seafile:
+```bash
+UNISTRA_USERNAME= UNISTRA_PASSWORD= python spfluo/data/upload.py
 ```

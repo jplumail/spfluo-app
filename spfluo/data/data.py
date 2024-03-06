@@ -1,5 +1,4 @@
 import csv
-import hashlib
 import io
 import tempfile
 import zipfile
@@ -11,11 +10,22 @@ import numpy as np
 import requests
 import tifffile
 
+from spfluo.data.constants import ARCHIVE_NAME, REPO_ID, SEAFILE_URL
+from spfluo.data.upload import _file_hash, get_token
+
 
 def _download_data(d: Path):
-    url = "https://seafile.unistra.fr/f/ce50bfac098a45c38c99/?dl=1"
-    response = requests.get(url)
+    headers = {
+        "Authorization": f"Token {get_token()}",
+        "Accept": "application/json; charset=utf-8; indent=4",
+    }
+    download_link = requests.get(
+        f"{SEAFILE_URL}/api2/repos/{REPO_ID}/file/?p=/{ARCHIVE_NAME}", headers=headers
+    )
+    download_link.raise_for_status()
+    download_link = download_link.text.strip('"')
 
+    response = requests.get(download_link)
     if response.status_code == 200:
         # Write the content of the response to a file
         with tempfile.TemporaryFile() as fp:
@@ -32,7 +42,7 @@ def _check_data(d: Path):
     for line in registry.read_text().strip().split("\n"):
         path, hash = line.split(" ")
         path = d / path
-        if (not path.exists()) or hashlib.sha256(path.read_bytes()).hexdigest() != hash:
+        if (not path.exists()) or _file_hash(path) != hash:
             return False
     return True
 
