@@ -10,7 +10,6 @@ dependencies = [
   "scipy",
   "scikit-image",
   "scikit-learn",
-  "pandas",
   "tqdm",
   "matplotlib",
   "typing-extensions ; python_version < '3.10'"

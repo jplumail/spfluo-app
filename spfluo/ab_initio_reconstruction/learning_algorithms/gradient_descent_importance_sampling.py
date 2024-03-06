@@ -5,7 +5,6 @@ import shutil
 from typing import TYPE_CHECKING, Any, Callable, Tuple
 
 import numpy as np
-import pandas as pd
 from numpy.core.numeric import normalize_axis_tuple
 from scipy.spatial.transform import Rotation as R
 from skimage import io
@@ -443,8 +442,7 @@ def gd_importance_sampling_3d(
         os.path.join(output_dir, "distributions_axes.npy"),
         imp_distrs_axes_recorded,
     )
-    data2 = pd.DataFrame({"energy": recorded_energies})
-    data2.to_csv(os.path.join(output_dir, "energies.csv"))
+    write_array_csv(recorded_energies, os.path.join(output_dir, "energies.csv"))
     params_to_save = params_learning_alg.__dict__.copy()
     del params_to_save["params"]
     del params_to_save["dtype"]

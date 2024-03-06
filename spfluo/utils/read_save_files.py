@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING
 
 import imageio
 import numpy as np
-import pandas as pd
 import tifffile
 
 from spfluo.utils.array import Array, array_namespace, get_namespace_device, numpy
@@ -60,5 +59,24 @@ def make_dir(dir):
         os.makedirs(dir)
 
 
-def write_array_csv(np_array, path):
-    pd.DataFrame(np_array).to_csv(path)
+def write_array_csv(
+    arr: "Array", path: str, sep: str = ",", names: list[str] | None = None
+):
+    assert arr.ndim <= 2
+    assert len(sep) == 1
+    if arr.ndim == 1:
+        arr = arr[:, None]
+    with open(path, "w") as f:
+        if names:
+            assert len(names) == arr.shape[1]
+            for name in names:
+                f.write(name)
+                f.write(sep)
+            f.seek(f.tell() - 1)
+            f.write("\n")
+        for line in arr:
+            for c in line:
+                f.write(str(c))
+                f.write(sep)
+            f.seek(f.tell() - 1)
+            f.write("\n")
