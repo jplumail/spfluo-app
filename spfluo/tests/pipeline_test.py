@@ -1,8 +1,8 @@
 # This test tests ab-initio + refinement on the anisotropic dataset
 
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-import numpy as np
 import pytest
 
 import spfluo
@@ -13,6 +13,7 @@ from spfluo import data
 from spfluo.ab_initio_reconstruction.learning_algorithms.gradient_descent_importance_sampling import (  # noqa: E501
     compute_energy,
 )
+from spfluo.utils.array import array_namespace, numpy
 from spfluo.utils.loading import read_poses
 from spfluo.utils.read_save_files import (
     read_image,
@@ -21,27 +22,34 @@ from spfluo.utils.read_save_files import (
 from spfluo.utils.transform import get_transform_matrix
 from spfluo.utils.volume import affine_transform, interpolate_to_size
 
+if TYPE_CHECKING:
+    from spfluo.utils.array import Array
+
 
 def get_energy(
-    reconstruction: np.ndarray,
-    psf: np.ndarray,
-    poses: np.ndarray,
-    particles: np.ndarray,
-) -> float:
+    reconstruction: "Array",
+    psf: "Array",
+    poses: "Array",
+    particles: "Array",
+):
+    xp = array_namespace(reconstruction, psf, poses, particles)
     transforms = get_transform_matrix(
         particles[0].shape, poses[:, :3], poses[:, 3:], degrees=True
     )
     psf = interpolate_to_size(psf, particles[0].shape)
+    transforms = xp.asarray(transforms, dtype=particles.dtype)
     particles_rotated = affine_transform(particles, transforms, batch=True)  # inverse
     psf_rotated = affine_transform(
-        np.stack((psf,) * particles.shape[0]), transforms, batch=True
+        xp.stack((psf,) * particles.shape[0]), transforms, batch=True
     )
 
-    energy = compute_energy(
-        np.fft.fftn(reconstruction),
-        np.fft.fftn(psf_rotated),
-        np.fft.fftn(particles_rotated),
-    ).mean()
+    energy = xp.mean(
+        compute_energy(
+            xp.fft.fftn(reconstruction),
+            xp.fft.fftn(psf_rotated),
+            xp.fft.fftn(particles_rotated),
+        )
+    )
     return energy
 
 
@@ -68,7 +76,6 @@ def test_ab_initio_refinement(tmpdir):
             "--output_dir",
             str(tmpdir),
             "--gpu",
-            "pytorch",
             # args
             "--N_iter_max",
             str(10),
@@ -100,6 +107,8 @@ def test_ab_initio_refinement(tmpdir):
             str(guessed_poses_path),
             "--rotated-volume",
             str(recon_aligned),
+            "--symmetry",
+            str(9),
         ]
     )
     utils_main.main(utils_args)
@@ -138,6 +147,8 @@ def test_ab_initio_refinement(tmpdir):
             "-l",
             "0.001",
             "--gpu",
+            "--minibatch_size",
+            "1024",
         ]
     )
     refinement_main.main(refinement_args)
@@ -145,18 +156,18 @@ def test_ab_initio_refinement(tmpdir):
     assert poses_refined_path.exists()
 
     # Has the energy decreased ?
-    particles, _ = read_images_in_folder(str(particles_path))
-    psf = read_image(str(psf_path))
+    particles, _ = read_images_in_folder(str(particles_path), xp=numpy)
+    psf = read_image(str(psf_path), xp=numpy)
 
     # Compute ab initio energy
-    reconstruction_ab_initio = read_image(str(reconstruction_ab_initio_path))
+    reconstruction_ab_initio = read_image(str(reconstruction_ab_initio_path), xp=numpy)
     poses_ab_initio, _ = read_poses(str(guessed_poses_path))
     energy_ab_initio = get_energy(
         reconstruction_ab_initio, psf, poses_ab_initio, particles
     )
 
     # Compute refinement energy
-    reconstruction_refined = read_image(str(reconstruction_refined_path))
+    reconstruction_refined = read_image(str(reconstruction_refined_path), xp=numpy)
     poses_refined, _ = read_poses(str(poses_refined_path))
     energy_refined = get_energy(reconstruction_refined, psf, poses_refined, particles)
 
