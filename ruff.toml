@@ -1,3 +1,5 @@
+exclude = ["examples", "spfluo/_vendored/*"]
+
 [lint]
 select = [
     "E", "F", # default
@@ -12,7 +14,3 @@ known-first-party = ["spfluo"]
 "spfluo/picking/*" = ["E501"]
 "spfluo/segmentation/unet_3d.py" = ["E501"]
 "spfluo/segmentation/losses.py" = ["E501"]
-"spfluo/_vendored/*" = ["ALL"]
-
-[format]
-exclude = ["spfluo/_vendored/*"]
