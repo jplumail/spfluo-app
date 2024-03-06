@@ -10,7 +10,7 @@ import numpy as np
 from tqdm import tqdm
 
 import spfluo.utils.debug as debug
-from spfluo.utils.array import Device, array_namespace, to_numpy
+from spfluo.utils.array import array_namespace, to_numpy
 from spfluo.utils.memory import split_batch2
 from spfluo.utils.transform import get_transform_matrix, symmetrize_poses
 from spfluo.utils.volume import (
@@ -22,7 +22,7 @@ from spfluo.utils.volume import (
 )
 
 if TYPE_CHECKING:
-    from spfluo.utils.array import Array, array_api_module
+    from spfluo.utils.array import Array, Device, array_api_module
 
 refinement_logger = logging.getLogger("spfluo.refinement")
 
@@ -49,7 +49,7 @@ def reconstruction_L2(
     lambda_: "Array",
     batch: bool = False,
     symmetry: bool = False,
-    device: Optional[Device] = None,
+    device: Optional["Device"] = None,
     batch_size: Optional[int] = None,
 ):
     """Reconstruct a particule from volumes and their poses.
@@ -229,7 +229,7 @@ def convolution_matching_poses_grid(
     volumes: "Array",
     psf: "Array",
     poses_grid: "Array",
-    device: Optional[Device] = None,
+    device: Optional["Device"] = None,
     batch_size: int = 1,
 ):
     """Find the best pose from a list of poses for each volume
@@ -310,7 +310,7 @@ def convolution_matching_poses_refined(
     volumes: "Array",
     psf: "Array",
     potential_poses: "Array",
-    device: Optional[Device] = None,
+    device: Optional["Device"] = None,
     batch_size: int = 1,
 ):
     """Find the best pose from a list of poses for each volume.
@@ -503,7 +503,7 @@ def refine(
     lambda_: float = 100.0,
     symmetry: int = 1,
     convention: str = "XZX",
-    device: Optional[Device] = None,
+    device: Optional["Device"] = None,
     batch_size: Optional[int] = None,
 ):
     """
