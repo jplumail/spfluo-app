@@ -1,4 +1,4 @@
-""" Basically nothing more than classic Pytorch dataloaders creation. This only external call
+"""Basically nothing more than classic Pytorch dataloaders creation. This only external call
 should be to the 'get_dataloaders' function. Other functions defined here should only be used
 here internally by the 'get_dataloaders' function.
 

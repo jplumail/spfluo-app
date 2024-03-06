@@ -1,4 +1,4 @@
-""" This file defines several routines required for positive-unlabelled learning.
+"""This file defines several routines required for positive-unlabelled learning.
 It is organised as follows:
 1. Preprocessing: create positive and unlabelled masks.
 2. Sampling: sample batches with respect to positive ratio in the dataset.
@@ -236,12 +236,12 @@ class PUSampler(Sampler):
         for mask_index, mask in enumerate(masks):
             positive_indices = np.flatnonzero(mask)
             num_positive_indices = len(positive_indices)
-            positive_coordinates["image"][
-                index : index + num_positive_indices
-            ] = mask_index
-            positive_coordinates["coord"][
-                index : index + num_positive_indices
-            ] = positive_indices
+            positive_coordinates["image"][index : index + num_positive_indices] = (
+                mask_index
+            )
+            positive_coordinates["coord"][index : index + num_positive_indices] = (
+                positive_indices
+            )
             index += num_positive_indices
         return positive_coordinates
 

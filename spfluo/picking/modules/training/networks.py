@@ -1,9 +1,9 @@
-""" A minimalistic Pytorch implementation of EfficientNet directly based on the original paper:
-    "EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks",
-    Mingxing Tan, Quoc V. Le, 2019, https://arxiv.org/abs/1905.11946
-    It allows 2D or 3D inputs thanks to the small LayerNd functions.
-    A small Decoder is also provided in order to use EfficientNet as the backbone for an
-    autoencoder.
+"""A minimalistic Pytorch implementation of EfficientNet directly based on the original paper:
+"EfficientNet: Rethinking Model Scaling for Convolutional Neural Networks",
+Mingxing Tan, Quoc V. Le, 2019, https://arxiv.org/abs/1905.11946
+It allows 2D or 3D inputs thanks to the small LayerNd functions.
+A small Decoder is also provided in order to use EfficientNet as the backbone for an
+autoencoder.
 """
 
 import math
@@ -44,7 +44,6 @@ def ConvTransposeNd(*args, dim=2, **kwargs):
 
 
 class ConvBnAct(nn.Sequential):
-
     """Layer grouping a convolution, batchnorm, and activation function.
 
     Quoting original paper Section 5.2: "We train our EfficientNet models with [...] batch norm
@@ -81,7 +80,6 @@ class ConvBnAct(nn.Sequential):
 
 
 class SEBlock(nn.Module):
-
     """Squeeze-and-excitation block."""
 
     def __init__(self, n_in, r=24, dim=2):
@@ -99,7 +97,6 @@ class SEBlock(nn.Module):
 
 
 class DropSample(nn.Module):
-
     """Drops each sample in x with probability p during training (a sort of DropConnect).
 
     In the original paper Dropout regularization is mentionned but it's not what the official
@@ -130,7 +127,6 @@ class DropSample(nn.Module):
 
 
 class MBConvN(nn.Module):
-
     """MBConv with an expansion factor of N, plus squeeze-and-excitation.
 
     Replace costly 3 X 3 convolutions with depthwise convolutions and follows a
@@ -210,7 +206,6 @@ class MBConv6(MBConvN):
 
 
 class EfficientNet(nn.Module):
-
     """Generic EfficientNet that takes in the width and depth scale factors and scales
     accordingly.
     In addition to the standard b0 to b7 configuration, it allows two new config, namely
@@ -343,7 +338,6 @@ class EfficientNet(nn.Module):
 
 
 class Decoder(nn.Module):
-
     """A simple Decoder Module that can be used with EfficientNet as an encoder, e.g:
     > dim  = 2  # can be 2 or 3
     > size = 24

@@ -1,5 +1,5 @@
-""" Some stuff are adapted from:
-    https://github.com/matterport/Mask_RCNN/blob/master/mrcnn/utils.py.
+"""Some stuff are adapted from:
+https://github.com/matterport/Mask_RCNN/blob/master/mrcnn/utils.py.
 """
 
 import os

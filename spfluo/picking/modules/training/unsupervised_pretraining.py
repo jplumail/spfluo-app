@@ -1,4 +1,4 @@
-""" Almost a copy-paste from modules.training.core but adapted for reconstruction only. """
+"""Almost a copy-paste from modules.training.core but adapted for reconstruction only."""
 
 import os
 import pickle

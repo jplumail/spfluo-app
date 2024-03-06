@@ -10,7 +10,6 @@ import numpy as np
 
 @dataclass
 class IO:
-
     """Input/Output params.
 
     Args:
@@ -37,7 +36,6 @@ class IO:
 
 @dataclass
 class Voxelisation:
-
     """Params controling the transformation from pointcloud to voxel grid.
 
     Args:
@@ -92,7 +90,6 @@ class Voxelisation:
 
 @dataclass
 class Augmentation:
-
     """Params to control each generated particle augmentation.
 
     Args:
@@ -144,7 +141,6 @@ class Augmentation:
 
 @dataclass
 class Outliers:
-
     """Params controling outliers generation.
 
     Args:
@@ -230,7 +226,6 @@ class Sensor:
 
 @dataclass
 class DataGenerationConfig:
-
     """This wraps all the parameters to generate pseudo random data defined abose.
 
     This config class will be used to instanciate a DataGenerator class which will use

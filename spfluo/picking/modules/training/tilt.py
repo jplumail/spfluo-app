@@ -1,7 +1,7 @@
-""" The pretraining submodule aims at generating datasets, and preparing data for training
-    (crop + split) regardless of the task. The other two submodules (training and postraining)
-    however  are specific to the picking task. That is why everything related to tilt
-    (data loading, training, prediction) is contained separately here within a single file.
+"""The pretraining submodule aims at generating datasets, and preparing data for training
+(crop + split) regardless of the task. The other two submodules (training and postraining)
+however  are specific to the picking task. That is why everything related to tilt
+(data loading, training, prediction) is contained separately here within a single file.
 """
 
 import os

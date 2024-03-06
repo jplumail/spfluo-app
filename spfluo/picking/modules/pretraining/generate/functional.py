@@ -1,6 +1,6 @@
-""" This file defines functions to add random augmentation to a 3d point cloud in order to
-    generate data. It expects torch.Tensor point clouds and should operate indifferently on cpu
-    and gpu.
+"""This file defines functions to add random augmentation to a 3d point cloud in order to
+generate data. It expects torch.Tensor point clouds and should operate indifferently on cpu
+and gpu.
 """
 
 from typing import Tuple, Union

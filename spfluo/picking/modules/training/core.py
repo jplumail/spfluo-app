@@ -1,4 +1,4 @@
-""" A training pipeline which aims at being simple and modular. It is organized as follows:
+"""A training pipeline which aims at being simple and modular. It is organized as follows:
 
 1. Define three structures for training: Data, Model and Logger.
     - Data: a wrapper around train and val dataloaders.
@@ -55,7 +55,6 @@ from .networks import Decoder, EfficientNet
 
 @dataclass
 class Data:
-
     """Nothing more than a wrapping structure handy for training functions."""
 
     train_loader: DataLoader
@@ -67,7 +66,6 @@ class Data:
 
 @dataclass
 class Model:
-
     """Nothing more than a wrapping structure handy for training functions."""
 
     device: torch.device
