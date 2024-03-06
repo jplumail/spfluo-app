@@ -159,7 +159,6 @@ def find_pose_from_z_axis_centered_to_centriole_axis(
     pose_from_z_axis_to_z_axis_centered = find_pose_from_centriole_to_center(
         volume_z_axis, symmetry, axis_indice=axis_indice, precision=center_precision
     )
-    print(pose_from_z_axis_to_z_axis_centered)
     return compose_poses(
         invert_pose(pose_from_z_axis_to_z_axis_centered), pose_from_z_axis_to_centriole
     )
