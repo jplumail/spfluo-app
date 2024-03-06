@@ -15,6 +15,7 @@ from spfluo.ab_initio_reconstruction.volume_representation.pixel_representation 
     Fourier_pixel_representation,
 )
 from spfluo.utils.array import array_namespace, numpy, to_numpy
+from spfluo.utils.loading import save_poses
 from spfluo.utils.memory import split_batch_func
 from spfluo.utils.transform import get_transform_matrix
 from spfluo.utils.volume import fourier_shift, phase_cross_correlation
@@ -404,9 +405,7 @@ def gd_importance_sampling_3d(
             unif_prop_rot = unif_prop_min
 
         # Save stuff
-        write_array_csv(
-            estimated_poses_iter, f"{sub_dir}/estimated_poses_epoch_{itr}.csv"
-        )
+        save_poses(f"{sub_dir}/estimated_poses_epoch_{itr}.csv", estimated_poses_iter)
         if ground_truth is not None:
             regist_im = io.imread(os.path.join(sub_dir, f"recons_epoch_{itr}.tif"))
             ssim_gt_recons = ssim(normalize(ground_truth), normalize(regist_im))
@@ -445,7 +444,9 @@ def gd_importance_sampling_3d(
         os.path.join(output_dir, "distributions_axes.npy"),
         imp_distrs_axes_recorded,
     )
-    write_array_csv(recorded_energies, os.path.join(output_dir, "energies.csv"))
+    write_array_csv(
+        np.asarray(recorded_energies), os.path.join(output_dir, "energies.csv")
+    )
     params_to_save = params_learning_alg.__dict__.copy()
     del params_to_save["params"]
     del params_to_save["dtype"]
