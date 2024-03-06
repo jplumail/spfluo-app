@@ -77,10 +77,8 @@ def find_pose_from_z_axis_to_centriole_axis(
     z_axis = xp.asarray([0, 0, 0])
     z_axis[axis_indice] = 1
     rot = find_rotation_between_two_vectors(symmetry_axis, z_axis)
-    trans = (xp.asarray(centriole_im.shape) - 1) / 2 - center
     pose = xp.zeros((6,), dtype=xp.float64)
     pose[:3] = R.from_matrix(rot.T).as_euler(convention, degrees=True)
-    pose[3:] = -trans
     return pose
 
 
@@ -90,6 +88,17 @@ def find_pose_from_centriole_to_center(
     num = math.ceil(max(im.shape[1:]) / (4 * precision))
     N_trans = num * num
     xp = array_namespace(im)
+    # Z-trans
+    axes = [0, 1, 2]
+    axes.pop(axis_indice)
+    axes = tuple(axes)
+    center_mass = xp.sum(
+        xp.arange(im.shape[axis_indice]) * xp.sum(im, axis=axes)
+    ) / xp.sum(im)
+    center = (float(im.shape[axis_indice]) - 1) / 2
+    trans_z = center - center_mass
+
+    # Y-X trans
     im_proj = xp.sum(im, axis=axis_indice)
     yx_translations = xp.reshape(
         xp.stack(
@@ -131,9 +140,9 @@ def find_pose_from_centriole_to_center(
         ),
         axis=1,
     )  # (N_trans,)
-    y_min, x_min = yx_translations[xp.argmin(distances)]
+    trans_y, trans_x = yx_translations[xp.argmin(distances)]
 
-    return xp.asarray([0, 0, 0, 0, y_min, x_min])
+    return xp.asarray([0, 0, 0, trans_z, trans_y, trans_x])
 
 
 def find_pose_from_z_axis_centered_to_centriole_axis(

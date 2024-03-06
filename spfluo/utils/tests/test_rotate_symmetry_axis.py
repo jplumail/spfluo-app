@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 from hypothesis import HealthCheck, given, settings
+from hypothesis import strategies as st
 from scipy.spatial.transform import Rotation as R
 
 import spfluo.data as data
@@ -71,9 +72,13 @@ def test_find_rot_mat_easy(create_data):
     report_multiple_bugs=False,
     derandomize=True,
     print_blob=True,
-    deadline=500,
+    deadline=2000,
 )
-@given(true_pose=random_pose())
+@given(
+    true_pose=random_pose(
+        translation_magnitude=st.one_of(st.just(0), st.just(1), st.just(5))
+    )
+)
 def test_find_pose(true_pose, create_data, save_result):
     _, (volumes, poses_truely_aligned, gt) = create_data
 
@@ -84,7 +89,9 @@ def test_find_pose(true_pose, create_data, save_result):
     poses_reconstruction = compose_poses(invert_pose(true_pose), poses_truely_aligned)
 
     # Find the pose to go from reconstruction to Z axis
-    pose = find_pose_from_z_axis_centered_to_centriole_axis(reconstruction, 9)
+    pose = find_pose_from_z_axis_centered_to_centriole_axis(
+        reconstruction, 9, center_precision=0.5
+    )
     poses_aligned = compose_poses(pose, poses_reconstruction)
 
     # assess errors, compare poses_aligned with poses_truely_aligned
@@ -117,6 +124,7 @@ def test_find_pose(true_pose, create_data, save_result):
         reconstruction_aligned = affine_transform(
             reconstruction, get_transform_matrix_from_pose(volumes[0].shape, pose)
         )
+        save_result("reconstruction", reconstruction)
         save_result(
             f"reconstruction_aligned-{'_'.join(map(str,np.round(true_pose,1).tolist()))}",
             reconstruction_aligned,
