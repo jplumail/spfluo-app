@@ -10,7 +10,7 @@ import numpy as np
 from tqdm import tqdm
 
 import spfluo.utils.debug as debug
-from spfluo.utils.array import Array, Device, array_namespace, to_numpy
+from spfluo.utils.array import Device, array_namespace, to_numpy
 from spfluo.utils.memory import split_batch2
 from spfluo.utils.transform import get_transform_matrix, symmetrize_poses
 from spfluo.utils.volume import (
@@ -22,10 +22,7 @@ from spfluo.utils.volume import (
 )
 
 if TYPE_CHECKING:
-    from spfluo.utils.array import Array
-
-if TYPE_CHECKING:
-    from spfluo.utils.array import array_api_module
+    from spfluo.utils.array import Array, array_api_module
 
 refinement_logger = logging.getLogger("spfluo.refinement")
 
@@ -502,7 +499,7 @@ def refine(
     guessed_poses: "Array",
     steps: List[Union[Tuple[int, int], int]],
     ranges: List[float],
-    initial_volume: Optional[Array] = None,
+    initial_volume: Optional["Array"] = None,
     lambda_: float = 100.0,
     symmetry: int = 1,
     convention: str = "XZX",

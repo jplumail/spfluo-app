@@ -14,7 +14,6 @@ from skimage.registration import (
 )
 
 from spfluo.utils.array import (
-    Array,
     _is_cupy_namespace,
     _is_numpy_namespace,
     _is_torch_namespace,
@@ -24,17 +23,15 @@ from spfluo.utils.array import (
 from spfluo.utils.array import numpy as np
 
 if TYPE_CHECKING:
-    from spfluo.utils.array import Array
-if TYPE_CHECKING:
-    from spfluo.utils.array import array_api_module
+    from spfluo.utils.array import Array, array_api_module
 
 
 def affine_transform(
     input: "Array",
     matrix: "Array",
-    offset: Union[float, Tuple[float], Array] = 0.0,
+    offset: Union[float, Tuple[float], "Array"] = 0.0,
     output_shape: Optional[Tuple[int]] = None,
-    output: Optional[Union[Array, DTypeLike]] = None,
+    output: Optional[Union["Array", DTypeLike]] = None,
     order: int = 3,
     mode: str = "constant",
     cval: float = 0.0,
@@ -335,10 +332,10 @@ def fourier_shift_broadcasted_scipy(
 
 def fourier_shift(
     input: "Array",
-    shift: Union[float, Sequence[float], Array],
+    shift: Union[float, Sequence[float], "Array"],
     n: int = -1,
     axis: int = -1,
-    output: Optional[Array] = None,
+    output: Optional["Array"] = None,
 ):
     """
     Multidimensional Fourier shift filter.
@@ -408,8 +405,8 @@ def phase_cross_correlation_broadcasted_skimage(
     upsample_factor: int = 1,
     space: str = "real",
     disambiguate: bool = False,
-    reference_mask: Optional[Array] = None,
-    moving_mask: Optional[Array] = None,
+    reference_mask: Optional["Array"] = None,
+    moving_mask: Optional["Array"] = None,
     overlap_ratio: float = 0.3,
     normalization: str = "phase",
     nb_spatial_dims: Optional[int] = None,
@@ -461,8 +458,8 @@ def phase_cross_correlation(
     upsample_factor: int = 1,
     space: str = "real",
     disambiguate: bool = False,
-    reference_mask: Optional[Array] = None,
-    moving_mask: Optional[Array] = None,
+    reference_mask: Optional["Array"] = None,
+    moving_mask: Optional["Array"] = None,
     overlap_ratio: float = 0.3,
     normalization: str = "phase",
     nb_spatial_dims: Optional[int] = None,
@@ -568,10 +565,10 @@ def phase_cross_correlation(
     return shift, error, phasediff
 
 
-def cartesian_prod(*arrays):
+def cartesian_prod(*arrays: "Array"):
     xp = array_namespace(*arrays)
-    return xp.stack(xp.meshgrid(*arrays, indexing="ij"), axis=-1).reshape(
-        -1, len(arrays)
+    return xp.reshape(
+        xp.stack(xp.meshgrid(*arrays, indexing="ij"), axis=-1), (-1, len(arrays))
     )
 
 
@@ -583,7 +580,7 @@ def discretize_sphere_uniformly(
     product: bool = False,
     dtype=None,
     device=None,
-) -> Tuple[Tuple[Array, Array, Array], Tuple[float, float]]:
+):
     """Generates a list of the two first euler angles that describe a uniform
     discretization of the sphere with the Fibonnaci sphere algorithm.
     Params:
@@ -614,8 +611,9 @@ def discretize_sphere_uniformly(
         theta, psi2 = cartesian_prod(theta, psi).T
         phi, _ = cartesian_prod(phi, psi).T
         psi = psi2
-    precision_axes = (
-        (180 / xp.pi) * 2 * (xp.pi) ** 0.5 / N**0.5
+
+    precision_axes: float = (
+        (180 / xp.pi) * 2 * xp.pi**0.5 / N**0.5
     )  # aire autour d'un point = 4*pi/N
     precision_rot = (180 / xp.pi) * 2 * xp.pi / symmetry / M
     theta, phi, psi = theta * 180 / xp.pi, phi * 180 / xp.pi, psi * 180 / xp.pi

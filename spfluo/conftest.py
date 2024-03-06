@@ -9,7 +9,7 @@ import pytest
 import tifffile
 
 from spfluo import data
-from spfluo.utils.array import Array, to_numpy
+from spfluo.utils.array import to_numpy
 
 if TYPE_CHECKING:
     from spfluo.utils.array import Array

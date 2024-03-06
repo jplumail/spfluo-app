@@ -1,11 +1,11 @@
-from typing import Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 import numpy as np
 
 from spfluo.ab_initio_reconstruction.common_image_processing_methods.others import (
     normalize,
 )
-from spfluo.utils.array import Array, array_namespace, to_numpy
+from spfluo.utils.array import array_namespace, to_numpy
 from spfluo.utils.volume import (
     discretize_sphere_uniformly,
 )
@@ -16,9 +16,9 @@ from .learning_algorithms.gradient_descent_importance_sampling import (
 from .params import ParametersMainAlg
 from .volume_representation.pixel_representation import Fourier_pixel_representation
 
-from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from spfluo.utils.array import Array
+
 
 class AbInitioReconstruction:
     def __init__(
@@ -34,7 +34,7 @@ class AbInitioReconstruction:
     def fit(
         self,
         X: "Array",
-        psf: Optional[Array] = None,
+        psf: Optional["Array"] = None,
         output_dir: Optional[str] = None,
         minibatch_size: Optional[int] = None,
         particles_names: Optional[list[str]] = None,

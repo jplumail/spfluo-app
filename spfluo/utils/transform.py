@@ -3,12 +3,10 @@ from typing import TYPE_CHECKING, Tuple
 
 from scipy.spatial.transform import Rotation
 
-from .array import Array, array_namespace, numpy_only_compatibility
-from typing import TYPE_CHECKING
+from .array import array_namespace, numpy_only_compatibility
+
 if TYPE_CHECKING:
     from spfluo.utils.array import Array
-if TYPE_CHECKING:
-    pass
 
 
 @numpy_only_compatibility
@@ -59,9 +57,8 @@ def invert_pose(pose: "Array", convention="XZX"):
 
 
 def get_transform_matrix_around_center(
-        shape: Tuple[int, ...],
-        rotation_matrix: "Array"
-    ):
+    shape: Tuple[int, ...], rotation_matrix: "Array"
+):
     """
     Params:
         - shape
@@ -210,7 +207,7 @@ def symmetrize_poses(poses: "Array", symmetry: int, convention: str = "XZX") -> 
 
 def distance_poses(
     p1: "Array", p2: "Array", convention: str = "XZX", symmetry: int = 1
-) -> Tuple[Array, Array]:
+):
     """Compute the rotation distance and the euclidean distance between p1 and p2.
     Parameters:
         p1, p2 : arrays of shape (..., 6). Must be broadcastable.
@@ -258,7 +255,7 @@ def distance_family_poses(
     guessed_poses: "Array",
     gt_poses: "Array",
     convention: str = "XZX",
-    symmetry: int = 1
+    symmetry: int = 1,
 ):
     """Compute the rotation distance and the euclidean distance between guessed_poses
     and gt_poses.

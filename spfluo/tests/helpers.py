@@ -6,23 +6,24 @@ from hypothesis import strategies as st
 from scipy.spatial.transform import Rotation as R
 
 import spfluo
-from spfluo.utils.array import Array, to_numpy
+from spfluo.utils.array import get_cupy, get_torch, to_numpy
 from spfluo.utils.array import numpy as np
 from spfluo.utils.volume import phase_cross_correlation
 
 if TYPE_CHECKING:
     from spfluo.utils.array import Array
+
+
 testing_libs = [(np, "cpu")]
 ids = ["numpy"]
 
 if spfluo.has_cupy():
-    from spfluo.utils.array import cupy
-
+    cupy = get_cupy()
     testing_libs.append((cupy, cupy.cuda.Device(0)))
     ids.append("cupy")
-if spfluo.has_torch():
-    from spfluo.utils.array import torch
 
+if spfluo.has_torch():
+    torch = get_torch()
     testing_libs.append((torch, "cpu"))
     ids.append("torch-cpu")
     if spfluo.has_torch_cuda():

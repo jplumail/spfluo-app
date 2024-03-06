@@ -14,7 +14,7 @@ from tqdm.auto import tqdm
 from spfluo.ab_initio_reconstruction.volume_representation.pixel_representation import (
     Fourier_pixel_representation,
 )
-from spfluo.utils.array import Array, array_namespace, numpy, to_numpy
+from spfluo.utils.array import array_namespace, numpy, to_numpy
 from spfluo.utils.memory import split_batch_func
 from spfluo.utils.transform import get_transform_matrix
 from spfluo.utils.volume import fourier_shift, phase_cross_correlation
@@ -29,7 +29,6 @@ from ..volume_representation.gaussian_mixture_representation.GMM_grid_evaluation
     one_d_gaussian,
 )
 
-from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from spfluo.utils.array import Array
 
@@ -482,7 +481,7 @@ def compute_shifts(
     inverse_transforms: "Array",
     view: "Array",
     interp_order: int = 1,
-) -> Tuple[Array, Array, Array]:
+) -> Tuple["Array", "Array", "Array"]:
     xp = array_namespace(inverse_transforms, view)
 
     (device,) = set([str(xp.device(inverse_transforms)), str(xp.device(view))])

@@ -5,13 +5,10 @@ import imageio
 import numpy as np
 import tifffile
 
-from spfluo.utils.array import Array, array_namespace, get_namespace_device, numpy
+from spfluo.utils.array import array_namespace, get_namespace_device, numpy
 
-from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from spfluo.utils.array import Array
-if TYPE_CHECKING:
-    from spfluo.utils.array import Device, array_api_module
+    from spfluo.utils.array import Array, Device, array_api_module
 
 
 def read_image(

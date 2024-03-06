@@ -1,10 +1,11 @@
 import os
+from typing import TYPE_CHECKING
 
 import numpy as np
 from numpy import fft
 from scipy.ndimage import center_of_mass, fourier_shift
 
-from spfluo.utils.array import Array, array_namespace
+from spfluo.utils.array import array_namespace
 
 from ...utils.read_save_files import save
 from ..common_image_processing_methods.others import crop_center
@@ -14,9 +15,9 @@ from ..common_image_processing_methods.registration import (
     shift_registration_exhaustive_search,
 )
 
-from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from spfluo.utils.array import Array
+
 
 class Fourier_pixel_representation:
     def __init__(

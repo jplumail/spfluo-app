@@ -1,13 +1,15 @@
+from typing import TYPE_CHECKING
+
 from sklearn.cluster import KMeans
 from sklearn.svm import SVC
 
-from spfluo.utils.array import Array, array_namespace
+from spfluo.utils.array import array_namespace
 from spfluo.utils.rotate_symmetry_axis import find_rotation_between_two_vectors
 from spfluo.utils.volume import affine_transform, tukey
 
-from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from spfluo.utils.array import Array
+
 
 def extract_particle(
     image_data: "Array",

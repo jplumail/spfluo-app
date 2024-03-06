@@ -1,6 +1,6 @@
 # from spfluo.utils.loading import loadmat
 
-from typing import Callable, Tuple
+from typing import TYPE_CHECKING, Callable, Tuple
 
 import numpy as np
 import pytest
@@ -18,7 +18,7 @@ from spfluo.tests.helpers import (
     ids,
     testing_libs,
 )
-from spfluo.utils.array import Array, array_namespace
+from spfluo.utils.array import array_namespace
 from spfluo.utils.transform import (
     distance_family_poses,
     get_transform_matrix,
@@ -29,9 +29,9 @@ from spfluo.utils.volume import (
     affine_transform,
 )
 
-from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from spfluo.utils.array import Array
+
 
 @pytest.fixture(scope="module")
 def generated_data_all_array(request, generated_data_all):
@@ -41,7 +41,7 @@ def generated_data_all_array(request, generated_data_all):
 
 @pytest.fixture
 def poses_with_noise(
-    generated_data_all_array: Tuple[Array, ...],
+    generated_data_all_array: Tuple["Array", ...],
 ):
     (_, poses, _, _), _ = generated_data_all_array
     xp = array_namespace(poses)
@@ -134,7 +134,7 @@ def test_symmetry_reconstruction_L2(
     "generated_data_all_array", testing_libs, indirect=True, ids=ids
 )
 def test_symmetry_reconstruction_L2_2(
-    generated_data_all_array: tuple[Array, ...],
+    generated_data_all_array: tuple["Array", ...],
     save_result: Callable[[str, np.ndarray], bool],
 ):
     """reconstruction_L2 of 1 particle with angles that have been symmetrized
@@ -179,7 +179,7 @@ def test_symmetry_reconstruction_L2_2(
     "generated_data_all_array", testing_libs, indirect=True, ids=ids
 )
 def test_reconstruction_L2_simple(
-    generated_data_all_array: tuple[Array, ...],
+    generated_data_all_array: tuple["Array", ...],
     save_result: Callable[[str, np.ndarray], bool],
 ):
     """Do a reconstruction and compare if it's aligned with the groundtruth"""
@@ -200,7 +200,7 @@ def test_reconstruction_L2_simple(
     "generated_data_all_array", testing_libs, indirect=True, ids=ids
 )
 def test_reconstruction_L2_symmetry(
-    generated_data_all_array: tuple[Array, ...],
+    generated_data_all_array: tuple["Array", ...],
     save_result: Callable[[str, np.ndarray], bool],
 ):
     """Do a reconstruction with symmetry and compare if it's aligned with groundtruth"""
@@ -230,7 +230,7 @@ def test_reconstruction_L2_symmetry(
     "generated_data_all_array", testing_libs, indirect=True, ids=ids
 )
 def test_reconstruction_L2_symmetry_1vol_iso(
-    generated_data_all_array: tuple[Array, ...],
+    generated_data_all_array: tuple["Array", ...],
     save_result: Callable[[str, np.ndarray], bool],
 ):
     """Do a reconstruction with 1 volume in 2 ways:
@@ -274,7 +274,7 @@ def test_reconstruction_L2_symmetry_1vol_iso(
     "generated_data_all_array", testing_libs, indirect=True, ids=ids
 )
 def test_reconstruction_L2_symmetry_Nvol_iso(
-    generated_data_all_array: tuple[Array, ...],
+    generated_data_all_array: tuple["Array", ...],
     save_result: Callable[[str, np.ndarray], bool],
 ):
     """Do a reconstruction with N volumes in 2 ways:
@@ -475,7 +475,7 @@ def test_refine_shapes(xp, device):
     "generated_data_all_array", gpu_libs, indirect=True, ids=gpu_ids
 )
 def test_refine_easy(
-    generated_data_all_array: tuple[Array, ...],
+    generated_data_all_array: tuple["Array", ...],
     poses_with_noise: "Array",
     save_result: Callable[[str, np.ndarray], bool],
 ):

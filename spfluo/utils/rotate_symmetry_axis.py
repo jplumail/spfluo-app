@@ -1,12 +1,12 @@
 import math
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 import tifffile
 from scipy.spatial.transform import Rotation as R
 from sklearn.decomposition import PCA
 
-from spfluo.utils.array import Array, array_namespace
+from spfluo.utils.array import array_namespace
 from spfluo.utils.loading import read_poses, save_poses
 from spfluo.utils.transform import (
     compose_poses,
@@ -16,7 +16,6 @@ from spfluo.utils.transform import (
 )
 from spfluo.utils.volume import affine_transform
 
-from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from spfluo.utils.array import Array
 DEFAULT_THRESHOLD = 0.3
