@@ -544,7 +544,7 @@ def phase_cross_correlation(
         func = phase_cross_correlation_broadcasted_pytorch
     elif _is_numpy_namespace(xp):
         func = phase_cross_correlation_broadcasted_skimage
-    elif _is_cupy_namespace():
+    elif _is_cupy_namespace(xp):
         from ._cupy_functions.volume import phase_cross_correlation_broadcasted_cucim
 
         func = phase_cross_correlation_broadcasted_cucim
