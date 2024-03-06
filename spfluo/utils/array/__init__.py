@@ -15,35 +15,8 @@ import spfluo
 
 
 def get_torch():
-    from array_api_compat import torch
-    from torch.fft import fftn as torch_fftn
-    from torch.fft import fftshift as torch_fftshift
-    from torch.fft import ifftn as torch_ifftn
+    from . import torch
 
-    def pytorch_fftn_wrapper(x, s=None, axes=None, norm="backward", dim=None, out=None):
-        if dim is not None:
-            axes = dim
-        if out is not None:
-            return torch_fftn(x, s=s, dim=axes, norm=norm, out=out)
-        return torch_fftn(x, s=s, dim=axes, norm=norm)
-
-    def pytorch_ifftn_wrapper(
-        x, s=None, axes=None, norm="backward", dim=None, out=None
-    ):
-        if dim is not None:
-            axes = dim
-        if out is not None:
-            return torch_ifftn(x, s=s, dim=axes, norm=norm, out=out)
-        return torch_ifftn(x, s=s, dim=axes, norm=norm)
-
-    def pytorch_fftshift_wrapper(x, /, *, axes=None, norm="backward", dim=None):
-        if dim is not None:
-            axes = dim
-        return torch_fftshift(x, dim=axes)
-
-    torch.fft.fftn = pytorch_fftn_wrapper
-    torch.fft.ifftn = pytorch_ifftn_wrapper
-    torch.fft.fftshift = pytorch_fftshift_wrapper
     return torch
 
 
@@ -88,7 +61,12 @@ def array_namespace(*xs, api_version=None, _use_compat=True) -> "array_api_modul
     api_version should be the newest version of the spec that you need support
     for (currently the compat library wrapped APIs only support v2021.12).
     """
-    return _array_namespace(*xs, api_version=api_version, _use_compat=_use_compat)
+    xp: array_api_module = _array_namespace(
+        *xs, api_version=api_version, _use_compat=_use_compat
+    )
+    if "torch" in xp.__name__:
+        xp = get_torch()
+    return xp
 
 
 def numpy_only_compatibility(numpy_func):

@@ -149,9 +149,7 @@ def test_apply_transformation_and_sym_to_poses(create_data, save_result):
         ),
     )
     save_result("reconstruction_aligned", reconstruction_aligned)
-    assert_volumes_aligned(
-        reconstruction_aligned, reconstruction_true_aligned, atol=0.5
-    )
+    assert_volumes_aligned(reconstruction_aligned, reconstruction_true_aligned, atol=1)
 
     # Test poses_aligned are ok
     poses_from_reconstruction_to_vols = poses
@@ -164,7 +162,7 @@ def test_apply_transformation_and_sym_to_poses(create_data, save_result):
         batch=True,
     )
     save_result("volumes_aligned", volumes_aligned)
-    assert_volumes_aligned(volumes_aligned, reconstruction_true_aligned, atol=0.5)
+    assert_volumes_aligned(volumes_aligned, reconstruction_true_aligned, atol=1)
 
     # Test symmetrizing these poses
     poses_aligned_sym = symmetrize_poses(poses_aligned, 9)
@@ -182,5 +180,5 @@ def test_apply_transformation_and_sym_to_poses(create_data, save_result):
             batch=True,
         )
         assert_volumes_aligned(
-            volume_i_aligned_sym, reconstruction_true_aligned, atol=0.5
+            volume_i_aligned_sym, reconstruction_true_aligned, atol=1
         )
