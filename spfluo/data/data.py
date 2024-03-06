@@ -13,6 +13,8 @@ import tifffile
 from spfluo.data.constants import ARCHIVE_NAME, REPO_ID, SEAFILE_URL
 from spfluo.data.upload import _file_hash, get_token
 from spfluo.utils.array import numpy as np
+from spfluo.utils.loading import read_poses
+from spfluo.utils.read_save_files import read_image
 
 
 def _download_data(d: Path):
@@ -108,3 +110,13 @@ def generated_isotropic():
 
 def generated_anisotropic():
     return _fetch_dataset("anisotropic-5.0-1.0-1.0")
+
+
+def real_ab_initio_reconstruction():
+    with _get_data_dir() as data_dir:
+        recon = data_dir / "real" / "reconstruction.tiff"
+        poses = data_dir / "real" / "poses.csv"
+        poses, names = read_poses(str(poses))
+        pose = poses[names.index("reconstruction.tiff")]
+        recon = read_image(str(recon), dtype="float64", xp=np)
+        return {"reconstruction": recon, "pose": pose}
