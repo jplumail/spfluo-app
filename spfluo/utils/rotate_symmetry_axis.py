@@ -1,4 +1,5 @@
 import math
+from functools import partial
 from typing import TYPE_CHECKING, Optional
 
 import numpy as np
@@ -82,11 +83,42 @@ def find_pose_from_z_axis_to_centriole_axis(
     return pose
 
 
+def _gradient(im: "Array", nb_spatial_dims: int = 2):
+    xp = array_namespace(im)
+    grad = []
+    for i in range(-nb_spatial_dims, 0):
+        selection_a, selection_b = [], []
+        for j in range(-im.ndim, 0):
+            if j < -nb_spatial_dims:
+                selection_a.append(slice(None))
+                selection_b.append(slice(None))
+            elif j == i:
+                selection_a.append(slice(1, None))
+                selection_b.append(slice(None, -1))
+            else:
+                selection_a.append(slice(None, -1))
+                selection_b.append(slice(None, -1))
+        grad_i = im[tuple(selection_a)] - im[tuple(selection_b)]
+        grad.append(grad_i)
+    return xp.stack(grad, axis=0)
+
+
+def _corr(im1: "Array", im2: "Array", nb_spatial_dims: int = 2):
+    xp = array_namespace(im1, im2)
+    assert im1.shape[-nb_spatial_dims:] == im2.shape[-nb_spatial_dims:]
+    mean = partial(xp.mean, axis=tuple(range(-nb_spatial_dims, 0)), keepdims=True)
+    im1_stdv = (mean(im1**2) - mean(im1) ** 2) ** 0.5
+    im2_stdv = (mean(im2**2) - mean(im2) ** 2) ** 0.5
+    c = mean((im1 - mean(im1)) * (im2 - mean(im2))) / (im1_stdv * im2_stdv)
+    c = c[
+        (slice(None),) * (c.ndim - nb_spatial_dims) + (0,) * nb_spatial_dims
+    ]  # squeeze dims
+    return c
+
+
 def find_pose_from_centriole_to_center(
     im: "Array", symmetry: int, precision: float = 1, axis_indice: int = 0
 ):
-    num = math.ceil(max(im.shape[1:]) / (4 * precision))
-    N_trans = num * num
     xp = array_namespace(im)
     # Z-trans
     axes = [0, 1, 2]
@@ -99,6 +131,8 @@ def find_pose_from_centriole_to_center(
     trans_z = center - center_mass
 
     # Y-X trans
+    num = math.ceil(max(im.shape[1:]) / (4 * precision))
+    N_trans = num * num
     im_proj = xp.sum(im, axis=axis_indice)
     yx_translations = xp.reshape(
         xp.stack(
@@ -134,15 +168,30 @@ def find_pose_from_centriole_to_center(
         ),
         (N_trans, symmetry, *im_proj.shape),
     )
-    distances = xp.sum(
-        xp.linalg.vector_norm(
-            ims_translated_rotated - ims_translated_rotated[:, [0]], axis=(-2, -1)
+
+    corr_rotations = xp.mean(
+        _corr(
+            xp.mean(ims_translated_rotated, axis=1, keepdims=True),
+            ims_translated_rotated,
         ),
         axis=1,
-    )  # (N_trans,)
-    trans_y, trans_x = yx_translations[xp.argmin(distances)]
+    )
 
-    return xp.asarray([0, 0, 0, trans_z, trans_y, trans_x])
+    grad = _gradient(ims_translated_rotated)
+    corr_rotations_grads = xp.mean(
+        _corr(xp.mean(grad, axis=2, keepdims=True), grad), axis=(0, 2)
+    )
+
+    distances = (corr_rotations + corr_rotations_grads) / 2
+
+    trans_y, trans_x = yx_translations[xp.argmax(distances)]
+
+    pose = xp.asarray([0, 0, 0, 0, 0, 0])
+    pose[3 + axis_indice] = trans_z
+    pose[3 + axes[0]] = trans_y
+    pose[3 + axes[1]] = trans_x
+
+    return pose
 
 
 def find_pose_from_z_axis_centered_to_centriole_axis(

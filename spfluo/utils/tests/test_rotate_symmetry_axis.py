@@ -1,11 +1,9 @@
 import numpy as np
 import pytest
-from hypothesis import HealthCheck, given, settings
-from hypothesis import strategies as st
 from scipy.spatial.transform import Rotation as R
 
 import spfluo.data as data
-from spfluo.tests.helpers import assert_volumes_aligned, random_pose
+from spfluo.tests.helpers import assert_volumes_aligned
 from spfluo.utils.rotate_symmetry_axis import (
     find_pose_from_z_axis_centered_to_centriole_axis,
 )
@@ -67,72 +65,6 @@ def test_find_rot_mat_easy(create_data):
     )
 
 
-@settings(
-    suppress_health_check=[HealthCheck.function_scoped_fixture],
-    report_multiple_bugs=False,
-    derandomize=True,
-    print_blob=True,
-    deadline=2000,
-)
-@given(
-    true_pose=random_pose(
-        translation_magnitude=st.one_of(st.just(0), st.just(1), st.just(5))
-    )
-)
-def test_find_pose(true_pose, create_data, save_result):
-    _, (volumes, poses_truely_aligned, gt) = create_data
-
-    # Reconstruction is rotated by true_pose, we rotate all the poses accordingly
-    reconstruction = affine_transform(
-        gt, np.linalg.inv(get_transform_matrix_from_pose(volumes[0].shape, true_pose))
-    )
-    poses_reconstruction = compose_poses(invert_pose(true_pose), poses_truely_aligned)
-
-    # Find the pose to go from reconstruction to Z axis
-    pose = find_pose_from_z_axis_centered_to_centriole_axis(
-        reconstruction, 9, center_precision=0.5
-    )
-    poses_aligned = compose_poses(pose, poses_reconstruction)
-
-    # assess errors, compare poses_aligned with poses_truely_aligned
-    err_rot1, err_trans1 = distance_poses(
-        poses_aligned, poses_truely_aligned, symmetry=9
-    )
-    err_rot1_corrected = err_rot1.copy()
-    err_rot1_corrected[err_rot1 > 20] = err_rot1[err_rot1 > 20] - 40
-
-    # centriole has another symmetry
-    transformation_sym = np.asarray([0, 180, 0, 0, 0, 0], dtype=float)
-    poses_aligned_sym = compose_poses(transformation_sym, poses_aligned)
-    err_rot2, err_trans2 = distance_poses(
-        poses_aligned_sym, poses_truely_aligned, symmetry=9
-    )
-    err_rot2_corrected = err_rot2.copy()
-    err_rot2_corrected[err_rot2 > 20] = err_rot2[err_rot2 > 20] - 40
-
-    rot_error = 20
-    trans_error = 1
-    try:
-        assert (
-            np.isclose(err_rot1_corrected, 0, atol=rot_error).all()
-            and np.isclose(err_trans1, 0, atol=trans_error).all()
-        ) or (
-            np.isclose(err_rot2_corrected, 0, atol=rot_error).all()
-            and np.isclose(err_trans2, 0, atol=trans_error).all()
-        )
-    except AssertionError as e:
-        reconstruction_aligned = affine_transform(
-            reconstruction, get_transform_matrix_from_pose(volumes[0].shape, pose)
-        )
-        save_result("reconstruction", reconstruction)
-        save_result(
-            f"reconstruction_aligned-{'_'.join(map(str,np.round(true_pose,1).tolist()))}",
-            reconstruction_aligned,
-        )
-        save_result("gt", gt)
-        raise e
-
-
 def test_apply_transformation_and_sym_to_poses(create_data, save_result):
     (
         (volumes, poses, reconstruction),
@@ -140,7 +72,7 @@ def test_apply_transformation_and_sym_to_poses(create_data, save_result):
     ) = create_data
 
     pose_from_axis_to_reconstruction = find_pose_from_z_axis_centered_to_centriole_axis(
-        reconstruction, 9
+        reconstruction, 9, center_precision=0.5
     )
     reconstruction_aligned = affine_transform(
         reconstruction,
@@ -148,6 +80,8 @@ def test_apply_transformation_and_sym_to_poses(create_data, save_result):
             reconstruction.shape, pose_from_axis_to_reconstruction
         ),
     )
+    save_result("reconstruction", reconstruction)
+    save_result("reconstruction_true_aligned", reconstruction_true_aligned)
     save_result("reconstruction_aligned", reconstruction_aligned)
     assert_volumes_aligned(reconstruction_aligned, reconstruction_true_aligned, atol=1)
 
@@ -163,6 +97,12 @@ def test_apply_transformation_and_sym_to_poses(create_data, save_result):
     )
     save_result("volumes_aligned", volumes_aligned)
     assert_volumes_aligned(volumes_aligned, reconstruction_true_aligned, atol=1)
+    angular_errors, trans_errors = distance_poses(
+        poses_aligned, poses_true_aligned, symmetry=9
+    )
+    assert all(np.isclose(angular_errors, 0, atol=10)) and all(
+        np.isclose(trans_errors, 0, atol=1.5)
+    )
 
     # Test symmetrizing these poses
     poses_aligned_sym = symmetrize_poses(poses_aligned, 9)
@@ -182,3 +122,32 @@ def test_apply_transformation_and_sym_to_poses(create_data, save_result):
         assert_volumes_aligned(
             volume_i_aligned_sym, reconstruction_true_aligned, atol=1
         )
+
+
+def test_real_data(save_result):
+    d = data.real_ab_initio_reconstruction()
+    image, pose = d["reconstruction"], d["pose"]
+
+    aligned_image = affine_transform(
+        image, get_transform_matrix_from_pose(image.shape, pose)
+    )
+
+    pose_estimate = find_pose_from_z_axis_centered_to_centriole_axis(
+        image, 9, threshold=0.1, center_precision=1
+    )
+
+    bottom_up_pose = np.asarray(
+        [0, 180, 0, 0, 0, 0]
+    )  # alignement can put the image upside down
+    pose_estimate = compose_poses(bottom_up_pose, pose_estimate)
+    aligned_image2 = affine_transform(
+        image, get_transform_matrix_from_pose(image.shape, pose_estimate)
+    )
+
+    save_result("image", image)
+    save_result("aligned_image", aligned_image)
+    save_result("aligned_image_estimate", aligned_image2)
+
+    angular_distance, trans_distance = distance_poses(pose, pose_estimate, symmetry=9)
+
+    assert angular_distance < 20.0 and trans_distance < 2
