@@ -120,20 +120,25 @@ def annotate(
             ):  # if mouse is not over any viewer, the point size is being adjusted
                 return
             for viewer in viewers_not_under_mouse:
+                if len(viewer.dims.order) > 3:
+                    order = [x - 1 for x in viewer.dims.order[1:]]
+                else:
+                    order = list(viewer.dims.order)
                 pos_reordered = tuple(
-                    np.array(bbox_layer.data_to_world(bbox_center))[
-                        list(viewer.dims.order)
-                    ]
+                    np.array(bbox_layer.data_to_world(bbox_center))[order]
                 )
                 viewer.camera.center = pos_reordered
 
+            if len(dock_widget.viewer.dims.order) > 3:
+                range_ = dock_widget.viewer.dims.range[1:]
+            else:
+                range_ = dock_widget.viewer.dims.range
             dock_widget.viewer.dims.current_step = tuple(
                 np.round(
                     [
                         max(min_, min(p, max_)) / step
                         for p, (min_, max_, step) in zip(
-                            bbox_layer.data_to_world(bbox_center),
-                            dock_widget.viewer.dims.range,
+                            bbox_layer.data_to_world(bbox_center), range_, strict=True
                         )
                     ]
                 ).astype(int)
