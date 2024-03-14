@@ -1,3 +1,5 @@
+from typing import List  # noqa: UP035
+
 import napari
 import numpy as np
 from magicgui import magic_factory
@@ -16,7 +18,7 @@ def run_separate(
     image: "napari.layers.Image",
     clusters: "napari.layers.Labels",
     tukey_alpha: float = 0.1,
-) -> "list[napari.layers.Layer]":
+) -> "List[napari.layers.Layer]":
     image: Image = image
     image_data: np.ndarray = image.data
     clusters_data: np.ndarray = clusters.data
