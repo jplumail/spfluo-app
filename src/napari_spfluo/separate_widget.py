@@ -1,87 +1,64 @@
 import napari
 import numpy as np
-from magicgui.widgets import (
-    ComboBox,
-    Container,
-    FloatSlider,
-    PushButton,
-    create_widget,
-)
+from magicgui import magic_factory
 from napari.layers import Image
-from spfluo.utils.separate import separate_centrioles
+from spfluo.utils.separate import _separate_clusters
 
 
-class SeparateWidget(Container):
-    """Centioles are often glued together.
-    It's easy to pick them 2 by 2.
-    Then we need to separate them, that's what this widget does.
-    """
+@magic_factory(
+    tukey_alpha={
+        "widget_type": "FloatSlider",
+        "min": 0,
+        "max": 1,
+    },
+)
+def run_separate(
+    image: "napari.layers.Image",
+    clusters: "napari.layers.Labels",
+    tukey_alpha: float = 0.1,
+) -> "list[napari.layers.Layer]":
+    image: Image = image
+    image_data: np.ndarray = image.data
+    clusters_data: np.ndarray = clusters.data
+    scale = image.scale
+    assert not (image_data.ndim < 3 or image_data.ndim > 4)
+    assert (
+        clusters_data.ndim == image_data.ndim
+        and clusters_data.shape == image_data.shape
+    )
+    if image_data.ndim == 4:
+        image_data = image_data[0]
+        clusters_data = clusters_data[0]
+        scale = scale[1:]
+    clusters_data[clusters_data < 0] = 0
+    labels = np.nonzero(np.bincount(clusters_data.flatten()))[0]
+    assert len(labels) == 3, "There should be only 2 clusters_data"
+    clusters_coords = np.nonzero(clusters_data)
+    clusters_labels = np.empty(clusters_coords[0].shape, dtype=int)
+    for label, new_label in zip((labels[1], labels[2]), (0, 1)):
+        clusters_labels[clusters_data[clusters_coords] == label] = new_label
+    (im1, im2), centers = _separate_clusters(
+        image_data[None],
+        np.stack(clusters_coords, axis=-1),
+        clusters_labels,
+        image_data[clusters_coords],
+        image_data.shape,
+        (1, 1, 1),
+        tukey_alpha,
+    )
+    im_center = np.asarray(image_data.shape) / 2
+    trans1, trans2 = np.round(centers - im_center)
+    output1 = Image(
+        data=im1,
+        scale=image.scale,
+        translate=image.data_to_world(trans1),
+        name=image.name + " 1",
+    )
+    output2 = Image(
+        data=im2,
+        scale=image.scale,
+        translate=image.data_to_world(trans2),
+        name=image.name + " 2",
+    )
 
-    def __init__(self, viewer: "napari.viewer.Viewer"):
-        super().__init__()
-        self._viewer: napari.Viewer = viewer
-
-        self.output1_particle_layer = None
-        self.output2_particle_layer = None
-
-        self._particles_layer_combo: ComboBox = create_widget(
-            label="2 particles", annotation="napari.layers.Image"
-        )
-
-        self._threshold_widget = FloatSlider(
-            value=0.5, name="threshold value", min=0, max=1, tracking=False
-        )
-        self._alpha_widget = FloatSlider(
-            value=0.1, name="tukey alpha", min=0, max=1, tracking=False
-        )
-        self._threshold_widget.changed.connect(self._separate)
-        self._alpha_widget.changed.connect(self._separate)
-        self._particles_layer_combo.changed.connect(self._on_layer_changed)
-        self._run_button = PushButton(text="Run")
-        self._run_button.changed.connect(self._separate)
-
-        self.extend(
-            [
-                self._particles_layer_combo,
-                self._threshold_widget,
-                self._alpha_widget,
-                self._run_button,
-            ]
-        )
-
-    def _init_output_layers(self, layer: Image):
-        self.output1_particle_layer = self._viewer.add_image(
-            data=np.zeros(layer.data.shape),
-            name="rotated particle",
-            scale=layer.scale,
-        )
-        self.output2_particle_layer = self._viewer.add_image(
-            data=np.zeros(layer.data.shape),
-            name="rotated particle",
-            scale=layer.scale,
-        )
-
-    def _on_layer_changed(self, layer: Image):
-        if self.output1_particle_layer is None:
-            self._init_output_layers(layer)
-
-        # run rotation
-        self._separate()
-
-    def _separate(self):
-        if self._particles_layer_combo.value is not None:
-            if self.output1_particle_layer is None:
-                self._init_output_layers(self._particles_layer_combo.value)
-
-            im = self._particles_layer_combo.value.data
-            im1, im2 = separate_centrioles(
-                im,
-                im.shape,
-                threshold_percentage=self._threshold_widget.value,
-                tukey_alpha=self._alpha_widget.value,
-            )
-
-            self.output1_particle_layer.data = im1
-            self.output2_particle_layer.data = im2
-            self.output1_particle_layer.reset_contrast_limits()
-            self.output2_particle_layer.reset_contrast_limits()
+    return [output1, output2]
