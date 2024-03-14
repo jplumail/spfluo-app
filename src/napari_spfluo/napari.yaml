@@ -19,8 +19,23 @@ contributions:
       python_name: napari_spfluo:RotateWidget
       title: Make rotate widget
     - id: napari-spfluo.make_separate_widget
-      python_name: napari_spfluo:SeparateWidget
+      python_name: napari_spfluo:run_separate
       title: Make separate widget
+    - id: napari-spfluo.make_dbscan_widget
+      python_name: napari_spfluo:run_dbscan
+      title: Make DBSCAN widget
+    - id: napari-spfluo.make_hdbscan_widget
+      python_name: napari_spfluo:run_hdbscan
+      title: Make HDBSCAN widget
+    - id: napari-spfluo.make_threshold_widget
+      python_name: napari_spfluo:threshold_widget
+      title: Make Threshold widget
+    - id: napari-spfluo.make_merge_labels_widget
+      python_name: napari_spfluo:MergeLabelsWidget
+      title: Make MergeLabels widget
+    - id: napari-spfluo.make_test
+      python_name: napari_spfluo:TestWidget
+      title: Make Test Widget
   sample_data:
     - command: napari-spfluo.make_generated_anisotropic
       display_name: generate anisotropic data
@@ -34,3 +49,11 @@ contributions:
       display_name: Rotate
     - command: napari-spfluo.make_separate_widget
       display_name: Separate
+    - command: napari-spfluo.make_dbscan_widget
+      display_name: DBSCAN
+    - command: napari-spfluo.make_hdbscan_widget
+      display_name: HDBSCAN
+    - command: napari-spfluo.make_threshold_widget
+      display_name: Threshold
+    - command: napari-spfluo.make_merge_labels_widget
+      display_name: Merge labels
