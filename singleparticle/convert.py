@@ -128,14 +128,26 @@ def read_poses(poses_csv: str):
             yield t, row[0]
 
 
-def save_translations(coords: SetOfCoordinates3D, csv_file: str):
-    box_size = coords.getBoxSize()
+def save_boundingboxes(coords: SetOfCoordinates3D, csv_file: str):
     with open(csv_file, "w") as f:
         csvwriter = csv.writer(f)
-        csvwriter.writerow(["index", "axis-1", "axis-2", "axis-3", "size"])
+        csvwriter.writerow(
+            ["index", "axis-1", "axis-2", "axis-3", "axis-1", "axis-2", "axis-3"]
+        )
         for i, coord in enumerate(coords.iterCoordinates()):
             x, y, z = coord.getPosition()
-            csvwriter.writerow([i, x, y, z, box_size])
+            w, h, d = coord.getDim()
+            csvwriter.writerow(
+                [
+                    i,
+                    x - w / 2,
+                    y - h / 2,
+                    z - d / 2,
+                    x + w / 2,
+                    y + h / 2,
+                    z + d / 2,
+                ]
+            )
 
 
 def save_particles(
@@ -155,9 +167,8 @@ def save_particles(
         im_newPath = os.path.join(particles_dir, im_name + ".ome.tiff")
         particles_paths.append(im_newPath)
         if im.getNumChannels() > 1 and channel is not None:
-            Particle.from_data(
-                im.getData()[channel][None], im_newPath, voxel_size=im.getVoxelSize()
-            )
+            data = im.getData()[channel][None]
+            Particle.from_data(data, im_newPath, voxel_size=im.getVoxelSize())
         else:
             if ext.endswith(".tiff") or ext.endswith(".tif"):
                 os.link(im_path, im_newPath)

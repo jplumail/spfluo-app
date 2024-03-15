@@ -13,7 +13,7 @@ from pyworkflow.viewer import DESKTOP_TKINTER, View, Viewer
 
 from singleparticle import Plugin
 from singleparticle.constants import VISUALISATION_MODULE
-from singleparticle.convert import save_translations
+from singleparticle.convert import save_boundingboxes
 
 
 class NapariDataViewer(Viewer):
@@ -229,6 +229,9 @@ class SetOfCoordinates3DDialog(ToolbarListDialog):
     def lanchNapariForFluoImage(self, im: FluoImage, coords_im: SetOfCoordinates3D):
         path = im.getFileName()
         csv_path = self._protocol._getExtraPath("coords.csv")
-        save_translations(coords_im, csv_path)
+        save_boundingboxes(coords_im, csv_path)
         program = Plugin.getSPFluoProgram([VISUALISATION_MODULE, "coords"])
-        runJob(None, program, [path, "--coords", csv_path], env=Plugin.getEnviron())
+        args = [path, "--coords", csv_path]
+        vs_xy, vs_z = im.getVoxelSize()
+        args += ["--scale", str(vs_z), str(vs_xy), str(vs_xy)]
+        runJob(None, program, args, env=Plugin.getEnviron())
