@@ -1,7 +1,13 @@
+import multiprocessing as mp
 import os
 import threading
+from multiprocessing.connection import Connection
+from tkinter import Toplevel
 from typing import List, Tuple, Union
 
+import napari
+import numpy as np
+from napari_spfluo import FilterSetWidget
 from pwfluo import objects as pwfluoobj
 from pwfluo.objects import FluoImage, SetOfCoordinates3D
 from pwfluo.protocols import ProtFluoBase
@@ -76,23 +82,54 @@ class SetOfImagesView(View):
 ####################
 
 
+class NapariSetOfParticlesWidget(Toplevel):
+    def __init__(self, particles, master=None):
+        super().__init__(master)
+        self.withdraw()
+        if self.winfo_viewable():
+            self.transient(master)
+
+        self.command_pipe, self.child_pipe = mp.Pipe()
+        self.process = mp.Process(
+            target=self.lanchNapariForParticles,
+            daemon=True,
+            args=(particles, self.child_pipe),
+        )
+        self.process.start()
+        self.after(1000, self.refresh)
+
+    def lanchNapariForParticles(
+        self, particles: pwfluoobj.SetOfParticles, command_pipe: Connection
+    ):
+        vs_xy, vs_z = particles.getVoxelSize()
+        particles_data = np.stack([p.getData() for p in particles.iterItems()])  # TCZYX
+        viewer = napari.Viewer()
+        dock_widget, widget = viewer.window.add_plugin_dock_widget(
+            "napari-spfluo", "Filter set"
+        )
+        widget: FilterSetWidget
+        particles_layer = viewer.add_image(
+            particles_data, scale=(1, 1, vs_z, vs_xy, vs_xy)
+        )
+        widget.current_image_layer = particles_layer
+        command_pipe.send("launched")
+        napari.run()
+
+    def refresh(self):
+        if self.command_pipe.poll():  # Check if there's something to read
+            pass
+            # print(self.command_pipe.recv())
+        if self.process.is_alive():
+            self.after(1000, self.refresh)
+
+
 class SetOfParticlesView(View):
     def __init__(self, particles: pwfluoobj.SetOfParticles, protocol: Protocol):
         self.particles = particles
         self.protocol = protocol
 
     def show(self):
-        self.proc = threading.Thread(
-            target=self.lanchNapariForParticles, args=(self.particles,)
-        )
-        self.proc.start()
-
-    def lanchNapariForParticles(self, particles: pwfluoobj.SetOfParticles):
-        args = [p.getFileName() for p in particles]
-        program = Plugin.getSPFluoProgram([VISUALISATION_MODULE, "particles"])
-        vs_xy, vs_z = particles.getVoxelSize()
-        args += ["--spacing", str(vs_z), str(vs_xy), str(vs_xy)]
-        runJob(None, program, args, env=Plugin.getEnviron())
+        NapariSetOfParticlesWidget(self.particles)
 
 
 ###########
