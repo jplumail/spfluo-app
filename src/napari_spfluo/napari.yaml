@@ -33,9 +33,9 @@ contributions:
     - id: napari-spfluo.make_merge_labels_widget
       python_name: napari_spfluo:MergeLabelsWidget
       title: Make MergeLabels widget
-    - id: napari-spfluo.make_test
-      python_name: napari_spfluo:TestWidget
-      title: Make Test Widget
+    - id: napari-spfluo.make_filter_widget
+      python_name: napari_spfluo:FilterSetWidget
+      title: Make FilterSet widget
   sample_data:
     - command: napari-spfluo.make_generated_anisotropic
       display_name: generate anisotropic data
@@ -57,3 +57,5 @@ contributions:
       display_name: Threshold
     - command: napari-spfluo.make_merge_labels_widget
       display_name: Merge labels
+    - command: napari-spfluo.make_filter_widget
+      display_name: Filter set

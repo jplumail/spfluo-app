@@ -3,7 +3,11 @@ try:
 except ImportError:
     __version__ = "unknown"
 from ._sample_data import make_generated_anisotropic
-from ._utils_widgets import MergeLabelsWidget, threshold_widget
+from ._utils_widgets import (
+    FilterSetWidget,
+    MergeLabelsWidget,
+    threshold_widget,
+)
 from .ab_initio_widget import AbInitioWidget
 from .dbscan_widget import run_dbscan, run_hdbscan
 from .rotate_widget import RotateWidget
@@ -24,4 +28,5 @@ __all__ = (
     "run_hdbscan",
     "threshold_widget",
     "MergeLabelsWidget",
+    "FilterSetWidget",
 )
