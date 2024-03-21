@@ -5,7 +5,7 @@ from spfluo.utils.read_save_files import (
     read_image,
     read_images_in_folder,
 )
-from spfluo.utils.volume import interpolate_to_size
+from spfluo.utils.volume import interpolate_to_size, move_center_of_mass_to_center
 
 
 def create_parser():
@@ -61,7 +61,7 @@ def main(args):
     for k in ["output_dir", "gpu", "psf_path", "particles_dir", "minibatch_size"]:
         ab_initio_params.pop(k)
     reconstruction = AbInitioReconstruction(**ab_initio_params)
-    psf = interpolate_to_size(psf, particles.shape[1:])
+    psf = move_center_of_mass_to_center(interpolate_to_size(psf, particles.shape[1:]))
     reconstruction.fit(
         particles,
         psf=psf,

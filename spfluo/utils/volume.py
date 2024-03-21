@@ -636,6 +636,29 @@ def center_of_mass(volume: "Array"):
     )
 
 
+def translate(volume: "Array", vec: "Array", order: int = 1):
+    """Translate volume of vec
+    Args:
+        volume: shape (D, H, W)
+        vec: shape (3,)
+    """
+    xp = array_namespace(volume, vec)
+    (device,) = set((xp.device(volume), xp.device(vec)))
+    return affine_transform(
+        volume,
+        xp.eye(3, device=device, dtype=vec.dtype),
+        offset=-vec,
+        output_shape=volume.shape,
+        order=order,
+    )
+
+
+def move_center_of_mass_to_center(volume: "Array", order: int = 1):
+    xp = array_namespace(volume)
+    tvec = (xp.asarray(volume.shape) - 1) / 2 - xp.asarray(center_of_mass(volume))
+    return translate(volume, xp.asarray(tvec, device=xp.device(volume)), order=order)
+
+
 def disp3D(*ims, fig=None, axis_off=False):
     if fig is None:
         fig = plt.figure()
