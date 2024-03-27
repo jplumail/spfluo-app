@@ -412,7 +412,10 @@ def gd_importance_sampling_3d(
             ssims.append(ssim_gt_recons)
         imp_distrs_rot_recorded.append(copy.deepcopy(imp_distrs_rot))
         imp_distrs_axes_recorded.append(copy.deepcopy(imp_distrs_axes))
+
         total_energy /= epoch_length
+        with open(os.path.join(output_dir, "energies.csv"), "a") as f:
+            f.write(f"{total_energy}\n")
         recorded_energies.append(total_energy)
 
         pbar.set_description(f"energy : {total_energy:.1f}")
@@ -443,9 +446,6 @@ def gd_importance_sampling_3d(
     np.save(
         os.path.join(output_dir, "distributions_axes.npy"),
         imp_distrs_axes_recorded,
-    )
-    write_array_csv(
-        np.asarray(recorded_energies), os.path.join(output_dir, "energies.csv")
     )
     params_to_save = params_learning_alg.__dict__.copy()
     del params_to_save["params"]
