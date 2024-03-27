@@ -403,11 +403,7 @@ def fourier_shift(
         If shift is an array, {...} and {{...}} are broadcasted to (...).
         The resulting shifted array has the shape ((...), [...])
     """
-    if is_torch_array(input):
-        from ._torch_functions.volume import fourier_shift_broadcasted_pytorch
-
-        func = fourier_shift_broadcasted_pytorch
-    elif is_numpy_array(input):
+    if is_numpy_array(input):
         func = fourier_shift_broadcasted_scipy
     elif is_cupy_array(input):
         from ._cupy_functions.volume import fourier_shift_broadcasted_cupy
@@ -626,11 +622,7 @@ def phase_cross_correlation(
         this phase difference is not available and NaN is returned if
         ``return_error`` is "always".
     """
-    if is_torch_array(reference_image):
-        from ._torch_functions.volume import phase_cross_correlation_broadcasted_pytorch
-
-        func = phase_cross_correlation_broadcasted_pytorch
-    elif is_numpy_array(reference_image):
+    if is_numpy_array(reference_image):
         func = phase_cross_correlation_broadcasted_skimage
     elif is_cupy_array(reference_image):
         from ._cupy_functions.volume import phase_cross_correlation_broadcasted_cucim
