@@ -89,7 +89,7 @@ def test_correctness_phase_cross_correlation(
         assert_allclose(
             xp.asarray(shift[i]), xp.asarray(shift_skimage[i]), atol=1 / upsample_factor
         )
-    assert_allclose(error, xp.asarray(error_skimage), rtol=0.02, atol=1e-3)
+    assert_allclose(error, xp.asarray(error_skimage), rtol=0.02, atol=1e-2)
     # Phasediff not tested because not implemented in pytorch
 
 

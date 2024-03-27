@@ -10,7 +10,7 @@ import numpy as np
 from tqdm import tqdm
 
 import spfluo.utils.debug as debug
-from spfluo.utils.array import array_namespace, to_numpy
+from spfluo.utils.array import array_namespace, get_device, to_device, to_numpy
 from spfluo.utils.memory import split_batch2
 from spfluo.utils.transform import get_transform_matrix, symmetrize_poses
 from spfluo.utils.volume import (
@@ -86,7 +86,7 @@ def reconstruction_L2(
     refinement_logger.info("Calling function reconstruction_L2")
 
     xp = array_namespace(volumes, poses, psf, lambda_)
-    host_device = xp.device(volumes)
+    host_device = get_device(volumes)
     compute_device = device
     N, D, H, W = volumes.shape[-4:]
     assert D == H == W
@@ -130,9 +130,9 @@ def reconstruction_L2(
     psf = interpolate_to_size(psf, (D, D, D))
 
     num = xp.zeros((M, D, D, D), dtype=xp.complex64, device=host_device)
-    den = xp.zeros_like(num)
+    den = xp.zeros_like(num, dtype=xp.float32)
 
-    dxyz = xp.zeros((3, 2, 2, 2), device=host_device)
+    dxyz = xp.zeros((3, 2, 2, 2), device=host_device, dtype=xp.complex64)
     dxyz[0, 0, 0, 0] = 1
     dxyz[0, 1, 0, 0] = -1
     dxyz[1, 0, 0, 0] = 1
@@ -142,26 +142,26 @@ def reconstruction_L2(
 
     dxyz_padded = pad(dxyz, ((0, 0), *(((D - 1) // 2, (D - 2) // 2),) * 3))
     DtD = xp.sum((xp.abs(xp.fft.fftn(dxyz_padded, axes=(1, 2, 3))) ** 2), axis=0)
-    den += lambda_[:, None, None, None] * DtD
+    den += xp.asarray(lambda_[:, None, None, None] * DtD, dtype=xp.float32)
     del DtD
 
     poses_psf = xp.zeros_like(new_poses)
     poses_psf[..., :3] = new_poses[..., :3]
 
     # Move data to compute device
-    psf = xp.to_device(psf, compute_device)
+    psf = to_device(psf, compute_device)
     for (start1, end1), (start2, end2), (start3, end3) in split_batch2(
         (M, k, N), batch_size
     ):
         number_poses = (end1 - start1) * (end2 - start2)
         number_volumes = end3 - start3
-        poses_minibatch = xp.to_device(
-            new_poses[start1:end1, start2:end2, start3:end3], compute_device
+        poses_minibatch = to_device(
+            new_poses[start1:end1, start2:end2, start3:end3, ...], compute_device
         )
-        poses_psf_minibatch = xp.to_device(
-            poses_psf[start1:end1, start2:end2, start3:end3], compute_device
+        poses_psf_minibatch = to_device(
+            poses_psf[start1:end1, start2:end2, start3:end3, ...], compute_device
         )
-        volumes_minibatch = xp.to_device(volumes[start3:end3], compute_device)
+        volumes_minibatch = to_device(volumes[start3:end3, ...], compute_device)
         y = xp.stack(
             (volumes_minibatch,) * number_poses,
         )
@@ -191,13 +191,14 @@ def reconstruction_L2(
         # Compute numerator
         y = xp.fft.fftn(xp.fft.fftshift(y, axes=(-3, -2, -1)), axes=(-3, -2, -1))
         y = xp.conj(H_) * y
-        num[start1:end1] += xp.to_device(
-            xp.sum(y, axis=(-5, -4)), host_device
+        num[start1:end1, ...] += to_device(
+            xp.sum(y, axis=(-5, -4), dtype=xp.complex64), host_device
         )  # reduce symmetry and N dims
 
         # Compute denominator
-        H_ = xp.abs(xp.conj(H_) * H_)
-        den[start1:end1] += xp.to_device(xp.sum(H_, axis=(-5, -4)), host_device)
+        den[start1:end1, ...] += to_device(
+            xp.sum(xp.abs(H_) ** 2, axis=(-5, -4), dtype=xp.float32), host_device
+        )
         del H_
 
     num = xp.fft.ifftn(num / den, axes=(-3, -2, -1))
@@ -209,7 +210,7 @@ def reconstruction_L2(
         recon = interpolate_to_size(recon, (D - 1, D - 1, D - 1), batch=True)
 
     if not batch:
-        recon = recon[0]
+        recon = recon[0, ...]
 
     if refinement_logger.isEnabledFor(logging.DEBUG):
         p = debug.save_image(
@@ -245,7 +246,7 @@ def convolution_matching_poses_grid(
         best_errors (Array): dftRegistration error associated to each pose (N,)
     """
     xp = array_namespace(reference, volumes, psf, poses_grid)
-    host_device = xp.device(poses_grid)
+    host_device = get_device(poses_grid)
     compute_device = device
 
     # Shapes
@@ -327,7 +328,7 @@ def convolution_matching_poses_refined(
         best_errors (Array): dftRegistration error associated to each pose (N,)
     """
     xp = array_namespace(volumes, psf, potential_poses)
-    host_device = xp.device(volumes)
+    host_device = get_device(volumes)
     compute_device = device
 
     # Shapes
@@ -342,17 +343,17 @@ def convolution_matching_poses_refined(
     errors = xp.empty((N, M), dtype=reference.dtype, device=host_device)
 
     # Move data to compute device
-    h = xp.to_device(h, compute_device)
-    reference = xp.to_device(reference, compute_device)
+    h = to_device(h, compute_device)
+    reference = to_device(reference, compute_device)
     for (start1, end1), (start2, end2) in split_batch2((N, M), batch_size):
         minibatch_size = (end1 - start1) * (end2 - start2)
-        potential_poses_minibatch = xp.to_device(
+        potential_poses_minibatch = to_device(
             potential_poses[start1:end1, start2:end2], compute_device
         )
 
         # Volumes to Fourier space
         volumes_freq = xp.fft.fftn(
-            xp.to_device(volumes[start1:end1], compute_device), axes=(1, 2, 3)
+            to_device(volumes[start1:end1], compute_device), axes=(1, 2, 3)
         )
 
         # Rotate the reference
@@ -377,8 +378,8 @@ def convolution_matching_poses_refined(
         )
         sh = xp.stack(list(sh), axis=-1)
 
-        errors[start1:end1, start2:end2] = xp.to_device(err, host_device)
-        shifts[start1:end1, start2:end2] = xp.to_device(sh, host_device)
+        errors[start1:end1, start2:end2] = to_device(err, host_device)
+        shifts[start1:end1, start2:end2] = to_device(sh, host_device)
 
         del volumes_freq, reference_minibatch, err, sh
 
@@ -419,7 +420,7 @@ def find_angles_grid(
         1,
         symmetry=1,
         dtype=reconstruction.dtype,
-        device=xp.device(reconstruction),
+        device=get_device(reconstruction),
     )
     best_poses, best_errors = convolution_matching_poses_grid(
         reconstruction, patches, psf, potential_poses
@@ -463,7 +464,7 @@ def create_poses_refined(
     potential_poses = xp.stack((xp.asarray(poses, copy=True),) * n_poses, axis=1)
     for i in range(poses.shape[0]):
         potential_poses[i, :, :3] = get_refined_valuesND(
-            xp, poses[i, :3], M, ranges, dtype=poses.dtype, device=xp.device(poses)
+            xp, poses[i, :3], M, ranges, dtype=poses.dtype, device=get_device(poses)
         )
 
     return potential_poses
@@ -519,7 +520,7 @@ def refine(
     assert lambda_ > 0, f"lambda should be greater than 1, found {lambda_}"
     refinement_logger.debug("Calling function refine")
     xp = array_namespace(patches, psf, guessed_poses)
-    host_device = xp.device(patches)
+    host_device = get_device(patches)
     compute_device = device
     array_kwargs = dict(dtype=patches.dtype, device=host_device)
     lambda_ = xp.asarray(lambda_, **array_kwargs)

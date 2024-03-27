@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Tuple
 
 from scipy.spatial.transform import Rotation
 
-from .array import array_namespace, numpy_only_compatibility
+from .array import array_namespace, get_device, numpy_only_compatibility
 
 if TYPE_CHECKING:
     from spfluo.utils.array import Array
@@ -69,7 +69,7 @@ def get_transform_matrix_around_center(
     xp = array_namespace(rotation_matrix)
     array_kwargs = {
         "dtype": rotation_matrix.dtype,
-        "device": xp.device(rotation_matrix),
+        "device": get_device(rotation_matrix),
     }
     center = (xp.asarray(shape, **array_kwargs) - 1) / 2
     ndim = rotation_matrix.shape[-1]
@@ -79,7 +79,8 @@ def get_transform_matrix_around_center(
     H_rot[..., ndim, ndim] = 1.0
     H_center = xp.asarray(H_rot, copy=True)
     H_center[..., :ndim, ndim] = -center  # 1. translation to (0,0,0)
-    H_center[..., list(range(ndim)), list(range(ndim))] = 1.0  # diag to 1
+    for i in range(ndim):
+        H_center[..., i, i] = 1.0  # diag to 1
     H_rot[..., :ndim, :ndim] = rotation_matrix  # 2. rotation
     H_rot[..., :ndim, ndim] = center  # 3. translation to center of image.
 
@@ -173,7 +174,7 @@ def symmetrize_angles(
     full_range = 360 if degrees else 2 * xp.pi
     symmetry_offset = xp.asarray(
         [i * full_range / symmetry for i in range(symmetry)],
-        device=xp.device(euler_angles),
+        device=get_device(euler_angles),
         dtype=euler_angles.dtype,
     )  # shape (symmetry,)
     euler_angles_sym = xp.asarray(euler_angles, copy=True)
@@ -217,7 +218,7 @@ def distance_poses(
     """
     # Rotation distance
     xp = array_namespace(p1, p2)
-    dtype, device = p1.dtype, xp.device(p1)
+    dtype, device = p1.dtype, get_device(p1)
     euler1, euler2 = xp.asarray(p1[..., :3]), xp.asarray(p2[..., :3])
     rot_mat1 = xp.reshape(
         euler_to_matrix(convention, xp.reshape(euler1, (-1, 3)), degrees=True),
@@ -282,12 +283,12 @@ def distance_family_poses(
     guessed_rot_mat = euler_to_matrix(convention, euler1, degrees=True)
     gt_rot_mat = euler_to_matrix(convention, euler2, degrees=True)
     sym_euler = xp.zeros(
-        (symmetry, 3), dtype=guessed_rot_mat.dtype, device=xp.device(guessed_rot_mat)
+        (symmetry, 3), dtype=guessed_rot_mat.dtype, device=get_device(guessed_rot_mat)
     )
     sym_euler[:, 0] = (
         -2
         * xp.arange(
-            symmetry, dtype=guessed_rot_mat.dtype, device=xp.device(guessed_rot_mat)
+            symmetry, dtype=guessed_rot_mat.dtype, device=get_device(guessed_rot_mat)
         )
         * xp.pi
         / symmetry

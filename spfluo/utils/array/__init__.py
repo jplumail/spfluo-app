@@ -6,43 +6,18 @@ from array_api_compat import (
     array_namespace as _array_namespace,
 )
 from array_api_compat import (
+    device as get_device,
+)
+from array_api_compat import (
     is_array_api_obj,
+    is_cupy_array,
+    is_numpy_array,
+    is_torch_array,
     numpy,
     to_device,
 )
 
 import spfluo
-
-
-def get_torch():
-    from . import torch
-
-    return torch
-
-
-def get_cupy():
-    from array_api_compat import cupy
-
-    return cupy
-
-
-def get_numpy():
-    from array_api_compat import numpy
-
-    return numpy
-
-
-if TYPE_CHECKING:
-    import numpy.array_api
-    from numpy.array_api._typing import Array as ArrayAPIArray
-    from numpy.array_api._typing import Device as ArrayAPIDevice
-    from numpy.array_api._typing import Dtype as ArrayAPIDtype
-
-    Array: TypeAlias = ArrayAPIArray
-    Device: TypeAlias = ArrayAPIDevice
-    Dtype: TypeAlias = ArrayAPIDtype
-
-    array_api_module: TypeAlias = numpy.array_api
 
 
 def array_namespace(*xs, api_version=None, _use_compat=True) -> "array_api_module":
@@ -64,9 +39,38 @@ def array_namespace(*xs, api_version=None, _use_compat=True) -> "array_api_modul
     xp: array_api_module = _array_namespace(
         *xs, api_version=api_version, _use_compat=_use_compat
     )
-    if "torch" in xp.__name__:
-        xp = get_torch()
     return xp
+
+
+def get_torch():
+    from array_api_compat import torch
+
+    return torch
+
+
+def get_cupy():
+    from array_api_compat import cupy
+
+    return cupy
+
+
+def get_numpy():
+    from array_api_compat import numpy
+
+    return numpy
+
+
+if TYPE_CHECKING:
+    import array_api_strict as xp
+    from array_api_strict._array_object import Array as ArrayAPIArray
+    from array_api_strict._array_object import Device as ArrayAPIDevice
+    from array_api_strict._array_object import Dtype as ArrayAPIDtype
+
+    Array: TypeAlias = ArrayAPIArray
+    Device: TypeAlias = ArrayAPIDevice
+    Dtype: TypeAlias = ArrayAPIDtype
+
+    array_api_module: TypeAlias = xp
 
 
 def numpy_only_compatibility(numpy_func):
@@ -86,24 +90,22 @@ def numpy_only_compatibility(numpy_func):
         for arg in args:
             arg_ = arg
             if is_array_api_obj(arg):
-                arg_ = xp.asarray(arg)
-                arg_ = xp.to_device(arg_, "cpu")
+                arg_ = _to_numpy(arg)
             numpy_args.append(arg_)
         numpy_kwargs = {}
         for k, arg in kwargs.items():
             arg_ = arg
             if is_array_api_obj(arg):
-                arg_ = xp.asarray(arg)
-                arg_ = xp.to_device(arg_, "cpu")
+                arg_ = _to_numpy(arg)
             numpy_kwargs[k] = arg_
 
         try:
-            devices = set(map(xp.device, array_args + array_kwargs))
+            devices = set(map(get_device, array_args + array_kwargs))
             if len(devices) != 1:
                 raise TypeError(f"Multiple devices found in args: {devices}")
             (device,) = devices
         except TypeError:
-            device = xp.device(array_args[0])
+            device = get_device(array_args[0])
 
         return xp.asarray(numpy_func(*numpy_args, **numpy_kwargs), device=device)
 
@@ -111,22 +113,33 @@ def numpy_only_compatibility(numpy_func):
 
 
 def to_numpy(*xs) -> numpy.ndarray | tuple[numpy.ndarray]:
-    ret = tuple([numpy.asarray(to_device(x, "cpu")) for x in xs])
+    ret = tuple([_to_numpy(x) for x in xs])
     if len(xs) == 1:
         return ret[0]
     else:
         return ret
 
 
+def _to_numpy(x: "Array") -> numpy.ndarray:
+    if is_numpy_array(x):
+        return x
+    elif is_cupy_array(x):
+        return x.get()
+    elif is_torch_array(x):
+        return x.cpu().numpy()
+    else:
+        return numpy.asarray(x, copy=True, device="cpu")
+
+
 def _is_torch_namespace(xp):
-    if "torch" not in sys.modules or not spfluo.has_torch():
+    if not spfluo.has_torch():
         return False
 
     return get_torch() == xp
 
 
 def _is_cupy_namespace(xp):
-    if "cupy" not in sys.modules or not spfluo.has_cupy():
+    if not spfluo.has_cupy():
         return False
 
     return get_cupy() == xp
@@ -139,7 +152,7 @@ def _is_numpy_namespace(xp):
     return get_numpy() == xp
 
 
-def get_namespace_device(
+def get_prefered_namespace_device(
     xp: "array_api_module | None" = None,  # type: ignore
     device: "Device | None" = None,
     gpu: bool | None = None,
@@ -201,7 +214,7 @@ def get_namespace_device(
     return xp, device
 
 
-__all__ = [array_namespace, is_array_api_obj, to_device, to_numpy]
+__all__ = [array_namespace, is_array_api_obj, to_device, to_numpy, get_device]
 
 if TYPE_CHECKING:
     __all__ = [
@@ -211,4 +224,5 @@ if TYPE_CHECKING:
         to_device,
         to_numpy,
         array_api_module,
+        get_device,
     ]

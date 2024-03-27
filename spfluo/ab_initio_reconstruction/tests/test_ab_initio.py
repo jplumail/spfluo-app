@@ -6,7 +6,7 @@ import pytest
 import spfluo
 from spfluo.ab_initio_reconstruction.api import AbInitioReconstruction
 from spfluo.tests.helpers import ids, testing_libs
-from spfluo.utils.array import get_namespace_device, numpy
+from spfluo.utils.array import get_prefered_namespace_device, numpy
 from spfluo.utils.transform import distance_family_poses
 from spfluo.utils.volume import interpolate_to_size
 
@@ -46,7 +46,7 @@ def run(
     args = params_long_run if long else params_minimal_run
     ab_initio = AbInitioReconstruction(**args)
     psf_array = interpolate_to_size(psf_array, volumes_arr.shape[1:])
-    _, device = get_namespace_device(xp=xp, gpu=gpu)
+    _, device = get_prefered_namespace_device(xp=xp, gpu=gpu)
     ab_initio.fit(
         xp.asarray(volumes_arr, device=device),
         psf=xp.asarray(psf_array, device=device),

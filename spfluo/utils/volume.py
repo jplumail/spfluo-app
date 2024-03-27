@@ -3,6 +3,7 @@ import math
 from typing import TYPE_CHECKING, Optional, Sequence, Tuple, Union
 
 import matplotlib.pyplot as plt
+import numpy as np
 import scipy.ndimage as ndii
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from numpy.typing import DTypeLike, NDArray
@@ -14,13 +15,13 @@ from skimage.registration import (
 )
 
 from spfluo.utils.array import (
-    _is_cupy_namespace,
-    _is_numpy_namespace,
-    _is_torch_namespace,
     array_namespace,
+    get_device,
     is_array_api_obj,
+    is_cupy_array,
+    is_numpy_array,
+    is_torch_array,
 )
-from spfluo.utils.array import numpy as np
 
 if TYPE_CHECKING:
     from spfluo.utils.array import Array, array_api_module
@@ -52,7 +53,8 @@ def affine_transform(
     Args:
         input (xp.ndarray): The input array.
             torch only supports 3D inputs.
-        matrix (xp.ndarray): The inverse coordinate transformation matrix,
+        matrix (xp.ndarray): Must be a 'real floating' dtype matrix.
+            The inverse coordinate transformation matrix,
             mapping output coordinates to input coordinates. If ``ndim`` is the
             number of dimensions of ``input``, the given matrix must have one
             of the following shapes:
@@ -109,42 +111,54 @@ def affine_transform(
             The transformed input. Return None if output is given.
     """
     xp = array_namespace(input, matrix)
+    assert xp.isdtype(
+        matrix.dtype, "real floating"
+    ), "matrix dtype must be a 'real floating' dtype (float32, float64)"
     has_output = False
     if is_array_api_obj(output):
         output = xp.asarray(output)
         has_output = True
 
     if batch is False:
-        input = input[None]
-        matrix = matrix[None]
+        input = input[None, ...]
+        matrix = matrix[None, ...]
         if has_output:
             output = output[None]
     if multichannel is False:
-        input = input[:, None]
+        input = input[:, None, ...]
 
-    if _is_torch_namespace(xp):
+    if is_torch_array(input):
         from ._torch_functions.volume import (
             affine_transform_batched_multichannel_pytorch,
         )
 
         func = affine_transform_batched_multichannel_pytorch
-    elif _is_cupy_namespace(xp):
+    elif is_cupy_array(xp):
         from ._cupy_functions.volume import affine_transform_batched_multichannel_cupy
 
         func = affine_transform_batched_multichannel_cupy
-    elif _is_numpy_namespace(xp):
+    elif is_numpy_array(xp):
         func = affine_transform_batched_multichannel_scipy
     else:
-        raise ValueError(f"No backend found for {xp}")
+        try:
+            input = np.asarray(input)
+            matrix = np.asarray(matrix)
+            offset = np.asarray(offset)
+            if has_output:
+                output = np.asarray(output)
+        except TypeError:
+            raise ValueError(f"No backend found for {xp}")
+        func = affine_transform_batched_multichannel_scipy
     out = func(
         input, matrix, offset, output_shape, output, order, mode, cval, prefilter
     )
     if has_output:
         out = output
+    out = xp.asarray(out)
     if multichannel is False:
-        out = out[:, 0]
+        out = out[:, 0, ...]
     if batch is False:
-        out = out[0]
+        out = out[0, ...]
     if not has_output:
         return out
 
@@ -177,9 +191,19 @@ def affine_transform_batched_multichannel_scipy(
 
     else:
         assert type(offset) is np.ndarray
+        if offset.ndim <= 1:
+            assert offset.ndim == 0 or (offset.shape == (1,) or offset.shape == (3,))
 
-        def offset_gen(i):
-            return offset[i]
+            def offset_gen(_):
+                return offset
+        elif offset.ndim == 2:
+            assert offset.shape[0] == N
+            assert offset.shape[-1] == (1,) or offset.shape[-1] == (3,)
+
+            def offset_gen(i):
+                return offset[i]
+        else:
+            raise ValueError("Wrong offset size")
 
     for i in range(N):
         for j in range(C):
@@ -209,9 +233,9 @@ def resample(
     multichannel: bool = False,
 ):
     xp = array_namespace(volume)
-    array_kwargs = dict(device=xp.device(volume), dtype=volume.dtype)
-    sampling = xp.asarray(sampling, device=xp.device(volume), dtype=float)
-    in_shape = xp.asarray(volume.shape[-3:], device=xp.device(volume), dtype=float)
+    array_kwargs = dict(device=get_device(volume), dtype=volume.dtype)
+    sampling = xp.asarray(sampling, device=get_device(volume), dtype=float)
+    in_shape = xp.asarray(volume.shape[-3:], device=get_device(volume), dtype=float)
     out_shape = xp.round(in_shape * sampling)
     D, H, W = int(out_shape[0]), int(out_shape[1]), int(out_shape[2])
 
@@ -241,9 +265,9 @@ def resample(
 
 def pad(volume: "Array", pad_width: Tuple[int]):
     xp = array_namespace(volume)
-    pad_width = xp.asarray(pad_width)
+    pad_width = np.asarray(pad_width)
     if pad_width.ndim == 1:
-        pad_width = xp.broadcast_to(xp.reshape(pad_width, (-1, 1)), (volume.ndim, 2))
+        pad_width = np.broadcast_to(np.reshape(pad_width, (-1, 1)), (volume.ndim, 2))
     assert pad_width.shape == (volume.ndim, 2)
     padded_volume = xp.zeros(
         tuple(
@@ -253,7 +277,7 @@ def pad(volume: "Array", pad_width: Tuple[int]):
             ]
         ),
         dtype=volume.dtype,
-        device=xp.device(volume),
+        device=get_device(volume),
     )
     padded_volume[
         tuple(
@@ -279,16 +303,19 @@ def interpolate_to_size(
     """
     xp = array_namespace(volume)
     volume = xp.asarray(volume)
-    array_kwargs = dict(dtype=volume.dtype, device=xp.device(volume))
     D, H, W = output_size
-    input_center = (xp.asarray(volume.shape[-3:], **array_kwargs) - 1) / 2
-    output_center = (xp.asarray(output_size, **array_kwargs) - 1) / 2
-    mat = xp.eye(4, **array_kwargs)
+    input_center = (
+        xp.asarray(volume.shape[-3:], device=get_device(volume), dtype=xp.float64) - 1
+    ) / 2
+    output_center = (
+        xp.asarray(output_size, device=get_device(volume), dtype=xp.float64) - 1
+    ) / 2
+    mat = xp.eye(4, device=get_device(volume))
     mat[:3, 3] = output_center - input_center
     inv_mat = xp.linalg.inv(mat)
     if batch:
         N = volume.shape[0]
-        inv_mat = xp.broadcast_to(inv_mat[None], (N, 4, 4))
+        inv_mat = xp.broadcast_to(inv_mat[None, ...], (N, 4, 4))
     out_vol = affine_transform(
         volume,
         inv_mat,
@@ -376,17 +403,18 @@ def fourier_shift(
         If shift is an array, {...} and {{...}} are broadcasted to (...).
         The resulting shifted array has the shape ((...), [...])
     """
-    xp = array_namespace(input)
-    if _is_torch_namespace(xp):
+    if is_torch_array(input):
         from ._torch_functions.volume import fourier_shift_broadcasted_pytorch
 
         func = fourier_shift_broadcasted_pytorch
-    elif _is_numpy_namespace(xp):
+    elif is_numpy_array(input):
         func = fourier_shift_broadcasted_scipy
-    elif _is_cupy_namespace(xp):
+    elif is_cupy_array(input):
         from ._cupy_functions.volume import fourier_shift_broadcasted_cupy
 
         func = fourier_shift_broadcasted_cupy
+    else:
+        func = _fourier_shift_broadcasted_array_api
 
     output = func(
         input,
@@ -396,6 +424,67 @@ def fourier_shift(
         output,
     )
     return output
+
+
+def _fourier_shift_broadcasted_array_api(
+    input: "Array",
+    shift: Union[float, Sequence[float], "Array"],
+    n: int = -1,
+    axis: int = -1,
+    output: "Optional[Array]" = None,
+):
+    """
+    Args:
+        input (Array): input in the Fourier domain ({...}, [...])
+            where [...] corresponds to the N spatial dimensions
+            and {...} corresponds to the batched dimensions
+        shift (Array): shift to apply to the input ({{...}}, N)
+            where {{...}} corresponds to batched dimensions.
+        n: not implemented
+        axis: not implemented
+        output: not implemented
+    Notes:
+        {...} and {{...}} are broadcasted to (...).
+    Returns:
+        out (Array): input shifted in the Fourier domain. Shape ((...), [...])
+    """
+    xp = array_namespace(input)
+    if n != -1:
+        raise NotImplementedError("n should be equal to -1")
+    if axis != -1:
+        raise NotImplementedError("axis should be equal to -1")
+    if output is not None:
+        raise NotImplementedError("can't store result in output. not implemented")
+    device = get_device(input)
+    complex_dtype = input.dtype
+    assert complex_dtype in xp._dtypes._complex_floating_dtypes
+    floating_dtype = None
+    if input.dtype == xp.complex128:
+        floating_dtype = xp.float64
+    else:
+        floating_dtype = xp.float32
+    shift = xp.asarray(shift, dtype=floating_dtype, device=device)
+    if shift.ndim == 0:
+        shift = xp.asarray([shift] * input.ndim)
+    nb_spatial_dims = shift.shape[-1]
+    spatial_shape = input.shape[-nb_spatial_dims:]
+    shift = xp.reshape(shift, (*shift.shape[:-1], *((1,) * nb_spatial_dims), -1))
+
+    grid_freq = xp.stack(
+        xp.meshgrid(
+            *[xp.fft.fftfreq(int(s), device=device) for s in spatial_shape],
+            indexing="ij",
+        ),
+        axis=-1,
+    )
+    phase_shift = xp.sum(grid_freq * shift, axis=-1)
+
+    # Fourier shift
+    out = input * xp.exp(
+        -1j * 2 * xp.pi * xp.astype(phase_shift, complex_dtype, copy=False)
+    )
+
+    return out
 
 
 def phase_cross_correlation_broadcasted_skimage(
@@ -537,17 +626,18 @@ def phase_cross_correlation(
         this phase difference is not available and NaN is returned if
         ``return_error`` is "always".
     """
-    xp = array_namespace(reference_image, moving_image)
-    if _is_torch_namespace(xp):
+    if is_torch_array(reference_image):
         from ._torch_functions.volume import phase_cross_correlation_broadcasted_pytorch
 
         func = phase_cross_correlation_broadcasted_pytorch
-    elif _is_numpy_namespace(xp):
+    elif is_numpy_array(reference_image):
         func = phase_cross_correlation_broadcasted_skimage
-    elif _is_cupy_namespace(xp):
+    elif is_cupy_array(reference_image):
         from ._cupy_functions.volume import phase_cross_correlation_broadcasted_cucim
 
         func = phase_cross_correlation_broadcasted_cucim
+    else:
+        func = _phase_cross_correlation_broadcasted_array_api
 
     shift, error, phasediff = func(
         reference_image,
@@ -563,6 +653,218 @@ def phase_cross_correlation(
     )
 
     return shift, error, phasediff
+
+
+def _upsampled_dft(
+    data: "Array",
+    upsampled_region_size: int,
+    upsample_factor: int = 1,
+    axis_offsets: "Array|None" = None,
+    nb_spatial_dims=3,
+):
+    xp = array_namespace(data)
+    device = get_device(data)
+    if axis_offsets is None:
+        raise NotImplementedError()
+    upsampled_region_size = [upsampled_region_size] * nb_spatial_dims
+    dim_properties = list(
+        zip(
+            data.shape[-nb_spatial_dims:],
+            upsampled_region_size,
+            xp.permute_dims(axis_offsets, (-1, *tuple(range(axis_offsets.ndim - 1)))),
+        )
+    )
+    im2pi = 1j * 2 * xp.pi
+    for n_items, ups_size, ax_offset in dim_properties[::-1]:
+        kernel = (
+            xp.arange(ups_size, device=device, dtype=xp.float32) - ax_offset[..., None]
+        )[..., None] * xp.fft.fftfreq(n_items, d=upsample_factor, device=device)
+        kernel = xp.exp(-im2pi * xp.astype(kernel, data.dtype))
+        data = xp.tensordot(kernel, data, axes=(1, -1))
+    return data
+
+
+def _cross_correlation_max(
+    x: "Array", y: "Array", normalization: str, nb_spatial_dims: int = None
+) -> "tuple[Array, Array, Array]":
+    """Compute cross-correlation between x and y
+    Params:
+        x (Array) of shape (B, ...)
+            where (...) corresponds to the N spatial dimensions
+        y (Array) of the same shape
+    Returns:
+        maxi (Array): cross correlatio maximum of shape (B,)
+        shift (Tuple[Array]): tuple of N tensors of size (B,)
+        image_product (Array): product of size (B, ...)
+    """
+    xp = array_namespace(x, y)
+    nb_spatial_dims = nb_spatial_dims if nb_spatial_dims is not None else x.ndim
+    output_shape = np.broadcast_shapes(x.shape, y.shape)
+    other_shape, spatial_shape = (
+        output_shape[:-nb_spatial_dims],
+        output_shape[-nb_spatial_dims:],
+    )
+    z = x * xp.conj(y)
+    if normalization == "phase":
+        z_abs = xp.abs(z)
+        eps = xp.finfo(z_abs.dtype).eps
+        z /= xp.where(
+            z_abs > 100 * eps,
+            xp.asarray(z_abs, dtype=z.dtype),
+            xp.asarray(100 * eps, dtype=z.dtype),
+        )
+    cc = xp.fft.ifftn(z, axes=tuple(range(-nb_spatial_dims, 0)))
+    cc = xp.abs(cc) ** 2
+    cc = xp.reshape(cc, other_shape + (-1,))
+    max_idx = xp.argmax(cc, axis=-1)
+    maxi = cc[max_idx]
+    shift = xp.asarray(
+        np.unravel_index(max_idx, spatial_shape), dtype=xp.int64, device=get_device(x)
+    )
+    return maxi, shift, z
+
+
+def _phase_cross_correlation_broadcasted_array_api(
+    reference_image: "Array",
+    moving_image: "Array",
+    *,
+    upsample_factor: int = 1,
+    space: str = "real",
+    disambiguate: bool = False,
+    reference_mask: Optional["Array"] = None,
+    moving_mask: Optional["Array"] = None,
+    overlap_ratio: float = 0.3,
+    normalization: str = "phase",
+    nb_spatial_dims: Optional[int] = None,
+) -> Tuple["Array", "Array", "Array"]:
+    """Phase cross-correlation between a reference and moving_images
+    Params:
+        reference (Array): image of shape ({...}, [...])
+            where [...] corresponds to the N spatial dimensions
+        moving_images (Array): images to register of shape ({{...}}, [...])
+            where [...] corresponds to the N spatial dimensions
+        upsample_factor (float): upsampling factor.
+            Images will be registered up to 1/upsample_factor.
+        space: not implemented
+        disambiguate: not implemented
+        reference_mask: not implemented
+        moving_mask: not implemented
+        overlap_ratio: not implemented
+        normalization : {"phase", None}
+            The type of normalization to apply to the cross-correlation. This
+            parameter is unused when masks (`reference_mask` and `moving_mask`) are
+            supplied.
+        nb_spatial_dims (int): specify the N spatial dimensions
+    Returns:
+        {...} and {{...}} shapes are broadcasted to (...)
+        error (Array): tensor of shape (...)
+        shift (Tuple[Array]): tuple of N tensors of size (...)
+    """
+    xp = array_namespace(reference_image, moving_image)
+    (device,) = set((get_device(reference_image), get_device(moving_image)))
+    if disambiguate:
+        raise NotImplementedError(
+            "array api masked cross correlation disambiguate is not implemented"
+        )
+    if reference_mask is not None or moving_mask is not None:
+        raise NotImplementedError(
+            "array api masked cross correlation is not implemented"
+        )
+    output_shape = np.broadcast_shapes(reference_image.shape, moving_image.shape)
+    if nb_spatial_dims is None:
+        nb_spatial_dims = len(output_shape)
+    if space == "real":
+        reference_image_freq = xp.fft.fftn(
+            xp.astype(reference_image, xp.complex64),
+            axes=tuple(range(-nb_spatial_dims, 0)),
+        )
+        moving_image_freq = xp.fft.fftn(
+            xp.astype(moving_image, xp.complex64),
+            axes=tuple(range(-nb_spatial_dims, 0)),
+        )
+    elif space == "fourier":
+        reference_image_freq = reference_image
+        moving_image_freq = moving_image
+    other_shapes, spatial_shapes = (
+        output_shape[:-nb_spatial_dims],
+        output_shape[-nb_spatial_dims:],
+    )
+    assert other_shapes + spatial_shapes == output_shape
+    assert len(spatial_shapes) == nb_spatial_dims
+    midpoints = xp.asarray(
+        [axis_size // 2 for axis_size in spatial_shapes], device=device, dtype=xp.int64
+    )
+
+    # Single pixel registration
+    error, shift, image_product = _cross_correlation_max(
+        reference_image_freq,
+        moving_image_freq,
+        normalization,
+        nb_spatial_dims=nb_spatial_dims,
+    )
+
+    # Now change shifts so that they represent relative shifts and not indices
+    spatial_shapes_broadcasted = xp.asarray(
+        np.broadcast_to(spatial_shapes, shift.shape), device=device
+    )
+    shift[shift > midpoints] -= spatial_shapes_broadcasted[shift > midpoints]
+
+    rg00 = xp.sum(
+        (reference_image_freq * xp.conj(reference_image_freq)),
+        axis=tuple(
+            range(
+                reference_image_freq.ndim - nb_spatial_dims,
+                reference_image_freq.ndim,
+            )
+        ),
+    )
+    rf00 = xp.sum(
+        (moving_image_freq * xp.conj(moving_image_freq)),
+        axis=tuple(
+            range(moving_image_freq.ndim - nb_spatial_dims, moving_image_freq.ndim)
+        ),
+    )
+
+    if upsample_factor == 1:
+        spatial_size = xp.prod(
+            xp.asarray(spatial_shapes, dtype=xp.complex64, device=device)
+        )
+        rg00 = rg00 / spatial_size
+        rf00 = rf00 / spatial_size
+    else:
+        shift = xp.astype(shift, xp.float32)
+        shift = xp.round(shift * upsample_factor) / upsample_factor
+        upsampled_region_size = math.ceil(upsample_factor * 1.5)
+        dftshift = math.trunc(upsampled_region_size / 2.0)
+        sample_region_offset = dftshift - shift * upsample_factor
+        cross_correlation = xp.conj(
+            _upsampled_dft(
+                xp.conj(image_product),
+                upsampled_region_size,
+                upsample_factor,
+                sample_region_offset,
+                nb_spatial_dims,
+            )
+        )
+        cross_correlation = xp.real((cross_correlation * xp.conj(cross_correlation)))
+        cross_correlation_reshaped = xp.reshape(
+            cross_correlation, (*tuple(other_shapes), -1)
+        )
+        max_idx = xp.argmax(cross_correlation_reshaped, axis=-1)
+        error = cross_correlation_reshaped[..., max_idx]
+        maxima = xp.asarray(
+            np.unravel_index(max_idx, cross_correlation.shape[-nb_spatial_dims:]),
+            dtype=shift.dtype,
+            device=shift.device,
+        )
+        maxima -= dftshift
+
+        shift += maxima / upsample_factor
+
+    error = 1.0 - error / (xp.real(rg00) * xp.real(rf00))
+    error = xp.sqrt(xp.abs(error))
+
+    return tuple([shift[..., i] for i in range(shift.shape[-1])]), error, None
 
 
 def cartesian_prod(*arrays: "Array"):
@@ -622,7 +924,7 @@ def discretize_sphere_uniformly(
 
 def center_of_mass(volume: "Array"):
     xp = array_namespace(volume)
-    tensor_kwargs = dict(dtype=volume.dtype, device=xp.device(volume))
+    tensor_kwargs = dict(dtype=volume.dtype, device=get_device(volume))
     zz, yy, xx = xp.meshgrid(
         xp.arange(volume.shape[-3], **tensor_kwargs),
         xp.arange(volume.shape[-2], **tensor_kwargs),
@@ -643,7 +945,7 @@ def translate(volume: "Array", vec: "Array", order: int = 1):
         vec: shape (3,)
     """
     xp = array_namespace(volume, vec)
-    (device,) = set((xp.device(volume), xp.device(vec)))
+    (device,) = set((get_device(volume), get_device(vec)))
     return affine_transform(
         volume,
         xp.eye(3, device=device, dtype=vec.dtype),
@@ -656,7 +958,7 @@ def translate(volume: "Array", vec: "Array", order: int = 1):
 def move_center_of_mass_to_center(volume: "Array", order: int = 1):
     xp = array_namespace(volume)
     tvec = (xp.asarray(volume.shape) - 1) / 2 - xp.asarray(center_of_mass(volume))
-    return translate(volume, xp.asarray(tvec, device=xp.device(volume)), order=order)
+    return translate(volume, xp.asarray(tvec, device=get_device(volume)), order=order)
 
 
 def disp3D(*ims, fig=None, axis_off=False):

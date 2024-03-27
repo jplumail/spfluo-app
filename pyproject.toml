@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "spfluo"
 dependencies = [
   "numpy",
-  "array_api_compat",
+  "array_api_compat>=1.5",
   "scipy",
   "scikit-image",
   "scikit-learn",
@@ -48,6 +48,7 @@ dev = [
   "hypothesis",
   "pyfigtree",
   "scikit-image[data]",
+  "array-api-strict",
 ]
 manual-picking = [
   "spfluo[visualisation]"

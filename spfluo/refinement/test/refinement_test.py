@@ -18,7 +18,7 @@ from spfluo.tests.helpers import (
     ids,
     testing_libs,
 )
-from spfluo.utils.array import array_namespace
+from spfluo.utils.array import array_namespace, get_device
 from spfluo.utils.transform import (
     distance_family_poses,
     get_transform_matrix,
@@ -45,7 +45,7 @@ def poses_with_noise(
 ):
     (_, poses, _, _), _ = generated_data_all_array
     xp = array_namespace(poses)
-    device = xp.device(poses)
+    device = get_device(poses)
     poses_noisy = xp.asarray(poses, copy=True)
     sigma_rot, sigma_trans = 20, 2
     np.random.seed(0)
@@ -69,7 +69,7 @@ def poses_with_noise(
 def test_shapes_reconstruction_L2(generated_data_all_array):
     (volumes, groundtruth_poses, psf, groundtruth), device = generated_data_all_array
     xp = array_namespace(volumes)
-    lambda_ = xp.asarray(1.0, device=xp.device(volumes))
+    lambda_ = xp.asarray(1.0, device=get_device(volumes))
     recon = reconstruction_L2(volumes, psf, groundtruth_poses, lambda_, device=device)
 
     assert recon.shape == volumes.shape[-3:]
@@ -92,7 +92,7 @@ def test_parallel_reconstruction_L2(minibatch, generated_data_all_array, save_re
     )
     recon2 = xp.stack(
         [
-            reconstruction_L2(volumes, psf, poses[i], lambda_[i], device=device)
+            reconstruction_L2(volumes, psf, poses[i, ...], lambda_[i], device=device)
             for i in range(M)
         ]
     )
@@ -145,8 +145,8 @@ def test_symmetry_reconstruction_L2_2(
     lambda_ = xp.asarray(1.0)
 
     # select particle 0
-    volume = volumes[0][None]
-    pose = groundtruth_poses[0][None]
+    volume = volumes[0, ...][None, ...]
+    pose = groundtruth_poses[0, ...][None, ...]
 
     # create symmetrical poses
     pose_sym = xp.stack((pose,) * 9)
@@ -159,10 +159,10 @@ def test_symmetry_reconstruction_L2_2(
 
     # compare with simple rotation
     rot = affine_transform(
-        volume[0],
+        volume[0, ...],
         xp.asarray(
             get_transform_matrix(
-                volume[0].shape, pose[0, :3], pose[0, 3:], degrees=True
+                volume.shape[1:], pose[0, :3], pose[0, 3:], degrees=True
             ),
             dtype=volume.dtype,
         ),
@@ -252,13 +252,18 @@ def test_reconstruction_L2_symmetry_1vol_iso(
     gt_poses_sym = xp.permute_dims(gt_poses_sym, (1, 0, 2))  # shape (k, N, 6)
 
     reconstruction_sym = reconstruction_L2(
-        volumes[:1], psf, gt_poses_sym[:, :1, :], lambda_, symmetry=True, device=device
+        volumes[:1, ...],
+        psf,
+        gt_poses_sym[:, :1, :],
+        lambda_,
+        symmetry=True,
+        device=device,
     )
-    volume0_repeated = xp.stack((volumes[0],) * 9)
+    volume0_repeated = xp.stack((volumes[0, ...],) * 9)
     reconstruction = reconstruction_L2(
         volume0_repeated,
         psf,
-        gt_poses_sym[:, 0],
+        gt_poses_sym[:, 0, :],
         lambda_,
         symmetry=False,
         device=device,
@@ -299,12 +304,12 @@ def test_reconstruction_L2_symmetry_Nvol_iso(
         volumes, psf, gt_poses_sym, lambda_, symmetry=True, device=device
     )
     volumes_repeated = xp.concat(
-        [xp.stack((volumes[i],) * 9) for i in range(volumes.shape[0])]
+        [xp.stack((volumes[i, ...],) * 9) for i in range(volumes.shape[0])]
     )
     reconstruction = reconstruction_L2(
         volumes_repeated,
         psf,
-        xp.permute_dims(gt_poses_sym, (1, 0, 2)).reshape(-1, 6),
+        xp.reshape(xp.permute_dims(gt_poses_sym, (1, 0, 2)), (-1, 6)),
         lambda_,
         symmetry=False,
         device=device,
@@ -328,6 +333,7 @@ gpu_libs, gpu_ids = zip(
 )
 
 
+# This test requires ~12GB VRAM
 @pytest.mark.slow
 @pytest.mark.parametrize(
     "generated_data_all_array", gpu_libs, indirect=True, ids=gpu_ids
@@ -338,11 +344,14 @@ def test_memory_convolution_matching_poses_grid(generated_data_all_array):
     xp = array_namespace(volumes)
     # 10 volumes of size 50^3, float32 -> 5 Mo
     # M = 10_000 -> 50 Go to transfer to GPU
+    # We split the computation in batch_size
     for M in [1, 10, 100, 1_000, 10_000]:
-        potential_poses = xp.asarray(np.random.randn(M, 6), dtype=volumes.dtype)
+        potential_poses = xp.asarray(
+            np.random.randn(M, 6), dtype=volumes.dtype, device="cpu"
+        )
 
         best_poses, errors = convolution_matching_poses_grid(
-            groundtruth, volumes, psf, potential_poses, device=device, batch_size=2048
+            groundtruth, volumes, psf, potential_poses, device=device, batch_size=1024
         )
 
         assert best_poses.shape == (volumes.shape[0], 6)
@@ -483,7 +492,7 @@ def test_refine_easy(
     volumes, groundtruth_poses, psf, groundtruth = generated_data_all_array
     xp = array_namespace(volumes)
 
-    lambda_ = xp.asarray(1.0, device=xp.device(volumes))
+    lambda_ = xp.asarray(1.0, device=get_device(volumes))
     initial_reconstruction = reconstruction_L2(
         volumes,
         psf,

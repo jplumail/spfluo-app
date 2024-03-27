@@ -6,7 +6,7 @@ from spfluo.ab_initio_reconstruction.common_image_processing_methods.others impo
     normalize,
 )
 from spfluo.refinement import refine
-from spfluo.utils.array import array_namespace
+from spfluo.utils.array import array_namespace, get_device
 from spfluo.utils.loading import read_poses, save_poses
 from spfluo.utils.log import base_parser, set_logging_level
 from spfluo.utils.read_save_files import (
@@ -80,9 +80,9 @@ def main(args):
         args.particles_dir, alphabetic_order=True, gpu=True, dtype=args.dtype
     )
     xp = array_namespace(particles)
-    compute_device = xp.device(particles)
+    compute_device = get_device(particles)
     particles = xp.to_device(particles, "cpu")
-    host_device = xp.device(particles)
+    host_device = get_device(particles)
     particles = xp.stack([normalize(particles[i]) for i in range(particles.shape[0])])
     psf = normalize(
         read_image(args.psf_path, xp=xp, device=host_device, dtype=args.dtype)

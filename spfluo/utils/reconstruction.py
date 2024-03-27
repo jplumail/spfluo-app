@@ -4,7 +4,7 @@ from spfluo.ab_initio_reconstruction.common_image_processing_methods.others impo
     normalize,
 )
 from spfluo.refinement.refinement import reconstruction_L2
-from spfluo.utils.array import array_namespace, to_numpy
+from spfluo.utils.array import array_namespace, get_device, to_numpy
 from spfluo.utils.loading import read_poses
 from spfluo.utils.read_save_files import read_image
 from spfluo.utils.transform import symmetrize_poses
@@ -23,10 +23,10 @@ def main(
     assert output_volume_path.endswith(".ome.tiff")
     psf = normalize(read_image(psf_path, dtype="float64", gpu=gpu))
     xp = array_namespace(psf)
-    compute_device = xp.device(psf)
+    compute_device = get_device(psf)
     psf = xp.to_device(psf, "cpu")
-    host_device = xp.device(psf)
-    device = xp.device(psf)
+    host_device = get_device(psf)
+    device = get_device(psf)
     particles = xp.stack(
         [
             normalize(read_image(p, dtype="float64", xp=xp, device=host_device))

@@ -5,7 +5,7 @@ import numpy as np
 from spfluo.ab_initio_reconstruction.common_image_processing_methods.others import (
     normalize,
 )
-from spfluo.utils.array import array_namespace, to_numpy
+from spfluo.utils.array import array_namespace, get_device, to_numpy
 from spfluo.utils.volume import (
     discretize_sphere_uniformly,
 )
@@ -100,7 +100,7 @@ class AbInitioReconstruction:
             file_names=None,
             folder_views_selected=None,
             xp=xp,
-            device=xp.device(X),
+            device=get_device(X),
             minibatch_size=minibatch_size,
             callback=self.callback,
             particles_names=particles_names,

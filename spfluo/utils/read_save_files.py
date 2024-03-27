@@ -5,7 +5,7 @@ import imageio
 import numpy as np
 import tifffile
 
-from spfluo.utils.array import array_namespace, get_namespace_device, numpy
+from spfluo.utils.array import array_namespace, get_prefered_namespace_device, numpy
 
 if TYPE_CHECKING:
     from spfluo.utils.array import Array, Device, array_api_module
@@ -18,7 +18,7 @@ def read_image(
     device: "Device | None" = None,
     gpu: bool | None = None,
 ) -> "Array":
-    xp, device = get_namespace_device(xp, device, gpu)
+    xp, device = get_prefered_namespace_device(xp, device, gpu)
     arr = numpy.asarray(
         imageio.mimread(path, memtest=False),
         dtype=getattr(numpy, dtype) if dtype else None,

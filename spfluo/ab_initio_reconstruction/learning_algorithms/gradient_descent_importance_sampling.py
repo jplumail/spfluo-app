@@ -14,7 +14,7 @@ from tqdm.auto import tqdm
 from spfluo.ab_initio_reconstruction.volume_representation.pixel_representation import (
     Fourier_pixel_representation,
 )
-from spfluo.utils.array import array_namespace, numpy, to_numpy
+from spfluo.utils.array import array_namespace, get_device, numpy, to_numpy
 from spfluo.utils.loading import save_poses
 from spfluo.utils.memory import split_batch_func
 from spfluo.utils.transform import get_transform_matrix
@@ -485,7 +485,7 @@ def compute_shifts(
 ) -> Tuple["Array", "Array", "Array"]:
     xp = array_namespace(inverse_transforms, view)
 
-    (device,) = set([str(xp.device(inverse_transforms)), str(xp.device(view))])
+    (device,) = set([str(get_device(inverse_transforms)), str(get_device(view))])
     psf = xp.asarray(psf, device=device)
     volume_fourier = xp.asarray(reference_volume_fft, device=device)
 
@@ -524,7 +524,7 @@ def compute_energy(
     reference_volume_fft: "Array", psf_rotated_fft: "Array", view_rotated_fft: "Array"
 ):
     xp = array_namespace(view_rotated_fft)
-    device = xp.device(view_rotated_fft)
+    device = get_device(view_rotated_fft)
     reference_volume_fft = xp.asarray(reference_volume_fft, device=device)
     psf_rotated_fft = xp.asarray(psf_rotated_fft, device=device)
     image_size = xp.prod(xp.asarray(reference_volume_fft.shape[-3:], device=device))
