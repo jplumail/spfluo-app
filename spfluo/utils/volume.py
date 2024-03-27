@@ -133,11 +133,11 @@ def affine_transform(
         )
 
         func = affine_transform_batched_multichannel_pytorch
-    elif is_cupy_array(xp):
+    elif is_cupy_array(input):
         from ._cupy_functions.volume import affine_transform_batched_multichannel_cupy
 
         func = affine_transform_batched_multichannel_cupy
-    elif is_numpy_array(xp):
+    elif is_numpy_array(input):
         func = affine_transform_batched_multichannel_scipy
     else:
         try:
@@ -453,7 +453,7 @@ def _fourier_shift_broadcasted_array_api(
         raise NotImplementedError("can't store result in output. not implemented")
     device = get_device(input)
     complex_dtype = input.dtype
-    assert complex_dtype in xp._dtypes._complex_floating_dtypes
+    assert complex_dtype in (xp.complex64, xp.complex128)
     floating_dtype = None
     if input.dtype == xp.complex128:
         floating_dtype = xp.float64
