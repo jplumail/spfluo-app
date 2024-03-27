@@ -41,6 +41,16 @@ def find_rotation_between_two_vectors(a: "Array", b: "Array"):
     xp = array_namespace(a, b)
     v = xp.linalg.cross(a, b)
     s = xp.linalg.vector_norm(v)
+    if not (s > 0):
+        # a and b are colinear
+        x, y, z = a
+        if x > 0:
+            v = xp.asarray([y, -x, 0])
+        elif y > 0:
+            v = xp.asarray([y, -x, 0])
+        else:  # x == y == 0, a is colinear to z-axis
+            v = xp.asarray([0, 0, 1])
+        s = xp.linalg.vector_norm(v)
     c = xp.linalg.vecdot(a, b)
     ssc = skew_symmetric_cross_product(v)
     rot = xp.eye(3) + ssc + (ssc @ ssc) * (1 - c) / s**2
