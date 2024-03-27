@@ -24,6 +24,7 @@ def affine_transform_batched_multichannel_pytorch(
         input (torch.Tensor): 3D images of shape (N, C, D, H, W)
         matrix (torch.Tensor)
             transform matrices of shape (N, 3), (N,3,3), (N,4,4) or (N,3,4).
+            Should be of floating point dtype
         offset (float or torch.Tensor): offset of the grid.
         output_shape (tuple): shape of the output.
         output: not implemented
@@ -38,7 +39,7 @@ def affine_transform_batched_multichannel_pytorch(
         torch.Tensor: Rotated volumes of shape (N, C, D, H, W)
     """
     N, C, D, H, W = input.size()
-    (dtype,) = set((input.dtype, matrix.dtype))
+    dtype = input.dtype
     (device,) = set((input.device, matrix.device))
     tensor_kwargs = dict(device=device, dtype=dtype)
 
@@ -90,7 +91,7 @@ def affine_transform_batched_multichannel_pytorch(
         raise NotImplementedError()
 
     return _affine_transform(
-        input, rotMat, tvec, output_shape, pt_mode, **tensor_kwargs
+        input, rotMat.type(input.dtype), tvec, output_shape, pt_mode, **tensor_kwargs
     )
 
 
