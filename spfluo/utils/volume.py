@@ -647,6 +647,18 @@ def phase_cross_correlation(
     return shift, error, phasediff
 
 
+def swap_dims(arr: "Array", axis1: int, axis2: int):
+    xp = array_namespace(arr)
+    if axis1 < 0:
+        axis1 += arr.ndim
+    if axis2 < 0:
+        axis2 += arr.ndim
+    axes = list(range(arr.ndim))
+    i1, i2 = axes.index(axis1), axes.index(axis2)
+    axes[i1], axes[i2] = axes[i2], axes[i1]
+    return xp.permute_dims(arr, tuple(axes))
+
+
 def _upsampled_dft(
     data: "Array",
     upsampled_region_size: int,
@@ -661,19 +673,37 @@ def _upsampled_dft(
     upsampled_region_size = [upsampled_region_size] * nb_spatial_dims
     dim_properties = list(
         zip(
+            range(-nb_spatial_dims, 0),
             data.shape[-nb_spatial_dims:],
             upsampled_region_size,
             xp.permute_dims(axis_offsets, (-1, *tuple(range(axis_offsets.ndim - 1)))),
         )
     )
     im2pi = 1j * 2 * xp.pi
-    for n_items, ups_size, ax_offset in dim_properties[::-1]:
+    for ax, n_items, ups_size, ax_offset in dim_properties[::-1]:
         kernel = (
             xp.arange(ups_size, device=device, dtype=xp.float32) - ax_offset[..., None]
         )[..., None] * xp.fft.fftfreq(n_items, d=upsample_factor, device=device)
-        kernel = xp.exp(-im2pi * xp.astype(kernel, data.dtype))
-        data = xp.tensordot(kernel, data, axes=(1, -1))
+        kernel = xp.exp(-im2pi * xp.astype(kernel, data.dtype))  # shape (..., U, s_i)
+        for _ in range(nb_spatial_dims - 1):
+            kernel = xp.expand_dims(kernel, axis=-3)
+        kernel  # shape (..., 1, .., 1, U, s_i)
+        data  # shape (..., s_1, .., s_i .., s_N)
+        data = swap_dims(data, ax, -1)  # shape (..., s_1, .., s_N, .., s_i)
+        data = data[..., None]  # shape (..., s_1, .., s_N, .., s_i, 1)
+        data = (kernel @ data)[..., 0]  # shape (..., s_1, .., s_N, .., U)
+        data = swap_dims(data, ax, -1)
     return data
+
+
+def unravel_index(indices: "Array", shape: tuple[int, ...]):
+    xp = array_namespace(indices)
+    device = get_device(indices)
+    dim_prod = np.flip(np.cumprod((1, *shape[:0:-1])))
+    dim_prod = xp.asarray(dim_prod.tolist(), dtype=indices.dtype, device=device)
+    return (indices[..., None] // dim_prod) % xp.asarray(
+        shape, dtype=indices.dtype, device=device
+    )
 
 
 def _cross_correlation_max(
@@ -706,14 +736,16 @@ def _cross_correlation_max(
             xp.asarray(100 * eps, dtype=z.dtype),
         )
     cc = xp.fft.ifftn(z, axes=tuple(range(-nb_spatial_dims, 0)))
-    cc = xp.abs(cc) ** 2
+    cc = xp.abs(cc)
     cc = xp.reshape(cc, other_shape + (-1,))
     max_idx = xp.argmax(cc, axis=-1)
-    maxi = cc[max_idx]
-    shift = xp.asarray(
-        np.unravel_index(max_idx, spatial_shape), dtype=xp.int64, device=get_device(x)
+    indices = tuple(
+        xp.asarray(idx, dtype=max_idx.dtype, device=max_idx.device)
+        for idx in np.ix_(*tuple(np.arange(cc.shape[i]) for i in range(cc.ndim - 1)))
     )
-    return maxi, shift, z
+    maxi = cc[*indices, max_idx]
+    shift = unravel_index(max_idx, spatial_shape)
+    return maxi**2, shift, z
 
 
 def _phase_cross_correlation_broadcasted_array_api(
@@ -766,17 +798,24 @@ def _phase_cross_correlation_broadcasted_array_api(
     if nb_spatial_dims is None:
         nb_spatial_dims = len(output_shape)
     if space == "real":
+        (floating_dtype,) = set((reference_image.dtype, moving_image.dtype))
+        assert floating_dtype in (xp.float32, xp.float64)
+        if floating_dtype == xp.float32:
+            complex_dtype = xp.complex64
+        else:
+            complex_dtype = xp.complex128
         reference_image_freq = xp.fft.fftn(
-            xp.astype(reference_image, xp.complex64),
+            xp.astype(reference_image, complex_dtype),
             axes=tuple(range(-nb_spatial_dims, 0)),
         )
         moving_image_freq = xp.fft.fftn(
-            xp.astype(moving_image, xp.complex64),
+            xp.astype(moving_image, complex_dtype),
             axes=tuple(range(-nb_spatial_dims, 0)),
         )
     elif space == "fourier":
-        reference_image_freq = reference_image
-        moving_image_freq = moving_image
+        (complex_dtype,) = set((reference_image.dtype, moving_image.dtype))
+        reference_image_freq = xp.astype(reference_image, complex_dtype)
+        moving_image_freq = xp.astype(moving_image, complex_dtype)
     other_shapes, spatial_shapes = (
         output_shape[:-nb_spatial_dims],
         output_shape[-nb_spatial_dims:],
@@ -819,7 +858,7 @@ def _phase_cross_correlation_broadcasted_array_api(
 
     if upsample_factor == 1:
         spatial_size = xp.prod(
-            xp.asarray(spatial_shapes, dtype=xp.complex64, device=device)
+            xp.asarray(spatial_shapes, dtype=complex_dtype, device=device)
         )
         rg00 = rg00 / spatial_size
         rf00 = rf00 / spatial_size
@@ -838,20 +877,27 @@ def _phase_cross_correlation_broadcasted_array_api(
                 nb_spatial_dims,
             )
         )
-        cross_correlation = xp.real((cross_correlation * xp.conj(cross_correlation)))
+        cross_correlation = xp.abs(cross_correlation)
         cross_correlation_reshaped = xp.reshape(
             cross_correlation, (*tuple(other_shapes), -1)
         )
         max_idx = xp.argmax(cross_correlation_reshaped, axis=-1)
-        error = cross_correlation_reshaped[..., max_idx]
-        maxima = xp.asarray(
-            np.unravel_index(max_idx, cross_correlation.shape[-nb_spatial_dims:]),
-            dtype=shift.dtype,
-            device=shift.device,
+        indices = tuple(
+            xp.asarray(idx, dtype=max_idx.dtype, device=max_idx.device)
+            for idx in np.ix_(
+                *tuple(
+                    np.arange(cross_correlation_reshaped.shape[i])
+                    for i in range(cross_correlation_reshaped.ndim - 1)
+                )
+            )
         )
+        error = cross_correlation_reshaped[*indices, max_idx] ** 2
+        maxima = unravel_index(max_idx, cross_correlation.shape[-nb_spatial_dims:])
         maxima -= dftshift
 
-        shift += maxima / upsample_factor
+        shift += xp.astype(maxima, xp.float32) / xp.asarray(
+            upsample_factor, dtype=xp.float32, device=maxima.device
+        )
 
     error = 1.0 - error / (xp.real(rg00) * xp.real(rf00))
     error = xp.sqrt(xp.abs(error))
