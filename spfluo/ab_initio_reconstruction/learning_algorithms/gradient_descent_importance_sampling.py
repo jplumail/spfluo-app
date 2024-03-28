@@ -1,4 +1,3 @@
-import copy
 import json
 import os
 import shutil
@@ -57,6 +56,11 @@ def gd_importance_sampling_3d(
     callback: Callable[[np.ndarray, int], Any] | None = None,
     particles_names: list[str] = None,
 ):
+    params_to_save = params_learning_alg.__dict__.copy()
+    del params_to_save["params"]
+    del params_to_save["dtype"]
+    with open(os.path.join(output_dir, "params_learning_alg.json"), "w") as f:
+        json.dump(params_to_save, f)
     imp_distrs_axes, imp_distrs_rot = to_numpy(imp_distrs_axes, imp_distrs_rot)
     thetas, phis, psis = to_numpy(*uniform_sphere_discretization[0])
     views = to_numpy(views)
@@ -81,8 +85,6 @@ def gd_importance_sampling_3d(
     axes = np.array([x, y, z])
     M_axes = len(thetas)
     M_rot = len(psis)
-    imp_distrs_axes_recorded = []
-    imp_distrs_rot_recorded = []
     recorded_energies = []
     energies_each_view = [[] for _ in range(len(views))]
     itr = 0
@@ -410,8 +412,20 @@ def gd_importance_sampling_3d(
             regist_im = io.imread(os.path.join(sub_dir, f"recons_epoch_{itr}.tif"))
             ssim_gt_recons = ssim(normalize(ground_truth), normalize(regist_im))
             ssims.append(ssim_gt_recons)
-        imp_distrs_rot_recorded.append(copy.deepcopy(imp_distrs_rot))
-        imp_distrs_axes_recorded.append(copy.deepcopy(imp_distrs_axes))
+
+        if not os.path.exists(
+            distributions_angles_dir := os.path.join(output_dir, "distributions_angles")
+        ):
+            os.makedirs(distributions_angles_dir)
+
+        np.save(
+            os.path.join(distributions_angles_dir, f"iter={itr:04}_rot.npy"),
+            imp_distrs_rot,
+        )
+        np.save(
+            os.path.join(distributions_angles_dir, f"iter={itr:04}_axes.npy"),
+            imp_distrs_axes,
+        )
 
         total_energy /= epoch_length
         with open(os.path.join(output_dir, "energies.csv"), "a") as f:
@@ -435,27 +449,8 @@ def gd_importance_sampling_3d(
 
     energies_each_view = np.array(energies_each_view)
     np.save(os.path.join(output_dir, "energies_each_view.npy"), energies_each_view)
-    if len(imp_distrs_rot_recorded) > 0:
-        imp_distrs_rot_recorded = np.stack(imp_distrs_rot_recorded, axis=0)
-    if len(imp_distrs_axes_recorded) > 0:
-        imp_distrs_axes_recorded = np.stack(imp_distrs_axes_recorded, axis=0)
-    np.save(
-        os.path.join(output_dir, "distributions_rot.npy"),
-        imp_distrs_rot_recorded,
-    )
-    np.save(
-        os.path.join(output_dir, "distributions_axes.npy"),
-        imp_distrs_axes_recorded,
-    )
-    params_to_save = params_learning_alg.__dict__.copy()
-    del params_to_save["params"]
-    del params_to_save["dtype"]
-    with open(os.path.join(output_dir, "params_learning_alg.json"), "w") as f:
-        json.dump(params_to_save, f)
 
     return (
-        imp_distrs_rot_recorded,
-        imp_distrs_axes_recorded,
         recorded_energies,
         recorded_shifts,
         unif_prop,

@@ -74,8 +74,6 @@ class AbInitioReconstruction:
         )
 
         (
-            imp_distrs_rot_recorded,
-            imp_distrs_axes_recorded,
             recorded_energies,
             recorded_shifts,
             unif_prop,
