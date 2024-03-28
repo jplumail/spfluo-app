@@ -351,7 +351,7 @@ def test_memory_convolution_matching_poses_grid(generated_data_all_array):
         )
 
         best_poses, errors = convolution_matching_poses_grid(
-            groundtruth, volumes, psf, potential_poses, device=device, batch_size=1024
+            groundtruth, volumes, psf, potential_poses, device=device, batch_size=256
         )
 
         assert best_poses.shape == (volumes.shape[0], 6)
@@ -436,6 +436,7 @@ def test_shapes_convolution_matching_poses_refined(xp, device):
 ###################
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("xp,device", gpu_libs, ids=gpu_ids)
 def test_shapes_find_angles_grid(xp, device):
     N, D, H, W = 15, 32, 32, 32
@@ -456,6 +457,8 @@ def test_shapes_find_angles_grid(xp, device):
 ###############
 
 
+# batch_size is adjusted for ~12GB VRAM
+@pytest.mark.slow
 @pytest.mark.parametrize("xp,device", gpu_libs, ids=gpu_ids)
 def test_refine_shapes(xp, device):
     N, D, H, W = 15, 32, 32, 32
@@ -467,7 +470,7 @@ def test_refine_shapes(xp, device):
     steps = [(S * S, S), S * S * S]
     ranges = [0, 40]
     recon, poses = refine(
-        patches, psf, guessed_poses, steps, ranges, device=device, batch_size=2048
+        patches, psf, guessed_poses, steps, ranges, device=device, batch_size=512
     )
 
     assert recon.shape == patches[0].shape

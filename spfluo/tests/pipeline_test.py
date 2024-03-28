@@ -53,6 +53,8 @@ def get_energy(
     return energy
 
 
+# works on a ~12GB VRAM GPU
+@pytest.mark.slow
 @pytest.mark.skipif(not spfluo.has_torch(), reason="This test requires torch installed")
 @pytest.mark.skipif(
     not spfluo.has_torch_cuda(),
@@ -148,7 +150,7 @@ def test_ab_initio_refinement(tmpdir):
             "0.001",
             "--gpu",
             "--minibatch_size",
-            "1024",
+            "256",
         ]
     )
     refinement_main.main(refinement_args)

@@ -45,6 +45,7 @@ phase_cross_correlation_skimage = partial(
     upsample_factor=st.integers(min_value=1, max_value=100),
     space=st.sampled_from(["fourier", "real"]),
     normalization=st.sampled_from(["phase", None]),
+    half_precision=st.sampled_from([True, False]),
 )
 @pytest.mark.parametrize(
     "xp, device",
@@ -59,14 +60,21 @@ def test_correctness_phase_cross_correlation(
     upsample_factor,
     space,
     normalization,
+    half_precision,
 ):
     translation = translation[: image.ndim]
     if space == "fourier":
         reference_image = np.fft.fftn(util.img_as_float(image))
         moving_image = fourier_shift(reference_image, translation)
+        if half_precision:
+            reference_image = reference_image.astype(np.complex64)
+            moving_image = moving_image.astype(np.complex64)
     else:
         reference_image = util.img_as_float(image)
         moving_image = shift_scipy(reference_image, translation)
+        if half_precision:
+            reference_image = reference_image.astype(np.float32)
+            moving_image = moving_image.astype(np.float32)
 
     reference_image_xp = xp.asarray(reference_image, device=device)
     moving_image_xp = xp.asarray(moving_image, device=device)
@@ -89,7 +97,7 @@ def test_correctness_phase_cross_correlation(
         assert_allclose(
             xp.asarray(shift[i]), xp.asarray(shift_skimage[i]), atol=1 / upsample_factor
         )
-    assert_allclose(error, xp.asarray(error_skimage), rtol=0.02, atol=1e-2)
+    assert_allclose(error, xp.asarray(error_skimage), rtol=1e-3, atol=1e-2)
     # Phasediff not tested because not implemented in pytorch
 
 
@@ -195,6 +203,7 @@ def test_correctness_fourier_shift(
     assert_allclose(
         output,
         xp.asarray(output_scipy, device=device),
+        rtol=1e-5,
     )
 
 

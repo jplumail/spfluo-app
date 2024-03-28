@@ -18,6 +18,7 @@ def test_generation():
     assert d["psf"].dtype == dtype
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize(
     "generated_data", [data.generated_anisotropic(), data.generated_isotropic()]
 )

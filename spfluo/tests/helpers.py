@@ -70,7 +70,7 @@ def assert_volumes_aligned(
 ):
     xp = array_namespace(vol1, vol2)
     (dz, dy, dx), _, _ = phase_cross_correlation(
-        vol1,
+        xp.astype(vol1, vol2.dtype),
         vol2,
         upsample_factor=10,
         disambiguate=False,

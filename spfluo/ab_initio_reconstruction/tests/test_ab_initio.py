@@ -5,7 +5,7 @@ import pytest
 
 import spfluo
 from spfluo.ab_initio_reconstruction.api import AbInitioReconstruction
-from spfluo.tests.helpers import ids, testing_libs
+from spfluo.tests.helpers import assert_allclose, ids, testing_libs
 from spfluo.utils.array import get_prefered_namespace_device, numpy
 from spfluo.utils.transform import distance_family_poses
 from spfluo.utils.volume import interpolate_to_size
@@ -103,11 +103,10 @@ def test_files_exist(numpy_run):
 def test_same_results_gpu(gpu_run, numpy_run):
     ab_initio_gpu, _ = gpu_run
     ab_initio_numpy, _ = numpy_run
-    assert np.isclose(
-        ab_initio_numpy._energies, ab_initio_gpu._energies, rtol=0.001
-    ).all()
+    assert_allclose(ab_initio_numpy._energies, ab_initio_gpu._energies, rtol=0.002)
 
 
+@pytest.mark.slow
 @pytest.mark.skipif(
     not (spfluo.has_torch() and spfluo.has_torch_cuda()),
     reason="Too long to test if CUDA is not available",

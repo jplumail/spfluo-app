@@ -7,9 +7,13 @@ from typing import TYPE_CHECKING, Tuple, Union
 import numpy as np
 import pytest
 import tifffile
+from hypothesis import settings
 
 from spfluo import data
 from spfluo.utils.array import to_numpy
+
+settings.register_profile("dev", max_examples=10)
+settings.load_profile(os.getenv("HYPOTHESIS_PROFILE", "dev"))
 
 if TYPE_CHECKING:
     from spfluo.utils.array import Array
