@@ -10,8 +10,8 @@ from typing import Dict
 import requests
 import tifffile
 
-from spfluo.data.constants import ARCHIVE_NAME, REPO_ID, SEAFILE_URL
-from spfluo.data.upload import _file_hash, get_token
+from spfluo.data.constants import ARCHIVE_NAME, REPO_TOKEN, SEAFILE_URL
+from spfluo.data.upload import _file_hash
 from spfluo.utils.array import numpy as np
 from spfluo.utils.loading import read_poses
 from spfluo.utils.read_save_files import read_image
@@ -19,11 +19,12 @@ from spfluo.utils.read_save_files import read_image
 
 def _download_data(d: Path):
     headers = {
-        "Authorization": f"Token {get_token()}",
-        "Accept": "application/json; charset=utf-8; indent=4",
+        "Authorization": f"Token {REPO_TOKEN}",
+        "Accept": "application/json",
     }
     download_link = requests.get(
-        f"{SEAFILE_URL}/api2/repos/{REPO_ID}/file/?p=/{ARCHIVE_NAME}", headers=headers
+        f"{SEAFILE_URL}/api/v2.1/via-repo-token/download-link/?path={ARCHIVE_NAME}",
+        headers=headers,
     )
     download_link.raise_for_status()
     download_link = download_link.text.strip('"')
@@ -110,6 +111,10 @@ def generated_isotropic():
 
 def generated_anisotropic():
     return _fetch_dataset("anisotropic-5.0-1.0-1.0")
+
+
+def generated_with_translations():
+    return _fetch_dataset("with-translations")
 
 
 def real_ab_initio_reconstruction():
