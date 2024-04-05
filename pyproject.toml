@@ -15,6 +15,7 @@ dependencies = [
     "numpy",
     "scipy",
     "spfluo[manual-picking,ab-initio-reconstruction,refinement,visualisation]",
+    "flask",
 ]
 
 [project.urls]
@@ -43,7 +44,8 @@ exclude = [
 
 [tool.hatch.build.targets.wheel]
 artifacts = [
-  "/singleparticle/_vendored/TiPi/target/TiPi-for-spfluo-*.jar"
+  "/singleparticle/_vendored/TiPi/target/TiPi-for-spfluo-*.jar",
+  "/singleparticle/web/client/dist/*"
 ]
 packages = ["singleparticle"]
 

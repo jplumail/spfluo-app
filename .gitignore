@@ -16,3 +16,7 @@ typings/
 # java
 singleparticle/_vendored/TiPi/target
 singleparticle/_vendored/TiPi/dependency-reduced-pom.xml
+
+# web
+.parcel-cache
+node_modules

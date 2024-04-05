@@ -10,6 +10,7 @@
 # **************************************************************************
 
 import os
+import threading
 from typing import List, Union
 
 import pyworkflow as pw
@@ -28,6 +29,7 @@ from singleparticle.constants import (
     SINGLEPARTICLE_HOME,
     TIPI_JAR,
 )
+from singleparticle.web.server import app
 
 _logo = "icon.png"
 _references = ["Fortun2017"]
@@ -112,3 +114,10 @@ class Plugin(plugin.Plugin):
     @classmethod
     def defineBinaries(cls, env):
         cls.addSingleParticlePackage(env)
+
+
+# start http server
+threading.Thread(
+    target=lambda: app.run(host="127.0.0.1", port=5000, debug=True, use_reloader=False),
+    daemon=True,
+).start()
