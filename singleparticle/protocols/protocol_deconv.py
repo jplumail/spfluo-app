@@ -18,42 +18,7 @@ class ProtSingleParticleDeconv(Protocol, ProtFluoBase):
     _devStatus = BETA
     _possibleOutputs = {OUTPUT_NAME: FluoImage}
 
-    def _defineParams(self, form: Form):
-        form.addSection(label="Data params")
-        group = form.addGroup("Input")
-        group.addParam(
-            "fluoimage",
-            params.PointerParam,
-            pointerClass="FluoImage",
-            label="Image",
-            important=True,
-        )
-
-        form.addParam(
-            "paddingMethod",
-            params.StringParam,
-            label="Padding size (in pixels)",
-            default="30",
-            help="padding in xyz directions",
-            expertLevel=params.LEVEL_ADVANCED,
-        )
-        form.addParam(
-            "usePSF",
-            params.BooleanParam,
-            label="PSF?",
-            help="If no PSF is provided, will use the widefield params to build one.",
-            default=False,
-        )
-
-        form.addParam(
-            "psf",
-            params.PointerParam,
-            pointerClass="PSFModel",
-            label="PSF",
-            allowsNull=True,
-            condition="usePSF is True",
-        )
-
+    def createGroupWidefieldParams(self, form: Form):
         group = form.addGroup("Widefields params", condition="usePSF is False")
         group.addParam(
             "NA", params.FloatParam, label="NA", help="Numerical aperture", default=1.4
@@ -75,22 +40,29 @@ class ProtSingleParticleDeconv(Protocol, ProtFluoBase):
             default=1.518,
         )
 
-        form.addParam(
-            "normalizePSF",
-            params.BooleanParam,
-            label="Normalize the PSF",
-            default=False,
+    def createNoiseParams(self, form: Form):
+        group = form.addGroup("Noise params", expertLevel=params.LEVEL_ADVANCED)
+        group.addParam(
+            "gamma",
+            params.FloatParam,
+            label="Detector gain",
+            help="Detector gain in electrons per analog digital unit (ADU).\n"
+            "Warning: Detector gain is ignored if the standard"
+            "deviation is not specified.\nLeave empty if unknown",
+            allowsNull=True,
+            expertLevel=params.LEVEL_ADVANCED,
+        )
+        group.addParam(
+            "sigma",
+            params.FloatParam,
+            label="Readout noise",
+            help="Standard deviation of the noise in e-/pixel.\n"
+            "Leave empty if unknown",
+            allowsNull=True,
+            expertLevel=params.LEVEL_ADVANCED,
         )
 
-        form.addParam(
-            "crop",
-            params.BooleanParam,
-            label="Crop result to the same size as input",
-            default=True,
-        )
-
-        form.addSection(label="Parameters")
-
+    def createOptimizationParams(self, form: Form):
         group = form.addGroup("Optimization params")
         group.addParam(
             "mu",
@@ -132,7 +104,74 @@ class ProtSingleParticleDeconv(Protocol, ProtFluoBase):
             expertLevel=params.LEVEL_ADVANCED,
             default=False,
         )
+        return group
 
+    def createInputParams(self, form: Form):
+        group = form.addGroup("Input")
+        group.addParam(
+            "fluoimage",
+            params.PointerParam,
+            pointerClass="FluoImage",
+            label="Image",
+            important=True,
+        )
+        group.addParam(
+            "channel",
+            params.IntParam,
+            default=0,
+            label="Deconvolve on channel?",
+            help="This protocol deconvolves in one channel only.",
+        )
+        return group
+
+    def _defineParams(self, form: Form):
+        form.addSection(label="Data params")
+        self.createInputParams(form)
+
+        form.addParam(
+            "paddingMethod",
+            params.StringParam,
+            label="Padding size (in pixels)",
+            default="30",
+            help="padding in xyz directions",
+            expertLevel=params.LEVEL_ADVANCED,
+        )
+        form.addParam(
+            "usePSF",
+            params.BooleanParam,
+            label="PSF?",
+            help="If no PSF is provided, will use the widefield params to build one.",
+            default=False,
+        )
+
+        form.addParam(
+            "psf",
+            params.PointerParam,
+            pointerClass="PSFModel",
+            label="PSF",
+            allowsNull=True,
+            condition="usePSF is True",
+        )
+
+        self.createGroupWidefieldParams(form)
+
+        form.addParam(
+            "normalizePSF",
+            params.BooleanParam,
+            label="Normalize the PSF",
+            default=False,
+        )
+
+        form.addParam(
+            "crop",
+            params.BooleanParam,
+            label="Crop result to the same size as input",
+            default=True,
+        )
+
+        form.addSection(label="Parameters")
+
+        group = self.createOptimizationParams(form)
         group.addParam(
             "maxeval",
             params.IntParam,
@@ -142,58 +181,39 @@ class ProtSingleParticleDeconv(Protocol, ProtFluoBase):
             default=-1,
         )
 
-        group = form.addGroup("Noise params", expertLevel=params.LEVEL_ADVANCED)
-        group.addParam(
-            "gamma",
-            params.FloatParam,
-            label="Detector gain",
-            help="Detector gain in electrons per analog digital unit (ADU).\n"
-            "Warning: Detector gain is ignored if the standard"
-            "deviation is not specified.\nLeave empty if unknown",
-            allowsNull=True,
-            expertLevel=params.LEVEL_ADVANCED,
-        )
-        group.addParam(
-            "sigma",
-            params.FloatParam,
-            label="Readout noise",
-            help="Standard deviation of the noise in e-/pixel.\n"
-            "Leave empty if unknown",
-            allowsNull=True,
-            expertLevel=params.LEVEL_ADVANCED,
-        )
+        self.createNoiseParams(form)
 
     def _insertAllSteps(self):
         self.root_dir = self._getExtraPath("rootdir")
         self._insertFunctionStep(self.prepareStep)
+        self._insertFunctionStep(self.prepareStepPSF)
         self._insertFunctionStep(self.deconvStep)
         self._insertFunctionStep(self.createOutputStep)
 
     def prepareStep(self):
         os.makedirs(self.root_dir, exist_ok=True)
         input_fluoimage: FluoImage = self.fluoimage.get()
-        self.input_psf: PSFModel | None = self.psf.get()
         self.out_path = os.path.join(self.root_dir, "out.ome.tiff")
-        self.psf_path = None
 
         # Input image
-        a = input_fluoimage.getData().astype(np.float64)
-        a = (a - a.min()) / (a.max() - a.min())
+        a = input_fluoimage.getData().astype(np.float32)[self.channel.get()]
+        print(a.shape)
         self.epsilon_default_value = float(a.max()) / 1000
         self.input_float = FluoImage.from_data(
-            a,
+            a[None],
             os.path.join(self.root_dir, "in.ome.tiff"),
             voxel_size=input_fluoimage.getVoxelSize(),
         )
 
-        # Input PSF
+    def prepareStepPSF(self):
+        self.input_psf: PSFModel | None = self.psf.get()
+        self.psf_path = None
         if self.input_psf:
-            a = self.input_psf.getData().astype(np.float64)
-            a = (a - a.min()) / (a.max() - a.min())
+            a = self.input_psf.getData().astype(np.float32)[self.channel.get()]
             self.psf_float = PSFModel.from_data(
-                a,
+                a[None],
                 os.path.join(self.root_dir, "psf.ome.tiff"),
-                voxel_size=input_fluoimage.getVoxelSize(),
+                voxel_size=self.input_psf.getVoxelSize(),
             )
 
     def deconvStep(self):
@@ -246,7 +266,7 @@ class outputs(Enum):
     deconvolution = FluoImage
 
 
-class ProtSingleParticleBlindDeconv(Protocol, ProtFluoBase):
+class ProtSingleParticleBlindDeconv(ProtSingleParticleDeconv):
     """Deconvolve an image"""
 
     OUTPUT_NAME = "FluoImage"
@@ -258,14 +278,7 @@ class ProtSingleParticleBlindDeconv(Protocol, ProtFluoBase):
 
     def _defineParams(self, form: Form):
         form.addSection(label="Data params")
-        group = form.addGroup("Input")
-        group.addParam(
-            "fluoimage",
-            params.PointerParam,
-            pointerClass="FluoImage",
-            label="Image",
-            important=True,
-        )
+        self.createInputParams(form)
 
         form.addParam(
             "paddingMethod",
@@ -276,26 +289,7 @@ class ProtSingleParticleBlindDeconv(Protocol, ProtFluoBase):
             expertLevel=params.LEVEL_ADVANCED,
         )
 
-        group = form.addGroup("Widefield params")
-        group.addParam(
-            "NA", params.FloatParam, label="NA", help="Numerical aperture", default=1.4
-        )
-
-        group.addParam(
-            "lbda",
-            params.FloatParam,
-            label="λ(nm)",
-            help="Wavelength in nm",
-            default=540,
-        )
-
-        group.addParam(
-            "ni",
-            params.FloatParam,
-            label="ni",
-            help="Refractive index of the immersion medium",
-            default=1.518,
-        )
+        self.createGroupWidefieldParams(form)
 
         form.addParam(
             "crop",
@@ -315,74 +309,9 @@ class ProtSingleParticleBlindDeconv(Protocol, ProtFluoBase):
             "The higher, the potentially longer ",
         )
 
-        group = form.addGroup("Noise params")
-        group.addParam(
-            "weighting",
-            params.EnumParam,
-            choices=[k for k, v in self.WEIGHTINGS],
-            label="Weighting method",
-            display=params.EnumParam.DISPLAY_COMBO,
-            default=1,
-        )
-        group.addParam(
-            "gamma",
-            params.FloatParam,
-            label="Detector gain",
-            help="Detector gain in electrons per analog digital unit (ADU).",
-            condition="weighting==1 or weighting==2",
-            allowsNull=True,
-        )
-        group.addParam(
-            "sigma",
-            params.FloatParam,
-            label="Readout noise",
-            help="Standard deviation of the noise in e-/pixel.",
-            condition="weighting==1 or weighting==2",
-            allowsNull=True,
-        )
+        self.createNoiseParams(form)
 
-        group = form.addGroup("Optimization params")
-        group.addParam(
-            "mu",
-            params.FloatParam,
-            label="Log10 of the regularization level",
-            default=0,
-        )
-
-        group.addParam(
-            "maxiter",
-            params.IntParam,
-            label="Number of iterations",
-            help="Maximum number of iterations\n" "-1 for no limit",
-            default=50,
-        )
-
-        group.addParam(
-            "epsilon",
-            params.FloatParam,
-            label="Threshold level",
-            help="Threshold of hyperbolic TV",
-            expertLevel=params.LEVEL_ADVANCED,
-            default=0.01,
-        )
-
-        group.addParam(
-            "nonneg",
-            params.BooleanParam,
-            label="Enforce nonnegativity",
-            help="Enforce the positivity of the solution",
-            expertLevel=params.LEVEL_ADVANCED,
-            default=True,
-        )
-
-        group.addParam(
-            "single",
-            params.BooleanParam,
-            label="Force single precision",
-            expertLevel=params.LEVEL_ADVANCED,
-            default=False,
-        )
-
+        group = self.createOptimizationParams(form)
         group.addParam(
             "maxIterDefocus",
             params.IntParam,
@@ -436,24 +365,10 @@ class ProtSingleParticleBlindDeconv(Protocol, ProtFluoBase):
 
     def _insertAllSteps(self):
         self.root_dir = self._getExtraPath("rootdir")
+        self.out_psf_path = os.path.join(self.root_dir, "psf.ome.tiff")
         self._insertFunctionStep(self.prepareStep)
         self._insertFunctionStep(self.deconvStep)
         self._insertFunctionStep(self.createOutputStep)
-
-    def prepareStep(self):
-        os.makedirs(self.root_dir, exist_ok=True)
-        self.input_fluoimage: FluoImage = self.fluoimage.get()
-        self.out_path = os.path.join(self.root_dir, "out.ome.tiff")
-        self.out_psf_path = os.path.join(self.root_dir, "psf.ome.tiff")
-
-        a = self.input_fluoimage.getData().astype(np.float64)
-        a = (a - a.min()) / (a.max() - a.min())
-        self.input_float = FluoImage.from_data(
-            a,
-            os.path.join(self.root_dir, "in.ome.tiff"),
-            voxelSize=self.input_fluoimage.getVoxelSize(),
-        )
-        self.epsilon_default_value = float(a.max()) / 1000
 
     def deconvStep(self):
         args = list(
