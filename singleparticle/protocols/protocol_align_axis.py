@@ -52,6 +52,13 @@ class ProtSingleParticleAlignAxis(Protocol, ProtFluoBase):
             help="A threshold is used to binarized the image. "
             "It is determined as a ratio of the image's maximum value.",
         )
+        form.addParam(
+            "sym",
+            params.IntParam,
+            default=1,
+            label="Symmetry degree",
+            help="Adds a cylindrical symmetry constraint.",
+        )
 
     def _insertAllSteps(self):
         self.poses_csv = self._getExtraPath("poses.csv")
@@ -82,6 +89,8 @@ class ProtSingleParticleAlignAxis(Protocol, ProtFluoBase):
             str(self.rotated_particle_path),
             "--threshold",
             str(self.threshold.get()),
+            "--symmetry",
+            str(self.sym.get()),
         ]
 
         Plugin.runJob(self, Plugin.getSPFluoProgram(UTILS_MODULE), args=args)
