@@ -25,7 +25,7 @@ def getLastParticlesParams(folder):
         0
     ]
     print(f"Opening {poses_path}")
-    output = {}
+    output: dict[str, dict[str, np.ndarray]] = {}
     with open(poses_path, "r") as f:
         data = csv.reader(f)
         next(data)
@@ -35,7 +35,7 @@ def getLastParticlesParams(folder):
             H = np.zeros((4, 4), dtype=float)
             H[:3, :3] = Rotation.from_euler("XZX", rot, degrees=True).as_matrix()
             H[:3, 3] = trans
-            output[int(row[0])] = {"homogeneous_transform": H}
+            output[row[0]] = {"homogeneous_transform": H}
     return output
 
 
@@ -48,7 +48,9 @@ def updateSetOfParticles(
     and copy attributes coverage/score/transform"""
 
     def updateParticle(particle: Particle, index: int):
-        particleParams = particlesParams.get(index)
+        particleParams = particlesParams.get(
+            particle.getBaseName().replace(".ome.tiff", ".tiff")
+        )
         if not particleParams:
             print("Could not get params for particle %d" % index)
             setattr(particle, "_appendItem", False)
@@ -150,33 +152,19 @@ def save_boundingboxes(coords: SetOfCoordinates3D, csv_file: str):
             )
 
 
-def save_particles(
-    particles_dir: str, particles: SetOfParticles, channel: int = None
-) -> Tuple[List[str], int]:
+def save_particles(particles_dir: str, particles: SetOfParticles, channel: int = None):
     print("Creating particles directory")
     if not os.path.exists(particles_dir):
         os.makedirs(particles_dir, exist_ok=True)
-    particles_paths = []
+    particles_paths: dict[str, str] = {}
     max_dim = 0
-    for im in particles:
-        im: Particle
-        max_dim = max(max_dim, max(im.getDim()))
-        im_path = os.path.abspath(im.getFileName())
-        ext = os.path.splitext(im_path)[1]
-        im_name = im.strId()
+    for particle in particles:
+        particle: Particle
+        max_dim = max(max_dim, max(particle.getDim()))
+        im_name = particle.strId()
         im_newPath = os.path.join(particles_dir, im_name + ".ome.tiff")
-        particles_paths.append(im_newPath)
-        if im.getNumChannels() > 1 and channel is not None:
-            data = im.getData()[channel][None]
-            Particle.from_data(data, im_newPath, voxel_size=im.getVoxelSize())
-        else:
-            if ext.endswith(".tiff") or ext.endswith(".tif"):
-                os.link(im_path, im_newPath)
-            else:
-                raise NotImplementedError(
-                    f"Found ext {ext} in particles: {im_path}."
-                    "Only tiff file are supported."
-                )
+        save_image(im_newPath, particle, channel=channel)
+        particles_paths[particle.getImgId()] = im_newPath
 
     return particles_paths, max_dim
 
@@ -261,7 +249,12 @@ def save_image(new_path: str, image: Image, channel: int = None):
             image.getData()[channel][None], new_path, voxel_size=image.getVoxelSize()
         )
     else:
-        if ext.endswith(".tiff") or ext.endswith(".tif"):
+        if new_path.endswith(".ome.tiff") and not ext.endswith(".ome.tiff"):
+            # save with metadata
+            Particle.from_data(
+                image.getData(), new_path, voxel_size=image.getVoxelSize()
+            )
+        elif ext.endswith(".tiff") or ext.endswith(".tif"):
             os.link(image_path, new_path)
         else:
             raise NotImplementedError(
