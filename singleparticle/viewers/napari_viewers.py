@@ -1,25 +1,30 @@
 import multiprocessing as mp
 import os
 import threading
-from multiprocessing.connection import Connection
 from tkinter import Toplevel
-from typing import List, Tuple, Union
+from typing import TYPE_CHECKING, List, Tuple, Union
 
 import napari
-import numpy as np
-from napari_spfluo import FilterSetWidget
+from napari.layers import Image
+from napari_spfluo._utils_widgets import FilterSetWidget
 from pwfluo import objects as pwfluoobj
 from pwfluo.objects import FluoImage, SetOfCoordinates3D
 from pwfluo.protocols import ProtFluoBase
 from pyworkflow.gui.dialog import ToolbarListDialog
 from pyworkflow.gui.tree import TreeProvider
-from pyworkflow.protocol import Protocol
 from pyworkflow.utils.process import runJob
 from pyworkflow.viewer import DESKTOP_TKINTER, View, Viewer
+from qtpy.QtCore import Qt
+from qtpy.QtWidgets import QCheckBox, QHBoxLayout, QLabel, QWidget
+from scipy.ndimage import affine_transform
+from spfluo.utils.transform import get_transform_matrix_around_center
 
 from singleparticle import Plugin
 from singleparticle.constants import VISUALISATION_MODULE
 from singleparticle.convert import save_boundingboxes
+
+if TYPE_CHECKING:
+    from qtpy.QtWidgets import QListWidgetItem
 
 
 class NapariDataViewer(Viewer):
@@ -46,7 +51,7 @@ class NapariDataViewer(Viewer):
         elif issubclass(cls, pwfluoobj.Image):
             self._views.append(ImageView(obj))
         elif issubclass(cls, pwfluoobj.SetOfParticles):
-            self._views.append(SetOfParticlesView(obj, self.protocol))
+            self._views.append(SetOfParticlesView(obj))
         elif issubclass(cls, pwfluoobj.SetOfImages):
             self._views.append(SetOfImagesView(obj))
 
@@ -83,53 +88,108 @@ class SetOfImagesView(View):
 
 
 class NapariSetOfParticlesWidget(Toplevel):
-    def __init__(self, particles, master=None):
+    def __init__(self, particles: pwfluoobj.SetOfParticles, master=None):
         super().__init__(master)
         self.withdraw()
         if self.winfo_viewable():
             self.transient(master)
 
-        self.command_pipe, self.child_pipe = mp.Pipe()
+        self.queue = mp.Queue(maxsize=particles.getSize())
         self.process = mp.Process(
             target=self.lanchNapariForParticles,
             daemon=True,
-            args=(particles, self.child_pipe),
+            args=(particles, self.queue),
         )
         self.process.start()
-        self.after(1000, self.refresh)
 
     def lanchNapariForParticles(
-        self, particles: pwfluoobj.SetOfParticles, command_pipe: Connection
+        self, particles: pwfluoobj.SetOfParticles, queue: mp.Queue
     ):
         vs_xy, vs_z = particles.getVoxelSize()
-        particles_data = np.stack([p.getData() for p in particles.iterItems()])  # TCZYX
+        self.particles = [p for p in particles]
+        self.particles_data_not_transformed = [
+            p.getDataIsotropic()[0] for p in particles.iterItems()
+        ]
+        self.particles_data_transformed = []
+        self.particles_data = self.particles_data_not_transformed
         viewer = napari.Viewer()
-        dock_widget, widget = viewer.window.add_plugin_dock_widget(
-            "napari-spfluo", "Filter set"
-        )
-        widget: FilterSetWidget
-        particles_layer = viewer.add_image(
-            particles_data, scale=(1, 1, vs_z, vs_xy, vs_xy)
-        )
-        widget.current_image_layer = particles_layer
-        command_pipe.send("launched")
-        napari.run()
 
-    def refresh(self):
-        if self.command_pipe.poll():  # Check if there's something to read
-            pass
-            # print(self.command_pipe.recv())
-        if self.process.is_alive():
-            self.after(1000, self.refresh)
+        self.widget = FilterSetWidget()
+        self.widget.set_data(self.particles_data)
+        viewer.window.add_dock_widget(self.widget)
+        self.particle_layer = Image(self.particles_data[0], name="particle")
+        viewer.add_layer(self.particle_layer)
+        viewer.bind_key("Delete", self._on_delete)
+        self.widget.list_widget.currentItemChanged.connect(self._on_item_changed)
+
+        # add transform button
+        transform_layout = QHBoxLayout()
+        checkbox_widget = QWidget()
+        checkbox_widget.setLayout(transform_layout)
+        self.check_box = QCheckBox()
+        transform_layout.addWidget(QLabel("transform"))
+        transform_layout.addWidget(self.check_box)
+        self.widget.layout().addWidget(checkbox_widget)
+
+        self.check_box.stateChanged.connect(self._on_transform_changed)
+
+        napari.run()
+        queue.put(self.widget.mask_indices_image.tolist())
+
+    # def _on_layer_changed(self, image_layer: napari.layers.Image):
+    #    if image_layer and (image_layer.ndim == 4 or image_layer.ndim == 5):
+    #        self.current_image_layer = image_layer
+    #        self.original_data = np.copy(self.current_image_layer.data)
+    #        self.widget.set_data(list(image_layer.data))
+
+    def _on_item_changed(self, item: "QListWidgetItem", previous: "QListWidgetItem"):
+        i = self.widget.list_widget.row(item)
+        self.particle_layer.data = self.particles_data[i]
+        self.particle_layer.refresh()
+
+    def _on_delete(self, viewer: napari.Viewer):
+        indices_deleted = self.widget._on_delete()
+        for idx in indices_deleted:
+            self.particles.pop(idx)
+            self.particles_data_not_transformed.pop(idx)
+            if self.particles_data_transformed:
+                self.particles_data_transformed.pop(idx)
+
+    def _on_transform_changed(self, state: int):
+        assert isinstance(state, int)
+        match state:
+            case Qt.CheckState.Unchecked:
+                self.particles_data = self.particles_data_not_transformed
+            case Qt.CheckState.Checked:
+                if not self.particles_data_transformed:
+                    # populate particles_data_transformed
+                    for p in self.particles:
+                        p: pwfluoobj.Particle
+                        print(f"{p=}")
+                        data, _ = p.getDataIsotropic()
+                        transform = p.getTransform()
+                        if transform:
+                            H = get_transform_matrix_around_center(
+                                data.shape[1:], transform.getRotationMatrix()
+                            )
+                            H[:3, 3] += transform.getShifts()
+                            for c in range(data.shape[0]):
+                                data[c] = affine_transform(data[c], H)
+                        self.particles_data_transformed.append(data)
+                self.particles_data = self.particles_data_transformed
+
+        self.widget.set_data(self.particles_data)
+        current_row = self.widget.list_widget.currentRow()
+        self.particle_layer.data = self.particles_data[current_row]
+        self.particle_layer.refresh()
 
 
 class SetOfParticlesView(View):
-    def __init__(self, particles: pwfluoobj.SetOfParticles, protocol: Protocol):
+    def __init__(self, particles: pwfluoobj.SetOfParticles):
         self.particles = particles
-        self.protocol = protocol
 
     def show(self):
-        NapariSetOfParticlesWidget(self.particles)
+        return NapariSetOfParticlesWidget(self.particles)
 
 
 ###########
