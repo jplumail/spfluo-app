@@ -21,6 +21,10 @@ import org.mitiv.TiPi.base.Shape;
 import org.mitiv.TiPi.base.Traits;
 import org.mitiv.TiPi.io.ColorModel;
 import org.mitiv.TiPi.utils.FFTUtils;
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.LoggerContext;
+import ch.qos.logback.classic.Logger;
+import org.slf4j.LoggerFactory;
 
 import loci.common.services.DependencyException;
 import loci.common.services.ServiceException;
@@ -47,6 +51,9 @@ public class MainCommand {
 
     public static void main(String[] args) throws FormatException, IOException, DependencyException, ServiceException {
         MainCommand job = new MainCommand();
+        LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
+        Logger rootLogger = loggerContext.getLogger(Logger.ROOT_LOGGER_NAME);
+        rootLogger.setLevel(Level.ERROR);
         if (args.length > 1){
             String[] newArgs = Arrays.copyOfRange(args, 1, args.length);
             if (args[0].equals("deconv")) {
@@ -62,7 +69,7 @@ public class MainCommand {
         parser.printUsage(job.stream);
     }
 
-    static ShapedArray readOMETiffToArray(String path) throws FormatException, IOException {
+    public static ShapedArray readOMETiffToArray(String path) throws FormatException, IOException {
         ImageReader reader = new ImageReader();
         reader.setId(path);
         if (reader.getSeriesCount()>1 || reader.getSizeT()>1 || reader.getSizeC()>1) {
@@ -169,14 +176,14 @@ public class MainCommand {
         return shapedArray;
     }
 
-    static void saveArrayToOMETiff(String path, ShapedArray arr)
+    public static void saveArrayToOMETiff(String path, ShapedArray arr)
     throws DependencyException, ServiceException, FormatException, IOException {
         ServiceFactory factory = new ServiceFactory();
         OMEXMLService service = factory.getInstance(OMEXMLService.class);
         IMetadata omexml = service.createOMEXMLMetadata();
         omexml.setImageID("Image:0", 0);
         omexml.setPixelsID("Pixels:0", 0);
-        omexml.setPixelsBinDataBigEndian(Boolean.TRUE, 0, 0);
+        omexml.setPixelsBinDataBigEndian(Boolean.FALSE, 0, 0);
         omexml.setPixelsDimensionOrder(DimensionOrder.XYCZT, 0);
         switch (arr.getType()) {
             case Traits.BYTE:
