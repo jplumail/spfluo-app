@@ -10,7 +10,7 @@ class ProtSingleParticleSeparate(Protocol, ProtFluoBase):
     Separate 2 centrioles
     """
 
-    OUTPUT_NAME = "separated particles"
+    OUTPUT_PREFIX = "SeparatedParticles"
     _label = "separate centrioles"
     _devStatus = BETA
     _possibleOutputs = SetOfParticles
@@ -82,15 +82,17 @@ class ProtSingleParticleSeparate(Protocol, ProtFluoBase):
                     channel=self.channel.get(),
                     tukey_alpha=self.tukey.get(),
                 )
-                print(image_data.shape, im1.shape)
                 for j, im in enumerate([im1, im2]):
                     p = Particle.from_data(
                         im,
-                        self._getExtraPath(f"exctracted-im-{i}-{j}.ome.tiff"),
+                        self._getExtraPath(
+                            f"exctracted-{image.getBaseName()}-{i}-{j}.ome.tiff"
+                        ),
                         voxel_size=image.getVoxelSize(),
+                        num_channels=im.shape[0],
                     )
                     output_particles.append(p)
         output_particles.write()
 
-        name = "ParticlesSeparated" + self._getOutputSuffix(SetOfParticles)
+        name = self.OUTPUT_PREFIX + self._getOutputSuffix(SetOfParticles)
         self._defineOutputs(**{name: output_particles})
