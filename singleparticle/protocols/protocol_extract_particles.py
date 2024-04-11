@@ -84,7 +84,10 @@ class ProtSingleParticleExtractParticles(Protocol, ProtFluoBase):
                 filepath = self._getExtraPath(name)
 
                 extracted_particle = Particle.from_data(
-                    particle_data, filepath, voxel_size=(vs_xy, vs_z)
+                    particle_data,
+                    filepath,
+                    voxel_size=(vs_xy, vs_z),
+                    num_channels=im.getNumChannels(),
                 )
                 extracted_particle.setCoordinate3D(coord_im)
                 extracted_particle.setImageName(im.getFileName())
