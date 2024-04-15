@@ -14,12 +14,12 @@ from spfluo.ab_initio_reconstruction.volume_representation.pixel_representation 
     Fourier_pixel_representation,
 )
 from spfluo.utils.array import array_namespace, get_device, numpy, to_numpy
-from spfluo.utils.loading import save_poses
+from spfluo.utils.loading import read_poses, save_poses
 from spfluo.utils.memory import split_batch_func
 from spfluo.utils.transform import get_transform_matrix
 from spfluo.utils.volume import fourier_shift, phase_cross_correlation
 
-from ...utils.read_save_files import make_dir, save
+from ...utils.read_save_files import make_dir, read_image, save
 from ..common_image_processing_methods.others import normalize, stopping_criteria
 from ..common_image_processing_methods.rotation_translation import (
     conversion_2_first_eulers_angles_cartesian,
@@ -54,6 +54,7 @@ def gd_importance_sampling_3d(
     minibatch_size=None,
     callback: Callable[[np.ndarray, int], Any] | None = None,
     particles_names: list[str] | None = None,
+    keep_best: bool = True,  # if False, keep last iteration
 ):
     params_to_save = params_learning_alg.__dict__.copy()
     del params_to_save["params"]
@@ -95,6 +96,7 @@ def gd_importance_sampling_3d(
     pbar = tqdm(total=params_learning_alg.N_iter_max, leave=False, desc="energy : +inf")
     views = views.astype(params_learning_alg.dtype)
     N_axes, N_rot = params_learning_alg.N_axes, params_learning_alg.N_rot
+    minimum_energy, best_itr = None, None
     while itr < params_learning_alg.N_iter_max and (
         not stopping_criteria(recorded_energies, params_learning_alg.eps)
     ):
@@ -441,10 +443,15 @@ def gd_importance_sampling_3d(
             f.write(f"{total_energy}\n")
         recorded_energies.append(total_energy)
 
+        if minimum_energy is None or total_energy < minimum_energy:
+            minimum_energy = total_energy
+            best_itr = itr
+
         pbar.set_description(f"energy : {total_energy:.1f}")
         pbar.update()
 
     if itr > 0:
+        itr = best_itr if keep_best else itr
         shutil.copyfile(
             os.path.join(sub_dir, f"recons_epoch_{itr}.tif"),
             os.path.join(output_dir, "final_recons.tif"),
@@ -455,16 +462,24 @@ def gd_importance_sampling_3d(
         )
     pbar.close()
 
+    best_image = read_image(os.path.join(sub_dir, f"recons_epoch_{itr}.tif"), xp=np)
+    best_energies_each_view = np.load(
+        os.path.join(output_dir, "energies", f"energies_each_view_iter={itr:04}.npy")
+    )
+    best_estimated_poses, _ = read_poses(
+        os.path.join(sub_dir, f"estimated_poses_epoch_{itr}.csv")
+    )
+
     return (
         recorded_energies,
         recorded_shifts,
         unif_prop,
-        volume_representation,
+        best_image,
         itr,
-        energies_each_view,
+        best_energies_each_view,
         views,
         particles_names,
-        estimated_poses_iter,
+        best_estimated_poses,
     )
 
 

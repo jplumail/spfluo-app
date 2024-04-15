@@ -77,7 +77,7 @@ class AbInitioReconstruction:
             recorded_energies,
             recorded_shifts,
             unif_prop,
-            volume_representation,
+            reconstruction,
             itr,
             energies_each_view,
             views,
@@ -102,9 +102,7 @@ class AbInitioReconstruction:
             callback=self.callback,
             particles_names=particles_names,
         )
-        self._volume = xp.asarray(
-            volume_representation.get_image_from_fourier_representation()
-        )
+        self._volume = xp.asarray(reconstruction)
         self._energies = xp.mean(xp.asarray(energies_each_view), axis=0)
         self._num_iter = itr
         self._poses = xp.asarray(ests_poses)
