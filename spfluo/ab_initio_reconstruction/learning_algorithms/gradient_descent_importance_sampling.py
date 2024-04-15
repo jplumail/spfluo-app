@@ -19,7 +19,7 @@ from spfluo.utils.memory import split_batch_func
 from spfluo.utils.transform import get_transform_matrix
 from spfluo.utils.volume import fourier_shift, phase_cross_correlation
 
-from ...utils.read_save_files import make_dir, save, write_array_csv
+from ...utils.read_save_files import make_dir, save
 from ..common_image_processing_methods.others import normalize, stopping_criteria
 from ..common_image_processing_methods.rotation_translation import (
     conversion_2_first_eulers_angles_cartesian,
@@ -88,7 +88,6 @@ def gd_importance_sampling_3d(
     itr = 0
 
     recorded_shifts = [[] for _ in range(len(views))]
-    ssims = []
     sub_dir = os.path.join(output_dir, "intermediar_results")
     make_dir(sub_dir)
     ests_poses = []
@@ -413,7 +412,8 @@ def gd_importance_sampling_3d(
         if ground_truth is not None:
             regist_im = io.imread(os.path.join(sub_dir, f"recons_epoch_{itr}.tif"))
             ssim_gt_recons = ssim(normalize(ground_truth), normalize(regist_im))
-            ssims.append(ssim_gt_recons)
+            with open(os.path.join(output_dir, "ssims.csv"), "a") as f:
+                f.write(f"{ssim_gt_recons}\n")
 
         if not os.path.exists(
             distributions_angles_dir := os.path.join(output_dir, "distributions_angles")
@@ -427,6 +427,13 @@ def gd_importance_sampling_3d(
         np.save(
             os.path.join(distributions_angles_dir, f"iter={itr:04}_axes.npy"),
             imp_distrs_axes,
+        )
+
+        if not os.path.exists(energies_dir := os.path.join(output_dir, "energies")):
+            os.makedirs(energies_dir)
+        np.save(
+            os.path.join(energies_dir, f"energies_each_view_iter={itr:04}.npy"),
+            np.array(energies_each_view),
         )
 
         total_energy /= epoch_length
@@ -447,10 +454,6 @@ def gd_importance_sampling_3d(
             os.path.join(output_dir, "poses.csv"),
         )
     pbar.close()
-    write_array_csv(np.array(ssims), f"{output_dir}/ssims.csv")
-
-    energies_each_view = np.array(energies_each_view)
-    np.save(os.path.join(output_dir, "energies_each_view.npy"), energies_each_view)
 
     return (
         recorded_energies,
