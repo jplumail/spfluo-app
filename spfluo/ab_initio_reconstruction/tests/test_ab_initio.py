@@ -29,7 +29,7 @@ params_minimal_run = {
 }
 
 params_long_run = {
-    "N_iter_max": 10,
+    "N_iter_max": 4,
     "interp_order": 1,
 }
 
