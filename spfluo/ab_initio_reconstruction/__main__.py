@@ -1,6 +1,7 @@
 import argparse
 
 from spfluo.ab_initio_reconstruction.api import AbInitioReconstruction
+from spfluo.utils.log import base_parser, set_logging_level
 from spfluo.utils.read_save_files import (
     read_image,
     read_images_in_folder,
@@ -9,7 +10,7 @@ from spfluo.utils.volume import interpolate_to_size, move_center_of_mass_to_cent
 
 
 def create_parser():
-    parser = argparse.ArgumentParser("Ab initio reconstruction")
+    parser = argparse.ArgumentParser("Ab initio reconstruction", parents=[base_parser])
 
     # Input files
     parser.add_argument("--particles_dir", type=str)
@@ -58,7 +59,14 @@ def main(args):
     )
     psf = read_image(args.psf_path, gpu=args.gpu, dtype=args.dtype)
     ab_initio_params = dict(vars(args))
-    for k in ["output_dir", "gpu", "psf_path", "particles_dir", "minibatch_size"]:
+    for k in [
+        "output_dir",
+        "gpu",
+        "psf_path",
+        "particles_dir",
+        "minibatch_size",
+        "debug",
+    ]:
         ab_initio_params.pop(k)
     reconstruction = AbInitioReconstruction(**ab_initio_params)
     psf = move_center_of_mass_to_center(interpolate_to_size(psf, particles.shape[1:]))
@@ -72,4 +80,7 @@ def main(args):
 
 
 if __name__ == "__main__":
-    main(create_parser().parse_args())
+    parser = create_parser()
+    args = parser.parse_args()
+    set_logging_level(args)
+    main(args)
