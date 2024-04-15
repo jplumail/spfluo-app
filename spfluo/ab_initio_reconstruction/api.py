@@ -95,7 +95,6 @@ class AbInitioReconstruction:
             params_learning_alg,
             output_dir,
             ground_truth=None,
-            file_names=None,
             folder_views_selected=None,
             xp=xp,
             device=get_device(X),

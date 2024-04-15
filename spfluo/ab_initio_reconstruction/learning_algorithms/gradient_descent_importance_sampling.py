@@ -48,7 +48,6 @@ def gd_importance_sampling_3d(
     params_learning_alg,
     output_dir,
     ground_truth=None,
-    file_names=None,
     folder_views_selected=None,
     xp: "array_api_module" = numpy,
     device: "Device" = "cpu",
@@ -59,6 +58,7 @@ def gd_importance_sampling_3d(
     params_to_save = params_learning_alg.__dict__.copy()
     del params_to_save["params"]
     del params_to_save["dtype"]
+    make_dir(output_dir)
     with open(os.path.join(output_dir, "params_learning_alg.json"), "w") as f:
         json.dump(params_to_save, f)
     imp_distrs_axes, imp_distrs_rot = to_numpy(imp_distrs_axes, imp_distrs_rot)
@@ -79,8 +79,6 @@ def gd_importance_sampling_3d(
     if particles_names is None:
         particles_names = [i for i in range(len(views))]
 
-    make_dir(output_dir)
-    # print('number of views', len(views))
     x, y, z = conversion_2_first_eulers_angles_cartesian(thetas, phis)
     axes = np.array([x, y, z])
     M_axes = len(thetas)
@@ -380,12 +378,12 @@ def gd_importance_sampling_3d(
             imp_distrs_rot = [imp_distrs_rot[idx] for idx in idx_views_to_keep]
             energies_each_view = [energies_each_view[idx] for idx in idx_views_to_keep]
             recorded_shifts = [recorded_shifts[idx] for idx in idx_views_to_keep]
-            file_names = [file_names[idx] for idx in idx_views_to_keep]
+            particles_names = [particles_names[idx] for idx in idx_views_to_keep]
             folder_views_selected_step = (
                 f"{folder_views_selected}/step_{nb_step_of_supress}"
             )
             make_dir(folder_views_selected_step)
-            for i, fn in enumerate(file_names):
+            for i, fn in enumerate(particles_names):
                 save(f"{folder_views_selected_step}/{fn}", views[i])
 
         # Register reconstrution with groundtruth and save it
@@ -407,7 +405,11 @@ def gd_importance_sampling_3d(
             unif_prop_rot = unif_prop_min
 
         # Save stuff
-        save_poses(f"{sub_dir}/estimated_poses_epoch_{itr}.csv", estimated_poses_iter)
+        save_poses(
+            f"{sub_dir}/estimated_poses_epoch_{itr}.csv",
+            estimated_poses_iter,
+            particles_names,
+        )
         if ground_truth is not None:
             regist_im = io.imread(os.path.join(sub_dir, f"recons_epoch_{itr}.tif"))
             ssim_gt_recons = ssim(normalize(ground_truth), normalize(regist_im))
@@ -458,7 +460,7 @@ def gd_importance_sampling_3d(
         itr,
         energies_each_view,
         views,
-        file_names,
+        particles_names,
         estimated_poses_iter,
     )
 
