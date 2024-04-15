@@ -53,7 +53,7 @@ def gd_importance_sampling_3d(
     device: "Device" = "cpu",
     minibatch_size=None,
     callback: Callable[[np.ndarray, int], Any] | None = None,
-    particles_names: list[str] = None,
+    particles_names: list[str] | None = None,
 ):
     params_to_save = params_learning_alg.__dict__.copy()
     del params_to_save["params"]
@@ -77,7 +77,7 @@ def gd_importance_sampling_3d(
         make_dir(folder_views_selected)
 
     if particles_names is None:
-        particles_names = [i for i in range(len(views))]
+        particles_names = [str(i) for i in range(len(views))]
 
     x, y, z = conversion_2_first_eulers_angles_cartesian(thetas, phis)
     axes = np.array([x, y, z])

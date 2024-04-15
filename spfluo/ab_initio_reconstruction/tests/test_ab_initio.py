@@ -77,23 +77,24 @@ def numpy_run(request, generated_data_anisotropic, tmp_path_factory):
 def test_files_exist(numpy_run):
     ab_initio, tmpdir = numpy_run
     files = [
-        "distributions_axes.npy",
-        "distributions_rot.npy",
-        "energies_each_view.npy",
         "energies.csv",
         "params_learning_alg.json",
         "final_recons.tif",
         "poses.csv",
-        "ssims.csv",
     ]
     for f in files:
         assert (tmpdir / f).exists()
     assert (tmpdir / "intermediar_results").exists()
+    assert (tmpdir / "distributions_angles").exists()
+    assert (tmpdir / "energies").exists()
     for i in range(1, ab_initio._num_iter):
         assert (
             tmpdir / "intermediar_results" / f"estimated_poses_epoch_{i}.csv"
         ).exists()
         assert (tmpdir / "intermediar_results" / f"recons_epoch_{i}.tif").exists()
+        assert (tmpdir / "distributions_angles" / f"iter={i:04}_axes.npy").exists()
+        assert (tmpdir / "distributions_angles" / f"iter={i:04}_rot.npy").exists()
+        assert (tmpdir / "energies" / "energies_each_view_iter=0001.npy").exists()
     assert ab_initio._num_iter == len(ab_initio._energies)
 
 
