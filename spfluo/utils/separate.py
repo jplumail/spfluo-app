@@ -23,9 +23,13 @@ def extract_particle(
     def world_to_data_coord(pos):
         return pos / xp.asarray(scale)
 
+    def data_to_world_coords(pos):
+        return pos * xp.asarray(scale)
+
     pos = world_to_data_coord(xp.asarray(pos))  # World coordinates to data coords
     box_size_world = xp.asarray(dim, dtype=float)
-    box_size_data = xp.astype(xp.round(world_to_data_coord(box_size_world)), xp.int64)
+    box_size_data = xp.astype(xp.ceil(world_to_data_coord(box_size_world)), xp.int64)
+    real_dim = data_to_world_coords(box_size_data)
     mat = xp.eye(4)
     mat[:3, 3] = pos
     mat[:3, 3] -= box_size_data / 2
@@ -62,7 +66,7 @@ def extract_particle(
             ]
             particle_data[c] = xp.asarray(padded_array, copy=True)
 
-    return particle_data
+    return particle_data, real_dim
 
 
 def separate_centrioles(
@@ -82,6 +86,14 @@ def separate_centrioles(
         channel=channel,
         tukey_alpha=tukey_alpha,
     )
+
+
+def kmeans_cluster(points):
+    # Clustering
+    kmeans = KMeans(n_clusters=2, n_init="auto")
+    kmeans.fit(points)
+
+    return kmeans.labels_, kmeans.cluster_centers_
 
 
 def separate_centrioles_coords(
@@ -104,34 +116,76 @@ def separate_centrioles_coords(
         image = image[None]
 
     # extract patch from image
-    patch = extract_particle(image, pos, dim, scale, subpixel=False)[channel]
+    patch = extract_particle(image, pos, dim, scale, subpixel=False)[0][channel]
 
     # Thresholding
-    points = xp.stack(xp.nonzero(patch > xp.max(patch) * threshold_percentage), axis=-1)
-    points = xp.to_device(points, "cpu")
+    mask = patch > xp.max(patch) * threshold_percentage
+    points = xp.stack(xp.nonzero(mask), axis=-1)
 
+    # Cluster in the real space
     patch_top_left_corner = xp.asarray(pos) - xp.asarray(dim) / 2
     points = points * scale + patch_top_left_corner  # points in the image space
-    # Clustering
-    kmeans = KMeans(n_clusters=2, n_init="auto")
-    kmeans.fit(points)
+    labels, _ = kmeans_cluster(points)
+
+    (patch1, patch2), _ = _separate_clusters(
+        image, points, labels, patch[mask], output_size, scale, tukey_alpha
+    )
+
+    if not multichannel:
+        patch1, patch2 = patch1[0], patch2[0]
+
+    patch1, patch2 = (
+        xp.asarray(patch1, dtype=image.dtype),
+        xp.asarray(patch2, dtype=image.dtype),
+    )
+    return patch1, patch2
+
+
+def _run_svc(clusters_points, clusters_labels, intensities):
+    svc = SVC(kernel="linear")
+    svc.fit(clusters_points, clusters_labels, intensities)
+    return svc.coef_, svc.intercept_
+
+
+def _separate_clusters(
+    image: "Array",
+    clusters_points: "Array",
+    clusters_labels: "Array",
+    cluster_intensities: "Array",
+    output_size: tuple[float, ...],
+    scale: tuple[float, ...],
+    tukey_alpha: float,
+):
+    """Separate image into 2 images
+    Arguments:
+        - image: full image of shape (C, D, H, W)
+        - clusters_points: points of the clusters
+    """
+    xp = array_namespace(image, clusters_points, clusters_labels)
+    assert clusters_labels.max() == 1
+    centers = xp.stack(
+        (
+            xp.mean(clusters_points[clusters_labels == 0], axis=0),
+            xp.mean(clusters_points[clusters_labels == 1], axis=0),
+        ),
+        axis=0,
+    )
 
     # extract 2 patches around the centroids
     image_float = xp.asarray(image, dtype=xp.float64)
-    patch1 = extract_particle(
-        image_float, kmeans.cluster_centers_[0], output_size, scale, subpixel=False
+    patch1, real_dim = extract_particle(
+        image_float, centers[0], output_size, scale, subpixel=False
     )
-    patch2 = extract_particle(
-        image_float, kmeans.cluster_centers_[1], output_size, scale, subpixel=False
+    patch2, _ = extract_particle(
+        image_float, centers[1], output_size, scale, subpixel=False
     )
-    print(patch1.shape)
 
-    # Separate clusters
-    svc = SVC(kernel="linear")
-    svc.fit(points, kmeans.labels_)
+    plane_coef, plane_intercept = _run_svc(
+        clusters_points, clusters_labels, cluster_intensities
+    )
 
     def proj(x):
-        return xp.vecdot(x, xp.asarray(svc.coef_)) + xp.asarray(svc.intercept_)
+        return xp.vecdot(x, xp.asarray(plane_coef)) + xp.asarray(plane_intercept)
 
     # Compute hyperplane for each patch
     s = xp.max(patch1.shape[-3:])
@@ -139,7 +193,7 @@ def separate_centrioles_coords(
     t = tukey(xp, xp.asarray(xp.round(size_tukey), dtype=xp.int64), alpha=tukey_alpha)
 
     # Compute hyperplane for each patch and apply tukey window
-    for patch, pos_patch in zip([patch1, patch2], kmeans.cluster_centers_):
+    for patch, pos_patch in zip([patch1, patch2], centers):
         image_coords = xp.stack(
             xp.meshgrid(*[xp.arange(s) for s in patch.shape[1:]], indexing="ij"),
             axis=-1,
@@ -149,8 +203,8 @@ def separate_centrioles_coords(
         pos_patch_proj = proj(pos_patch)
 
         # Compute the tukey window
-        v = xp.asarray(svc.coef_[0])
-        d = xp.asarray(svc.intercept_) / xp.linalg.norm(v)
+        v = xp.asarray(plane_coef[0])
+        d = xp.asarray(plane_intercept) / xp.linalg.norm(v)
         v = v / xp.linalg.norm(v)
         unit = xp.asarray([0, 1, 0])
         R = find_rotation_between_two_vectors(unit, v)
@@ -190,12 +244,4 @@ def separate_centrioles_coords(
 
         patch *= t_rotated
 
-    if not multichannel:
-        patch1, patch2 = patch1[0], patch2[0]
-
-    patch1, patch2 = (
-        xp.asarray(patch1, dtype=image.dtype),
-        xp.asarray(patch2, dtype=image.dtype),
-    )
-
-    return patch1, patch2
+    return (patch1, patch2), centers
