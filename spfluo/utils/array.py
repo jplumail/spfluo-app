@@ -1,6 +1,5 @@
 import functools
-import sys
-from typing import TYPE_CHECKING, TypeAlias
+from typing import TYPE_CHECKING, Any, TypeAlias, overload
 
 from array_api_compat import (
     array_namespace as _array_namespace,
@@ -112,7 +111,11 @@ def numpy_only_compatibility(numpy_func):
     return func
 
 
-def to_numpy(*xs) -> numpy.ndarray | tuple[numpy.ndarray]:
+@overload
+def to_numpy(x: Any) -> numpy.ndarray: ...
+@overload
+def to_numpy(*xs: Any) -> tuple[numpy.ndarray, ...]: ...
+def to_numpy(*xs):
     ret = tuple([_to_numpy(x) for x in xs])
     if len(xs) == 1:
         return ret[0]
@@ -131,25 +134,16 @@ def _to_numpy(x: "Array") -> numpy.ndarray:
         return numpy.asarray(x, copy=True, device="cpu")
 
 
-def _is_torch_namespace(xp):
-    if not spfluo.has_torch():
-        return False
-
-    return get_torch() == xp
+def _is_numpy_namespace(xp):
+    return xp.__name__ in ("numpy", "array_api_compat.numpy")
 
 
 def _is_cupy_namespace(xp):
-    if not spfluo.has_cupy():
-        return False
-
-    return get_cupy() == xp
+    return xp.__name__ in ("cupy", "array_api_compat.cupy")
 
 
-def _is_numpy_namespace(xp):
-    if "numpy" not in sys.modules:
-        return False
-
-    return get_numpy() == xp
+def _is_torch_namespace(xp):
+    return xp.__name__ in ("torch", "array_api_compat.torch")
 
 
 def get_prefered_namespace_device(
@@ -161,6 +155,7 @@ def get_prefered_namespace_device(
         if device is not None:
             return xp, device
         if _is_torch_namespace(xp):
+            xp = get_torch()
             if gpu is None:
                 device = "cuda" if spfluo.has_torch_cuda() else "cpu"
             elif gpu:
@@ -168,10 +163,12 @@ def get_prefered_namespace_device(
             else:
                 device = "cpu"
         elif _is_cupy_namespace(xp):
+            xp = get_cupy()
             if gpu is False:
                 raise RuntimeError(f"{xp} cannot create non cuda arrays")
             device = None
         elif _is_numpy_namespace(xp):
+            xp = get_numpy()
             if gpu is True:
                 raise RuntimeError(f"{xp} cannot create gpu arrays")
             device = "cpu"
