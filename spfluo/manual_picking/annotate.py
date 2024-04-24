@@ -6,9 +6,13 @@ from typing import TYPE_CHECKING, Tuple
 
 import napari
 import numpy as np
+import tifffile
 from napari.utils.events import Event
 from napari_bbox import BoundingBoxLayer
+from ome_types import from_xml
+from vispy.color import Colormap
 
+from spfluo.utils.loading import get_data_from_ome_tiff
 from spfluo.visualisation.multiple_viewer_widget import add_orthoviewer_widget, init_qt
 
 if TYPE_CHECKING:
@@ -88,7 +92,23 @@ def annotate(
     view = napari.Viewer()
     view, dock_widget, cross = add_orthoviewer_widget(view)
 
-    view.open(im_path, layer_type="image", scale=spacing_normalized)
+    with tifffile.TiffFile(im_path, is_ome=True) as tif:
+        im = get_data_from_ome_tiff(tif, 0, order="CZYX")
+        ome = from_xml(tif.ome_metadata)
+    assert len(ome.images) == 1
+    assert im.shape[0] == len(ome.images[0].pixels.channels)
+    view.add_image(
+        im,
+        scale=spacing_normalized,
+        channel_axis=0,
+        colormap=[
+            Colormap(
+                [[0.0, 0.0, 0.0], [float(x) / 255.0 for x in c.color.as_rgb_tuple()]]
+            )
+            for c in ome.images[0].pixels.channels
+        ],
+        blending="additive",
+    )
 
     viewers: list[ViewerModel] = [
         dock_widget.viewer,
