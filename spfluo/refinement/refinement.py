@@ -635,6 +635,7 @@ def refine(
             lambda_,
             symmetry=True,
             device=compute_device,
+            batch_size=batch_size,
         )
         current_reconstruction = interpolate_to_size(
             current_reconstruction, patches[0].shape
