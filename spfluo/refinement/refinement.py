@@ -149,8 +149,6 @@ def reconstruction_L2(
 
     dxyz_padded = pad(dxyz, ((0, 0), *(((D - 1) // 2, (D - 2) // 2),) * 3))
     DtD = xp.sum((xp.abs(xp.fft.fftn(dxyz_padded, axes=(1, 2, 3))) ** 2), axis=0)
-    den += xp.asarray(lambda_[:, None, None, None] * DtD, dtype=xp.float32)
-    del DtD
 
     poses_psf = xp.zeros_like(new_poses)
     poses_psf[..., :3] = new_poses[..., :3]
@@ -214,6 +212,9 @@ def reconstruction_L2(
         )
         del H_
 
+    num = num / (N * k)
+    den = den / (N * k)
+    den += xp.asarray(lambda_[:, None, None, None] * DtD, dtype=xp.float32)
     num = xp.fft.ifftn(num / den, axes=(-3, -2, -1))
     recon = xp.real(num)
     del num
