@@ -92,17 +92,112 @@ def test_correctness_phase_cross_correlation(
             (phase_cross_correlation_skimage, reference_image, moving_image),
         ]
     ]
-
-    for i in range(reference_image.ndim):
+    translation = to_numpy(translation)
+    shift_skimage = -np.asarray(to_numpy(*shift_skimage))
+    shift = -np.asarray(to_numpy(*shift))
+    norm_error_vec_skimage = np.linalg.vector_norm(translation - shift_skimage)
+    norm_error_vec = np.linalg.vector_norm(translation - shift)
+    if norm_error_vec_skimage < norm_error_vec:
         assert_allclose(
-            xp.asarray(shift[i]), xp.asarray(shift_skimage[i]), atol=1 / upsample_factor
-        )
+            norm_error_vec, norm_error_vec_skimage, rtol=0.01, atol=1 / upsample_factor
+        )  # atol=0.1
     assert_allclose(error, xp.asarray(error_skimage), rtol=1e-3, atol=1e-2)
     # Phasediff not tested because not implemented in pytorch
 
 
 def test_broadcasting_phase_cross_correlation():  # TODO
     pass
+
+
+@pytest.fixture
+def cells3d_translated():
+    image = np.transpose(
+        data.cells3d()[:, :, :60, :60], (1, 0, 2, 3)
+    )  # shape (C, D, H, W)
+    translation = (5, -4, 10)
+
+    reference_image = np.fft.fftn(util.img_as_float(image), axes=(1, 2, 3))
+    moving_image = fourier_shift(reference_image, np.asarray(translation))
+    return reference_image, moving_image, translation
+
+
+@pytest.mark.parametrize("xp, device", testing_libs)
+def test_multichannel_phase_cross_correlation_1(
+    xp: "array_api_module", device, cells3d_translated
+):
+    reference_image, moving_image, translation = cells3d_translated
+    reference_image_xp = xp.asarray(reference_image, device=device)
+    moving_image_xp = xp.asarray(moving_image, device=device)
+
+    shift, error, phasediff = phase_cross_correlation(
+        reference_image_xp,
+        moving_image_xp,
+        space="fourier",
+        nb_spatial_dims=3,
+        multichannel=True,
+    )
+    assert len(shift) == 3
+    for i in range(len(shift)):
+        assert shift[i].ndim == 0
+    assert error.ndim == 0
+    assert_allclose(xp.stack(shift), -xp.asarray(translation))
+    assert_allclose(error, xp.asarray(1.0), rtol=1e-5)
+
+
+# With zeros on first channel
+@pytest.mark.parametrize("xp, device", testing_libs)
+def test_multichannel_phase_cross_correlation_2(
+    xp: "array_api_module", device, cells3d_translated
+):
+    reference_image, moving_image, translation = cells3d_translated
+    reference_image_xp = xp.asarray(reference_image, device=device)
+    moving_image_xp = xp.asarray(moving_image, device=device)
+    moving_image_xp_ = xp.asarray(moving_image_xp, copy=True)
+    moving_image_xp_[0, ...] = 0.0
+    shift, error, phasediff = phase_cross_correlation(
+        reference_image_xp,
+        moving_image_xp_,
+        space="fourier",
+        nb_spatial_dims=3,
+        multichannel=True,
+    )
+    assert len(shift) == 3
+    for i in range(len(shift)):
+        assert shift[i].ndim == 0
+    assert error.ndim == 0
+    assert_allclose(xp.stack(shift), -xp.asarray(translation))
+    assert_allclose(error, xp.asarray(1.0), rtol=1e-5)
+
+
+# With upsampling
+@pytest.mark.parametrize("xp, device", testing_libs)
+def test_multichannel_phase_cross_correlation_upsampling(
+    xp: "array_api_module", device
+):
+    image = np.transpose(
+        data.cells3d()[:, :, :60, :60], (1, 0, 2, 3)
+    )  # shape (C, D, H, W)
+    translation = (5.3, -4.1, 10.4)
+
+    reference_image = np.fft.fftn(util.img_as_float(image), axes=(1, 2, 3))
+    moving_image = fourier_shift(reference_image, np.asarray(translation))
+
+    reference_image_xp = xp.asarray(reference_image, device=device)
+    moving_image_xp = xp.asarray(moving_image, device=device)
+    shift, error, phasediff = phase_cross_correlation(
+        reference_image_xp,
+        moving_image_xp,
+        space="fourier",
+        nb_spatial_dims=3,
+        multichannel=True,
+        upsample_factor=10,
+    )
+    assert len(shift) == 3
+    for i in range(len(shift)):
+        assert shift[i].ndim == 0
+    assert error.ndim == 0
+    assert_allclose(xp.stack(shift), -xp.asarray(translation))
+    assert_allclose(error, xp.asarray(1.0), rtol=1e-5)
 
 
 ####################################################

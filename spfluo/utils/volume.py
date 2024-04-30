@@ -468,7 +468,7 @@ def _fourier_shift_broadcasted_array_api(
 
     grid_freq = xp.stack(
         xp.meshgrid(
-            *[xp.fft.fftfreq(int(s), device=device) for s in spatial_shape],
+            *[xp.asarray(np.fft.fftfreq(int(s)), device=device) for s in spatial_shape],
             indexing="ij",
         ),
         axis=-1,
@@ -548,6 +548,7 @@ def phase_cross_correlation(
     overlap_ratio: float = 0.3,
     normalization: str = "phase",
     nb_spatial_dims: Optional[int] = None,
+    multichannel: bool = False,
 ):
     """Efficient subpixel image translation registration by cross-correlation.
 
@@ -604,6 +605,9 @@ def phase_cross_correlation(
         supplied.
     nb_spatial_dims: int
         If your inputs are broadcastable, you must fill this param.
+    multichannel: bool
+        if True, reference_image and moving_image must have shape ({...}, C, [...])
+        where [...] corresponds to the spatial dims
 
     Returns
     -------
@@ -622,7 +626,11 @@ def phase_cross_correlation(
         this phase difference is not available and NaN is returned if
         ``return_error`` is "always".
     """
-    if is_numpy_array(reference_image):
+    extra_kwargs = {}
+    if multichannel:
+        func = _phase_cross_correlation_broadcasted_array_api
+        extra_kwargs["multichannel"] = True
+    elif is_numpy_array(reference_image):
         func = phase_cross_correlation_broadcasted_skimage
     elif is_cupy_array(reference_image):
         from ._cupy_functions.volume import phase_cross_correlation_broadcasted_cucim
@@ -642,6 +650,7 @@ def phase_cross_correlation(
         overlap_ratio=overlap_ratio,
         normalization=normalization,
         nb_spatial_dims=nb_spatial_dims,
+        **extra_kwargs,
     )
 
     return shift, error, phasediff
@@ -683,7 +692,9 @@ def _upsampled_dft(
     for ax, n_items, ups_size, ax_offset in dim_properties[::-1]:
         kernel = (
             xp.arange(ups_size, device=device, dtype=xp.float32) - ax_offset[..., None]
-        )[..., None] * xp.fft.fftfreq(n_items, d=upsample_factor, device=device)
+        )[..., None] * xp.asarray(
+            np.fft.fftfreq(n_items, d=upsample_factor), device=device
+        )
         kernel = xp.exp(-im2pi * xp.astype(kernel, data.dtype))  # shape (..., U, s_i)
         for _ in range(nb_spatial_dims - 1):
             kernel = xp.expand_dims(kernel, axis=-3)
@@ -706,27 +717,34 @@ def unravel_index(indices: "Array", shape: tuple[int, ...]):
     )
 
 
-def _cross_correlation_max(
+def _cross_correlation_multichannel_max(
     x: "Array", y: "Array", normalization: str, nb_spatial_dims: int = None
 ) -> "tuple[Array, Array, Array]":
-    """Compute cross-correlation between x and y
+    """Compute multichannel cross-correlation between x and y
     Params:
-        x (Array) of shape (B, ...)
+        x (Array) of shape ({...}, C, ...)
             where (...) corresponds to the N spatial dimensions
-        y (Array) of the same shape
+            and C is the number of channels
+        y (Array) of shape ({{...}}, C, ...)
+            where (...) corresponds to the N spatial dimensions
     Returns:
-        maxi (Array): cross correlatio maximum of shape (B,)
-        shift (Tuple[Array]): tuple of N tensors of size (B,)
-        image_product (Array): product of size (B, ...)
+        maxi (Array): cross correlation maximum of shape [...]
+        shift (Tuple[Array]): tuple of N tensors of size [...]
+        image_product (Array): product of size ([...], ...)
+    Notes
+        x and y must be broadcastable
+        {...} and {{...}} are broadcasted to [...]
     """
     xp = array_namespace(x, y)
-    nb_spatial_dims = nb_spatial_dims if nb_spatial_dims is not None else x.ndim
+    nb_spatial_dims = nb_spatial_dims if nb_spatial_dims is not None else x.ndim - 1
     output_shape = np.broadcast_shapes(x.shape, y.shape)
     other_shape, spatial_shape = (
-        output_shape[:-nb_spatial_dims],
+        output_shape[: -nb_spatial_dims - 1],
         output_shape[-nb_spatial_dims:],
     )
     z = x * xp.conj(y)
+    # reduce channel dim
+    z = xp.sum(z, axis=-nb_spatial_dims - 1)
     if normalization == "phase":
         z_abs = xp.abs(z)
         eps = xp.finfo(z_abs.dtype).eps
@@ -760,12 +778,13 @@ def _phase_cross_correlation_broadcasted_array_api(
     overlap_ratio: float = 0.3,
     normalization: str = "phase",
     nb_spatial_dims: Optional[int] = None,
+    multichannel: bool = False,
 ) -> Tuple["Array", "Array", "Array"]:
     """Phase cross-correlation between a reference and moving_images
     Params:
-        reference (Array): image of shape ({...}, [...])
+        reference (Array): image of shape ({...}, (C), [...])
             where [...] corresponds to the N spatial dimensions
-        moving_images (Array): images to register of shape ({{...}}, [...])
+        moving_images (Array): images to register of shape ({{...}}, (C), [...])
             where [...] corresponds to the N spatial dimensions
         upsample_factor (float): upsampling factor.
             Images will be registered up to 1/upsample_factor.
@@ -779,13 +798,17 @@ def _phase_cross_correlation_broadcasted_array_api(
             parameter is unused when masks (`reference_mask` and `moving_mask`) are
             supplied.
         nb_spatial_dims (int): specify the N spatial dimensions
+        multichannel (bool): optional C dimension.
     Returns:
         {...} and {{...}} shapes are broadcasted to (...)
         error (Array): tensor of shape (...)
         shift (Tuple[Array]): tuple of N tensors of size (...)
     """
     xp = array_namespace(reference_image, moving_image)
-    (device,) = set((get_device(reference_image), get_device(moving_image)))
+    device1, device2 = get_device(reference_image), get_device(moving_image)
+    if device1 != device2:
+        raise ValueError(f"found args on two devices: {device1}, {device2}")
+    device = device1
     if disambiguate:
         raise NotImplementedError(
             "array api masked cross correlation disambiguate is not implemented"
@@ -794,9 +817,15 @@ def _phase_cross_correlation_broadcasted_array_api(
         raise NotImplementedError(
             "array api masked cross correlation is not implemented"
         )
-    output_shape = np.broadcast_shapes(reference_image.shape, moving_image.shape)
     if nb_spatial_dims is None:
-        nb_spatial_dims = len(output_shape)
+        assert reference_image.shape == moving_image.shape
+        nb_spatial_dims = reference_image.ndim
+        if multichannel:
+            nb_spatial_dims -= 1
+    if not multichannel:
+        reference_image = xp.expand_dims(reference_image, axis=-nb_spatial_dims - 1)
+        moving_image = xp.expand_dims(moving_image, axis=-nb_spatial_dims - 1)
+    output_shape = np.broadcast_shapes(reference_image.shape, moving_image.shape)
     if space == "real":
         (floating_dtype,) = set((reference_image.dtype, moving_image.dtype))
         assert floating_dtype in (xp.float32, xp.float64)
@@ -817,17 +846,18 @@ def _phase_cross_correlation_broadcasted_array_api(
         reference_image_freq = xp.astype(reference_image, complex_dtype)
         moving_image_freq = xp.astype(moving_image, complex_dtype)
     other_shapes, spatial_shapes = (
-        output_shape[:-nb_spatial_dims],
+        output_shape[: -nb_spatial_dims - 1],
         output_shape[-nb_spatial_dims:],
     )
-    assert other_shapes + spatial_shapes == output_shape
+    channel_shape = (output_shape[-nb_spatial_dims - 1],)
+    assert other_shapes + channel_shape + spatial_shapes == output_shape
     assert len(spatial_shapes) == nb_spatial_dims
     midpoints = xp.asarray(
         [axis_size // 2 for axis_size in spatial_shapes], device=device, dtype=xp.int64
     )
 
     # Single pixel registration
-    error, shift, image_product = _cross_correlation_max(
+    error, shift, image_product = _cross_correlation_multichannel_max(
         reference_image_freq,
         moving_image_freq,
         normalization,
@@ -844,7 +874,7 @@ def _phase_cross_correlation_broadcasted_array_api(
         (reference_image_freq * xp.conj(reference_image_freq)),
         axis=tuple(
             range(
-                reference_image_freq.ndim - nb_spatial_dims,
+                reference_image_freq.ndim - nb_spatial_dims - 1,
                 reference_image_freq.ndim,
             )
         ),
@@ -852,7 +882,7 @@ def _phase_cross_correlation_broadcasted_array_api(
     rf00 = xp.sum(
         (moving_image_freq * xp.conj(moving_image_freq)),
         axis=tuple(
-            range(moving_image_freq.ndim - nb_spatial_dims, moving_image_freq.ndim)
+            range(moving_image_freq.ndim - nb_spatial_dims - 1, moving_image_freq.ndim)
         ),
     )
 
@@ -883,7 +913,7 @@ def _phase_cross_correlation_broadcasted_array_api(
         )
         max_idx = xp.argmax(cross_correlation_reshaped, axis=-1)
         indices = tuple(
-            xp.asarray(idx, dtype=max_idx.dtype, device=max_idx.device)
+            xp.asarray(idx, dtype=max_idx.dtype, device=device)
             for idx in np.ix_(
                 *tuple(
                     np.arange(cross_correlation_reshaped.shape[i])
@@ -896,7 +926,7 @@ def _phase_cross_correlation_broadcasted_array_api(
         maxima -= dftshift
 
         shift += xp.astype(maxima, xp.float32) / xp.asarray(
-            upsample_factor, dtype=xp.float32, device=maxima.device
+            upsample_factor, dtype=xp.float32, device=device
         )
 
     error = 1.0 - error / (xp.real(rg00) * xp.real(rf00))
