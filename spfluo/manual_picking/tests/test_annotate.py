@@ -42,18 +42,16 @@ def test_data(make_napari_viewer_proxy):
         == len(widget.viewer_model2.layers)
     )
     np.testing.assert_allclose(
-        widget.viewer.layers["data"].data, widget.viewer_model1.layers["data"].data
+        widget.viewer.layers[1].data, widget.viewer_model1.layers[1].data
     )
     np.testing.assert_allclose(
-        widget.viewer.layers["data"].data, widget.viewer_model2.layers["data"].data
+        widget.viewer.layers[1].data, widget.viewer_model2.layers[1].data
     )
 
 
 def test_data_after_move(make_napari_viewer_proxy):
     viewer: napari.Viewer = make_napari_viewer_proxy(show=True)
     widget, image_layer = create_multiviewer_with_data(viewer)
-    bbox_layer = BoundingBoxLayer(ndim=3)
-    viewer.add_layer(bbox_layer)
     bbox_layer = add_bbox_layer(viewer)
 
     # move bbox in main viewer
@@ -65,10 +63,10 @@ def test_data_after_move(make_napari_viewer_proxy):
         == len(widget.viewer_model2.layers)
     )
     np.testing.assert_allclose(
-        widget.viewer.layers["data"].data, widget.viewer_model1.layers["data"].data
+        widget.viewer.layers[1].data, widget.viewer_model1.layers[1].data
     )
     np.testing.assert_allclose(
-        widget.viewer.layers["data"].data, widget.viewer_model2.layers["data"].data
+        widget.viewer.layers[1].data, widget.viewer_model2.layers[1].data
     )
 
 
@@ -87,10 +85,10 @@ def test_remove(make_napari_viewer_proxy):
         == len(widget.viewer_model2.layers)
     )
     np.testing.assert_allclose(
-        widget.viewer.layers["data"].data, widget.viewer_model1.layers["data"].data
+        widget.viewer.layers[1].data, widget.viewer_model1.layers[1].data
     )
     np.testing.assert_allclose(
-        widget.viewer.layers["data"].data, widget.viewer_model2.layers["data"].data
+        widget.viewer.layers[1].data, widget.viewer_model2.layers[1].data
     )
 
 
@@ -121,8 +119,8 @@ def test_remove2(make_napari_viewer_proxy):
         == len(widget.viewer_model2.layers)
     )
     np.testing.assert_allclose(
-        widget.viewer.layers["data"].data, widget.viewer_model1.layers["data"].data
+        widget.viewer.layers[1].data, widget.viewer_model1.layers[1].data
     )
     np.testing.assert_allclose(
-        widget.viewer.layers["data"].data, widget.viewer_model2.layers["data"].data
+        widget.viewer.layers[1].data, widget.viewer_model2.layers[1].data
     )

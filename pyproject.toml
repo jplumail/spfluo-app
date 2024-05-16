@@ -49,6 +49,7 @@ dev = [
   "pyfigtree",
   "scikit-image[data]",
   "array-api-strict",
+  "pytest-qt",
 ]
 manual-picking = [
   "spfluo[visualisation]"
