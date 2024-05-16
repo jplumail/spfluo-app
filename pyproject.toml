@@ -8,7 +8,7 @@ dependencies = [
   "numpy",
   "array_api_compat>=1.5",
   "scipy",
-  "scikit-image",
+  "scikit-image>=0.22",
   "scikit-learn",
   "tqdm",
   "matplotlib",

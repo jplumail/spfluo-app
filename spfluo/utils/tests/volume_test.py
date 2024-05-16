@@ -1,4 +1,3 @@
-from functools import partial
 from typing import TYPE_CHECKING
 
 import pytest
@@ -26,11 +25,6 @@ if TYPE_CHECKING:
 ##################################################################
 # Test phase_cross_correlation against the scikit-image function #
 ##################################################################
-
-
-phase_cross_correlation_skimage = partial(
-    phase_cross_correlation_skimage, return_error="always"
-)
 
 
 @settings(deadline=None)

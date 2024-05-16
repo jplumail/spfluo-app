@@ -503,7 +503,6 @@ def phase_cross_correlation_broadcasted_skimage(
             upsample_factor=upsample_factor,
             space=space,
             disambiguate=disambiguate,
-            return_error="always",
             reference_mask=reference_mask,
             moving_mask=moving_mask,
             overlap_ratio=overlap_ratio,
@@ -523,7 +522,6 @@ def phase_cross_correlation_broadcasted_skimage(
             upsample_factor=upsample_factor,
             space=space,
             disambiguate=disambiguate,
-            return_error="always",
             reference_mask=reference_mask,
             moving_mask=moving_mask,
             overlap_ratio=overlap_ratio,
@@ -617,14 +615,11 @@ def phase_cross_correlation(
         the axis order of the input array.
     error : float
         Translation invariant normalized RMS error between
-        ``reference_image`` and ``moving_image``. For masked cross-correlation
-        this error is not available and NaN is returned if ``return_error``
+        ``reference_image`` and ``moving_image``.
         is "always".
     phasediff : float
         Global phase difference between the two images (should be
-        zero if images are non-negative). For masked cross-correlation
-        this phase difference is not available and NaN is returned if
-        ``return_error`` is "always".
+        zero if images are non-negative).
     """
     extra_kwargs = {}
     if multichannel:
