@@ -500,7 +500,8 @@ def compute_shifts(
 ) -> Tuple["Array", "Array", "Array"]:
     xp = array_namespace(inverse_transforms, view)
 
-    (device,) = set([str(get_device(inverse_transforms)), str(get_device(view))])
+    device = get_device(inverse_transforms)
+    assert device == get_device(view)
     psf = xp.asarray(psf, device=device)
     volume_fourier = xp.asarray(reference_volume_fft, device=device)
 
