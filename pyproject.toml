@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "spfluo"
 dependencies = [
   "numpy",
-  "array_api_compat>=1.5",
+  "array_api_compat>=1.6",
   "scipy",
   "scikit-image>=0.22",
   "scikit-learn",

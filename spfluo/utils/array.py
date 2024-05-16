@@ -19,7 +19,7 @@ from array_api_compat import (
 import spfluo
 
 
-def array_namespace(*xs, api_version=None, _use_compat=True) -> "array_api_module":
+def array_namespace(*xs, api_version=None, use_compat=True) -> "array_api_module":
     """
     Get the array API compatible namespace for the arrays `xs`.
 
@@ -35,9 +35,7 @@ def array_namespace(*xs, api_version=None, _use_compat=True) -> "array_api_modul
     api_version should be the newest version of the spec that you need support
     for (currently the compat library wrapped APIs only support v2021.12).
     """
-    xp: array_api_module = _array_namespace(
-        *xs, api_version=api_version, _use_compat=_use_compat
-    )
+    xp = _array_namespace(*xs, api_version=api_version, use_compat=use_compat)
     return xp
 
 
