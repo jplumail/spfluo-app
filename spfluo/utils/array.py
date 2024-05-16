@@ -18,8 +18,10 @@ from array_api_compat import (
 
 import spfluo
 
+API_VERSION = "2022.12"
 
-def array_namespace(*xs, api_version=None, use_compat=True) -> "array_api_module":
+
+def array_namespace(*xs) -> "array_api_module":
     """
     Get the array API compatible namespace for the arrays `xs`.
 
@@ -28,14 +30,11 @@ def array_namespace(*xs, api_version=None, use_compat=True) -> "array_api_module
     Typical usage is
 
         def your_function(x, y):
-            xp = array_api_compat.array_namespace(x, y)
+            xp = array_namespace(x, y)
             # Now use xp as the array library namespace
             return xp.mean(x, axis=0) + 2*xp.std(y, axis=0)
-
-    api_version should be the newest version of the spec that you need support
-    for (currently the compat library wrapped APIs only support v2021.12).
     """
-    xp = _array_namespace(*xs, api_version=api_version, use_compat=use_compat)
+    xp = _array_namespace(*xs, api_version=API_VERSION, use_compat=None)
     return xp
 
 
