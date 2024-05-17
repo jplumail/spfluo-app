@@ -92,10 +92,26 @@ def reconstruction_L2(
     xp = array_namespace(volumes, poses, psf, lambda_)
     host_device = get_device(volumes)
     compute_device = device
-    N, C, D, H, W = volumes.shape[-4:]
+    N, C, D, H, W = volumes.shape
     assert D == H == W
     c, d, h, w = psf.shape
     assert c == C
+
+    floating_dtype = volumes.dtype
+    assert xp.isdtype(floating_dtype, "real floating")
+    assert floating_dtype == psf.dtype
+    if floating_dtype == xp.float32:
+        complex_dtype = xp.complex64
+    elif floating_dtype == xp.float64:
+        complex_dtype = xp.complex128
+    else:
+        raise ValueError(
+            f"{floating_dtype=} is not supported. "
+            "Only float32 and float64 are accepted."
+        )
+
+    refinement_logger.debug(f"floating dtype: {floating_dtype}")
+    refinement_logger.debug(f"complex dtype: {complex_dtype}")
 
     refinement_logger.info(
         "Arguments:"
@@ -136,10 +152,10 @@ def reconstruction_L2(
 
     psf = interpolate_to_size(psf, (D, D, D), multichannel=True)
 
-    num = xp.zeros((M, C, D, D, D), dtype=xp.complex64, device=host_device)
-    den = xp.zeros_like(num, dtype=xp.float32)
+    num = xp.zeros((M, C, D, D, D), dtype=complex_dtype, device=host_device)
+    den = xp.zeros_like(num, dtype=floating_dtype)
 
-    dxyz = xp.zeros((3, 2, 2, 2), device=host_device, dtype=xp.complex64)
+    dxyz = xp.zeros((3, 2, 2, 2), device=host_device, dtype=complex_dtype)
     dxyz[0, 0, 0, 0] = 1
     dxyz[0, 1, 0, 0] = -1
     dxyz[1, 0, 0, 0] = 1
@@ -149,6 +165,8 @@ def reconstruction_L2(
 
     dxyz_padded = pad(dxyz, ((0, 0), *(((D - 1) // 2, (D - 2) // 2),) * 3))
     DtD = xp.sum((xp.abs(xp.fft.fftn(dxyz_padded, axes=(1, 2, 3))) ** 2), axis=0)
+    den += lambda_[:, None, None, None] * DtD
+    del DtD
 
     poses_psf = xp.zeros_like(new_poses)
     poses_psf[..., :3] = new_poses[..., :3]
@@ -161,6 +179,8 @@ def reconstruction_L2(
         number_poses = (end1 - start1) * (end2 - start2)
         number_volumes = end3 - start3
         number_channels = end4 - start4
+
+        # Move data to compute device
         poses_minibatch = to_device(
             new_poses[start1:end1, start2:end2, start3:end3, ...], compute_device
         )
@@ -170,6 +190,8 @@ def reconstruction_L2(
         volumes_minibatch = to_device(
             volumes[start3:end3, start4:end4, ...], compute_device
         )
+        psf_minibatch = to_device(psf[start4:end4, ...], compute_device)
+
         y = xp.stack(
             (volumes_minibatch,) * number_poses,
         )
@@ -184,31 +206,30 @@ def reconstruction_L2(
             ),
             (end1 - start1, end2 - start2, number_volumes, number_channels, D, D, D),
         )
-        y = xp.asarray(y, dtype=xp.complex64)
 
-        H_ = xp.stack((psf,) * number_volumes * number_poses)
+        H_ = xp.stack((psf_minibatch,) * number_volumes * number_poses)
         H_ = xp.reshape(
             rotate(
                 H_,
                 xp.reshape(poses_psf_minibatch, (number_poses * number_volumes, 6)),
                 inverse=True,
+                multichannel=True,
             ),
-            (end1 - start1, end2 - start2, end3 - start3, D, D, D),
+            (end1 - start1, end2 - start2, end3 - start3, number_channels, D, D, D),
         )
-        H_ = xp.asarray(H_, dtype=xp.complex64)
 
         H_ = xp.fft.fftn(H_, axes=(-3, -2, -1))
 
         # Compute numerator
         y = xp.fft.fftn(xp.fft.fftshift(y, axes=(-3, -2, -1)), axes=(-3, -2, -1))
         y = xp.conj(H_) * y
-        num[start1:end1, ...] += to_device(
-            xp.sum(y, axis=(-5, -4), dtype=xp.complex64), host_device
+        num[start1:end1, start4:end4, ...] += to_device(
+            xp.sum(y, axis=(1, 2)), host_device
         )  # reduce symmetry and N dims
 
         # Compute denominator
-        den[start1:end1, ...] += to_device(
-            xp.sum(xp.abs(H_) ** 2, axis=(-5, -4), dtype=xp.float32), host_device
+        den[start1:end1, start4:end4, ...] += to_device(
+            xp.sum(xp.abs(H_) ** 2, axis=(1, 2)), host_device
         )
         del H_
 
@@ -216,12 +237,20 @@ def reconstruction_L2(
     den = den / (N * k)
     den += xp.asarray(lambda_[:, None, None, None] * DtD, dtype=xp.float32)
     num = xp.fft.ifftn(num / den, axes=(-3, -2, -1))
+    refinement_logger.debug(f"num dtype: {num.dtype}")
     recon = xp.real(num)
+    refinement_logger.debug(f"recon 1 dtype: {recon.dtype}")
     del num
-    recon = xp.where(recon > 0, recon, xp.asarray(0.0, device=host_device))
+    recon = xp.where(
+        recon > 0, recon, xp.asarray(0.0, device=host_device, dtype=floating_dtype)
+    )
+    refinement_logger.debug(f"recon 2 end dtype: {recon.dtype}")
 
     if resize:
-        recon = interpolate_to_size(recon, (D - 1, D - 1, D - 1), batch=True)
+        recon = interpolate_to_size(
+            recon, (D - 1, D - 1, D - 1), batch=True, multichannel=True
+        )
+    refinement_logger.debug(f"recon 3 end dtype: {recon.dtype}")
 
     if not batch:
         recon = recon[0, ...]
@@ -236,6 +265,7 @@ def reconstruction_L2(
         )
         refinement_logger.debug("Saving reconstruction(s) at " + str(p))
 
+    refinement_logger.debug(f"recon end dtype: {recon.dtype}")
     return recon
 
 
@@ -249,9 +279,9 @@ def convolution_matching_poses_grid(
 ):
     """Find the best pose from a list of poses for each volume
     Params:
-        reference (Array) : reference 3D image of shape (D, H, W)
-        volumes (Array) : volumes to match of shape (N, D, H, W)
-        psf (Array): 3D PSF of shape (d, h, w)
+        reference (Array) : reference 3D image of shape (C, D, H, W)
+        volumes (Array) : volumes to match of shape (N, C, D, H, W)
+        psf (Array): 3D PSF of shape (C, d, h, w)
         poses_grid (Array): poses to test of shape (M, 6)
         device (Device): the device to do the computation on.
         batch_size (int)
@@ -265,11 +295,14 @@ def convolution_matching_poses_grid(
 
     # Shapes
     M, d = poses_grid.shape
-    N, D, H, W = volumes.shape
+    N, C, D, H, W = volumes.shape
 
     # PSF
     h = xp.asarray(
-        xp.fft.fftn(xp.fft.fftshift(interpolate_to_size(psf, (D, H, W)))),
+        xp.fft.fftn(
+            xp.fft.fftshift(interpolate_to_size(psf, (D, H, W), multichannel=True)),
+            axes=(1, 2, 3),
+        ),
         device=compute_device,
     )
 
@@ -278,24 +311,23 @@ def convolution_matching_poses_grid(
     for (start1, end1), (start2, end2) in split_batch2(
         max_batch=batch_size, shape=(N, M)
     ):
+        number_poses = end2 - start2
+        volumes_minibatch = xp.asarray(volumes[start1:end1], device=compute_device)
         potential_poses_minibatch = xp.asarray(
             poses_grid[start2:end2], device=compute_device
         )
 
         # Volumes to frequency space
-        volumes_freq = xp.fft.fftn(
-            xp.asarray(volumes[start1:end1], device=compute_device), axes=(1, 2, 3)
-        )
+        volumes_freq = xp.fft.fftn(volumes_minibatch, axes=(2, 3, 4))
 
         # Rotate the reference
         reference_minibatch = xp.stack(
-            (xp.asarray(reference, device=compute_device),) * (end2 - start2)
+            (xp.asarray(reference, device=compute_device),) * number_poses
         )
-        reference_minibatch = rotate(  # TODO: inefficient
-            reference_minibatch,
-            potential_poses_minibatch,  # should leverage multichannel affine_transform
+        reference_minibatch = rotate(
+            reference_minibatch, potential_poses_minibatch, multichannel=True
         )
-        reference_minibatch = h * xp.fft.fftn(reference_minibatch, axes=(1, 2, 3))
+        reference_minibatch = h * xp.fft.fftn(reference_minibatch, axes=(2, 3, 4))
 
         # Registration
         sh, err, _ = phase_cross_correlation(
@@ -305,6 +337,7 @@ def convolution_matching_poses_grid(
             normalization=None,
             upsample_factor=10,
             space="fourier",
+            multichannel=True,
         )
         sh = xp.stack(list(sh), axis=-1)
 
@@ -331,9 +364,9 @@ def convolution_matching_poses_refined(
     """Find the best pose from a list of poses for each volume.
     There can be a different list of pose for each volume.
     Params:
-        reference (Array) : reference 3D image of shape (D, H, W)
-        volumes (Array) : volumes to match of shape (N, D, H, W)
-        psf (Array): 3D PSF of shape (d, h, w)
+        reference (Array) : reference 3D image of shape (C, D, H, W)
+        volumes (Array) : volumes to match of shape (N, C, D, H, W)
+        psf (Array): 3D PSF of shape (C, d, h, w)
         potential_poses (Array): poses to test of shape (N, M, 6)
         device (Device): the device to do the computation on.
         batch_size (int)
@@ -347,11 +380,16 @@ def convolution_matching_poses_refined(
 
     # Shapes
     N1, M, _ = potential_poses.shape
-    N, D, H, W = volumes.shape
+    N, C, D, H, W = volumes.shape
     assert N == N1
 
     # PSF
-    h = xp.fft.fftn(xp.fft.fftshift(interpolate_to_size(psf, (D, H, W))))
+    h = xp.fft.fftn(
+        xp.fft.fftshift(
+            interpolate_to_size(psf, (D, H, W), multichannel=True), axes=(1, 2, 3)
+        ),
+        axes=(1, 2, 3),
+    )
 
     shifts = xp.empty((N, M, 3), dtype=reference.dtype, device=host_device)
     errors = xp.empty((N, M), dtype=reference.dtype, device=host_device)
@@ -367,7 +405,7 @@ def convolution_matching_poses_refined(
 
         # Volumes to Fourier space
         volumes_freq = xp.fft.fftn(
-            to_device(volumes[start1:end1], compute_device), axes=(1, 2, 3)
+            to_device(volumes[start1:end1], compute_device), axes=(2, 3, 4)
         )
 
         # Rotate the reference
@@ -376,10 +414,11 @@ def convolution_matching_poses_refined(
             rotate(
                 reference_minibatch,
                 xp.reshape(potential_poses_minibatch, (minibatch_size, 6)),
+                multichannel=True,
             ),
-            (end1 - start1, end2 - start2, D, H, W),
+            (end1 - start1, end2 - start2, C, D, H, W),
         )
-        reference_minibatch = h * xp.fft.fftn(reference_minibatch, axes=(2, 3, 4))
+        reference_minibatch = h * xp.fft.fftn(reference_minibatch, axes=(3, 4, 5))
 
         # Registration
         sh, err, _ = phase_cross_correlation(
@@ -389,6 +428,7 @@ def convolution_matching_poses_refined(
             normalization=None,
             upsample_factor=10,
             space="fourier",
+            multichannel=True,
         )
         sh = xp.stack(list(sh), axis=-1)
 
@@ -523,6 +563,10 @@ def refine(
 ):
     """
     Args:
+        patches:
+            shape (N, C, D, D, D)
+        psf:
+            shape (C, d, h, w)
         symmetry: if greater than 1, adds a symmetry constraint.
             In that case, the symmetry axis must be parallel to the X-axis.
             See get_transformation_matrix function docs for details
@@ -534,13 +578,15 @@ def refine(
     assert lambda_ > 0, f"lambda should be greater than 1, found {lambda_}"
     refinement_logger.debug("Calling function refine")
     xp = array_namespace(patches, psf, guessed_poses)
+    N, C, D, H, W = patches.shape
+    assert D == H == W
     host_device = get_device(patches)
     compute_device = device
     array_kwargs = dict(dtype=patches.dtype, device=host_device)
     lambda_ = xp.asarray(lambda_, **array_kwargs)
 
     if initial_volume is not None:
-        initial_volume = interpolate_to_size(initial_volume, patches[0].shape)
+        initial_volume = interpolate_to_size(initial_volume, (D, D, D))
         current_reconstruction = initial_volume
     else:
         guessed_poses_sym = symmetrize_poses(
@@ -557,7 +603,7 @@ def refine(
             batch_size=batch_size,
         )
         initial_reconstruction = interpolate_to_size(
-            initial_reconstruction, patches[0].shape
+            initial_reconstruction, (D, D, D), multichannel=True
         )
 
         current_reconstruction = initial_reconstruction
@@ -639,7 +685,7 @@ def refine(
             batch_size=batch_size,
         )
         current_reconstruction = interpolate_to_size(
-            current_reconstruction, patches[0].shape
+            current_reconstruction, (D, D, D), multichannel=True
         )
         refinement_logger.debug(f"[reconstruction_L2] Done in {time.time()-t0:.3f}s")
 

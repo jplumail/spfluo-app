@@ -208,6 +208,27 @@ def get_prefered_namespace_device(
     return xp, device
 
 
+def median(a: "Array", axis: int | None = None, xp=None):
+    xp = array_namespace(a) if xp is None else xp
+    if axis is None:
+        a = xp.reshape(a, (-1,))
+        axis = 0
+    N = a.shape[axis]
+    if N % 2 == 1:
+        res = xp.take(
+            xp.sort(a, axis=axis), xp.asarray((a.shape[axis] - 1) // 2), axis=axis
+        )
+    else:
+        res = (
+            xp.take(xp.sort(a, axis=axis), xp.asarray(a.shape[axis] // 2), axis=axis)
+            + xp.take(
+                xp.sort(a, axis=axis), xp.asarray(a.shape[axis] // 2 - 1), axis=axis
+            )
+        ) / 2
+    res = xp.astype(res, xp.float64)
+    return res
+
+
 __all__ = [array_namespace, is_array_api_obj, to_device, to_numpy, get_device]
 
 if TYPE_CHECKING:

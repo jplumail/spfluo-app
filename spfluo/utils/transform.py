@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Tuple
 
 from scipy.spatial.transform import Rotation
 
-from .array import array_namespace, get_device, numpy_only_compatibility
+from .array import array_namespace, get_device, median, numpy_only_compatibility
 
 if TYPE_CHECKING:
     from spfluo.utils.array import Array
@@ -310,14 +310,11 @@ def distance_family_poses(
     traces[traces > 3.0] = 3.0
     angles = xp.acos((traces - 1) / 2)
     angles = xp.min(angles, axis=0)  # shape (s, N, N)
-    mean_angles = xp.mean(
-        angles,
-        axis=-1,
-    )
-    mean_angles = mean_angles * 180 / xp.pi
+    median_angles = median(angles, axis=-1, xp=xp)
+    median_angles = median_angles * 180 / xp.pi
 
     # Translation distances, simple L2 norm
     t1, t2 = xp.asarray(guessed_poses[..., 3:]), xp.asarray(gt_poses[..., 3:])
     trans_distances = xp.sum(((t1 - t2) ** 2), axis=-1) ** 0.5
 
-    return mean_angles, trans_distances
+    return median_angles, trans_distances

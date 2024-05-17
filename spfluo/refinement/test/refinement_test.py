@@ -2,8 +2,10 @@
 
 from typing import TYPE_CHECKING, Callable, Tuple
 
+import cupy
 import numpy as np
 import pytest
+import torch
 
 from spfluo.refinement import (
     convolution_matching_poses_grid,
@@ -18,7 +20,7 @@ from spfluo.tests.helpers import (
     ids,
     testing_libs,
 )
-from spfluo.utils.array import array_namespace, get_device
+from spfluo.utils.array import array_namespace, get_device, median
 from spfluo.utils.transform import (
     distance_family_poses,
     get_transform_matrix,
@@ -31,6 +33,14 @@ from spfluo.utils.volume import (
 
 if TYPE_CHECKING:
     from spfluo.utils.array import Array
+
+
+@pytest.fixture(autouse=True)
+def clear_cuda_cache():
+    yield
+    torch.cuda.empty_cache()
+    mempool = cupy.get_default_memory_pool()
+    mempool.free_all_blocks()
 
 
 @pytest.fixture(scope="module")
@@ -70,9 +80,11 @@ def test_shapes_reconstruction_L2(generated_data_all_array):
     (volumes, groundtruth_poses, psf, groundtruth), device = generated_data_all_array
     xp = array_namespace(volumes)
     lambda_ = xp.asarray(1.0, device=get_device(volumes))
+    volumes = volumes[:, None, ...]
+    psf = psf[None, ...]
     recon = reconstruction_L2(volumes, psf, groundtruth_poses, lambda_, device=device)
 
-    assert recon.shape == volumes.shape[-3:]
+    assert recon.shape == volumes.shape[-4:]
 
 
 @pytest.mark.parametrize("minibatch", [1, 10, None])
@@ -102,6 +114,50 @@ def test_parallel_reconstruction_L2(minibatch, generated_data_all_array, save_re
 
     assert recon.shape == (M,) + volumes.shape[-3:]
     assert_allclose(recon, recon2, atol=1e-5)
+
+
+@pytest.mark.parametrize(
+    "generated_data_all_array", testing_libs, indirect=True, ids=ids
+)
+def test_multichannel_reconstruction_L2(
+    generated_data_all_array, save_result: Callable[[str, np.ndarray], bool]
+):
+    # data preparation
+    (volumes, poses, psf, groundtruth), compute_device = generated_data_all_array
+    device = get_device(volumes)
+    xp = array_namespace(volumes)
+    volumes = xp.stack((volumes,) * 3, axis=1)
+    psf = xp.stack((psf,) * 3, axis=0)
+    dtype = volumes.dtype
+    noise = xp.asarray(
+        np.random.randn(*volumes.shape) * 0.2, device=device, dtype=dtype
+    )
+    volumes = volumes + noise
+    lambda_ = xp.asarray(1.0)
+
+    # reconstruction of 3-channel input should be the same as 3 mono-channel
+    # input reconstrucions
+    recon_multichannel = reconstruction_L2(
+        volumes, psf, poses, lambda_, device=compute_device
+    )
+    recon = xp.stack(
+        [
+            reconstruction_L2(
+                volumes[:, i : i + 1, ...],
+                psf[i : i + 1, ...],
+                poses,
+                lambda_,
+                device=compute_device,
+            )[0, ...]
+            for i in range(3)
+        ]
+    )
+
+    save_result("reconstruction_multichannel", recon_multichannel)
+    save_result("reconstruction", recon)
+
+    assert recon_multichannel.shape == recon.shape
+    assert_allclose(recon_multichannel, recon, atol=1e-4)
 
 
 @pytest.mark.xfail(run=False)
@@ -351,7 +407,12 @@ def test_memory_convolution_matching_poses_grid(generated_data_all_array):
         )
 
         best_poses, errors = convolution_matching_poses_grid(
-            groundtruth, volumes, psf, potential_poses, device=device, batch_size=256
+            groundtruth[:, None],
+            volumes[:, None],
+            psf[None],
+            potential_poses,
+            device=device,
+            batch_size=256,
         )
 
         assert best_poses.shape == (volumes.shape[0], 6)
@@ -361,10 +422,10 @@ def test_memory_convolution_matching_poses_grid(generated_data_all_array):
 @pytest.mark.parametrize("xp,device", gpu_libs, ids=gpu_ids)
 def test_shapes_convolution_matching_poses_grid(xp, device):
     M, d = 5, 6
-    N, D, H, W = 10, 32, 32, 32
-    reference = xp.asarray(np.random.randn(D, H, W), device=device)
-    volumes = xp.asarray(np.random.randn(N, D, H, W), device=device)
-    psf = xp.asarray(np.random.randn(D, H, W), device=device)
+    N, C, D, H, W = 10, 2, 32, 32, 32
+    reference = xp.asarray(np.random.randn(C, D, H, W), device=device)
+    volumes = xp.asarray(np.random.randn(N, C, D, H, W), device=device)
+    psf = xp.asarray(np.random.randn(C, D, H, W), device=device)
     potential_poses = xp.asarray(np.random.randn(M, d), device=device)
 
     best_poses, errors = convolution_matching_poses_grid(
@@ -417,10 +478,10 @@ def test_shapes_convolution_matching_poses_grid(xp, device):
 @pytest.mark.parametrize("xp,device", gpu_libs, ids=gpu_ids)
 def test_shapes_convolution_matching_poses_refined(xp, device):
     M, d = 5, 6
-    N, D, H, W = 10, 32, 32, 32
-    reference = xp.asarray(np.random.randn(D, H, W), device=device)
-    volumes = xp.asarray(np.random.randn(N, D, H, W), device=device)
-    psf = xp.asarray(np.random.randn(D, H, W), device=device)
+    N, C, D, H, W = 10, 2, 32, 32, 32
+    reference = xp.asarray(np.random.randn(C, D, H, W), device=device)
+    volumes = xp.asarray(np.random.randn(N, C, D, H, W), device=device)
+    psf = xp.asarray(np.random.randn(C, D, H, W), device=device)
     potential_poses = xp.asarray(np.random.randn(N, M, d), device=device)
 
     best_poses, errors = convolution_matching_poses_refined(
@@ -461,28 +522,22 @@ def test_shapes_find_angles_grid(xp, device):
 @pytest.mark.slow
 @pytest.mark.parametrize("xp,device", gpu_libs, ids=gpu_ids)
 def test_refine_shapes(xp, device):
-    N, D, H, W = 15, 32, 32, 32
-    patches = xp.asarray(np.random.randn(N, D, H, W))
-    psf = xp.asarray(np.random.randn(D, H, W))
+    N, C, D, H, W = 15, 2, 32, 32, 32
+    patches = xp.asarray(np.random.randn(N, C, D, H, W))
+    psf = xp.asarray(np.random.randn(C, D, H, W))
     guessed_poses = xp.asarray(np.random.randn(N, 6))
 
     S = 2
     steps = [(S * S, S), S * S * S]
     ranges = [0, 40]
     recon, poses = refine(
-        patches, psf, guessed_poses, steps, ranges, device=device, batch_size=512
+        patches, psf, guessed_poses, steps, ranges, device=device, batch_size=256
     )
 
     assert recon.shape == patches[0].shape
     assert poses.shape == guessed_poses.shape
 
 
-# @pytest.mark.skipif(device == "cpu", reason="Too long if done on CPU.")
-@pytest.mark.xfail(
-    reason="distance_family_poses doesn't work as expected, "
-    "the final reconstruction is better than the initial one.",
-    run=True,
-)
 @pytest.mark.parametrize(
     "generated_data_all_array", gpu_libs, indirect=True, ids=gpu_ids
 )
@@ -492,17 +547,25 @@ def test_refine_easy(
     save_result: Callable[[str, np.ndarray], bool],
 ):
     poses = poses_with_noise
-    volumes, groundtruth_poses, psf, groundtruth = generated_data_all_array
+
+    # data preparation
+    (volumes, groundtruth_poses, psf, groundtruth), compute_device = (
+        generated_data_all_array
+    )
     xp = array_namespace(volumes)
 
     lambda_ = xp.asarray(1.0, device=get_device(volumes))
+    poses_sym = xp.permute_dims(symmetrize_poses(poses, 9), (1, 0, 2))
     initial_reconstruction = reconstruction_L2(
-        volumes,
-        psf,
-        xp.permute_dims(symmetrize_poses(poses, 9), (1, 0, 2)),
+        volumes[:, None],
+        psf[None],
+        poses_sym,
         lambda_,
         symmetry=True,
+        device=compute_device,
+        batch_size=1,
     )
+    initial_reconstruction = initial_reconstruction[0]
 
     S = 5
     A = 5 * 2
@@ -511,7 +574,15 @@ def test_refine_easy(
         0,
     ] + [10, 5, 5, 2, 2, 1, 1]
     reconstruction, best_poses = refine(
-        volumes, psf, poses, steps, ranges, symmetry=9, lambda_=1e-2
+        volumes[:, None],
+        psf[None],
+        poses,
+        steps,
+        ranges,
+        symmetry=9,
+        lambda_=1e-2,
+        device=compute_device,
+        batch_size=256,
     )
 
     rot_dist_deg1, trans_dist_pix1 = distance_family_poses(
@@ -524,6 +595,76 @@ def test_refine_easy(
     save_result("initial_reconstruction", initial_reconstruction)
     save_result("final_reconstruction", reconstruction)
 
-    assert xp.mean(rot_dist_deg1) < xp.mean(rot_dist_deg2) and xp.mean(
+    assert median(rot_dist_deg1) < median(rot_dist_deg2) and median(
         trans_dist_pix1
-    ) < xp.mean(trans_dist_pix2)
+    ) < median(trans_dist_pix2)
+
+
+@pytest.mark.parametrize(
+    "generated_data_all_array", gpu_libs, indirect=True, ids=gpu_ids
+)
+def test_refine_easy_multichannel(
+    generated_data_all_array: tuple["Array", ...],
+    poses_with_noise: "Array",
+    save_result: Callable[[str, np.ndarray], bool],
+):
+    poses = poses_with_noise
+
+    # data preparation
+    (volumes, groundtruth_poses, psf, groundtruth), compute_device = (
+        generated_data_all_array
+    )
+    device = get_device(volumes)
+    xp = array_namespace(volumes)
+    volumes = xp.stack((volumes,) * 3, axis=1)
+    psf = xp.stack((psf,) * 3, axis=0)
+    dtype = volumes.dtype
+    noise = xp.asarray(
+        np.random.randn(*volumes.shape) * 0.2, device=device, dtype=dtype
+    )
+    volumes = volumes + noise
+    lambda_ = xp.asarray(1.0)
+
+    lambda_ = xp.asarray(1.0, device=get_device(volumes))
+    poses_sym = xp.permute_dims(symmetrize_poses(poses, 9), (1, 0, 2))
+    initial_reconstruction = reconstruction_L2(
+        volumes,
+        psf,
+        poses_sym,
+        lambda_,
+        symmetry=True,
+        device=compute_device,
+        batch_size=1,
+    )
+
+    S = 5
+    A = 5 * 2
+    steps = [(A**2, 5)] + [S] * 7  # 7.25° axis precision; 4° sym precision
+    ranges = [
+        0,
+    ] + [10, 5, 5, 2, 2, 1, 1]
+    reconstruction, best_poses = refine(
+        volumes,
+        psf,
+        poses,
+        steps,
+        ranges,
+        symmetry=9,
+        lambda_=1e-2,
+        device=compute_device,
+        batch_size=256,
+    )
+
+    rot_dist_deg1, trans_dist_pix1 = distance_family_poses(
+        best_poses, groundtruth_poses, symmetry=9
+    )
+    rot_dist_deg2, trans_dist_pix2 = distance_family_poses(
+        poses, groundtruth_poses, symmetry=9
+    )
+
+    save_result("initial_reconstruction", initial_reconstruction)
+    save_result("final_reconstruction", reconstruction)
+
+    assert median(rot_dist_deg1) < median(rot_dist_deg2) and median(
+        trans_dist_pix1
+    ) < median(trans_dist_pix2)
