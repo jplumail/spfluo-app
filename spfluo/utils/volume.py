@@ -990,17 +990,25 @@ def discretize_sphere_uniformly(
 
 def center_of_mass(volume: "Array"):
     xp = array_namespace(volume)
-    tensor_kwargs = dict(dtype=volume.dtype, device=get_device(volume))
+    if not xp.isdtype(volume.dtype, "real floating"):
+        dtype = xp.float64
+        assert not xp.isdtype(volume.dtype, "complex floating")
+        volume_float = xp.astype(volume, xp.float64)
+    else:
+        dtype = volume.dtype
+        volume_float = volume
+    kwargs = dict(dtype=dtype, device=get_device(volume))
     zz, yy, xx = xp.meshgrid(
-        xp.arange(volume.shape[-3], **tensor_kwargs),
-        xp.arange(volume.shape[-2], **tensor_kwargs),
-        xp.arange(volume.shape[-1], **tensor_kwargs),
+        xp.arange(volume.shape[-3], **kwargs),
+        xp.arange(volume.shape[-2], **kwargs),
+        xp.arange(volume.shape[-1], **kwargs),
         indexing="ij",
     )
+    S = xp.sum(volume_float)
     return (
-        float(xp.sum(volume * zz) / xp.sum(volume)),
-        float(xp.sum(volume * yy) / xp.sum(volume)),
-        float(xp.sum(volume * xx) / xp.sum(volume)),
+        float(xp.sum(volume_float * zz) / S),
+        float(xp.sum(volume_float * yy) / S),
+        float(xp.sum(volume_float * xx) / S),
     )
 
 
