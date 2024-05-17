@@ -1035,7 +1035,7 @@ def move_center_of_mass_to_center(volume: "Array", order: int = 1):
     return translate(volume, xp.asarray(tvec, device=get_device(volume)), order=order)
 
 
-def disp3D(*ims, fig=None, axis_off=False):
+def disp3D(*ims: np.ndarray, fig=None, axis_off=False):
     if fig is None:
         fig = plt.figure()
     axes = fig.subplots(1, len(ims))
@@ -1055,15 +1055,15 @@ def disp3D(*ims, fig=None, axis_off=False):
 
         ax_x = divider.append_axes(
             "right",
-            size=f"{100*ims[i].shape[0]/ims[i].shape[2]}%",
-            pad="5%",
-            sharex=axes[i],
+            size=1,
+            pad=0,
+            sharey=axes[i],
         )
         ax_y = divider.append_axes(
             "bottom",
-            size=f"{100*ims[i].shape[0]/ims[i].shape[1]}%",
-            pad="5%",
-            sharey=axes[i],
+            size=1,
+            pad=0,
+            sharex=axes[i],
         )
 
         # make some labels invisible
@@ -1100,14 +1100,18 @@ def disp3D(*ims, fig=None, axis_off=False):
                 color="white",
                 bbox=dict(boxstyle="square"),
             )
-
-        axes[i].imshow(views[0], cmap="gray")
-        ax_y.imshow(views[1], cmap="gray")
-        ax_x.imshow(ndii.rotate(views[2], 90)[::-1], cmap="gray")
+        vmin = min(views[0].min(), views[1].min(), views[2].min())
+        vmax = max(views[0].max(), views[1].max(), views[2].max())
+        axes[i].imshow(views[0], cmap="gray", vmin=vmin, vmax=vmax)
+        ax_y.imshow(views[1], cmap="gray", vmin=vmin, vmax=vmax)
+        ax_x.imshow(ndii.rotate(views[2], 90)[::-1], cmap="gray", vmin=vmin, vmax=vmax)
+        axes[i].set_xlim(0, ims[i].shape[2] - 1)
+        axes[i].set_ylim(0, ims[i].shape[1] - 1)
 
     if axis_off:
         for ax in axes:
             ax.set_axis_off()
+    return fig, axes
 
 
 def disp2D(*ims, fig=None, **imshowkwargs):
@@ -1125,6 +1129,7 @@ def disp2D(*ims, fig=None, **imshowkwargs):
     else:
         axes.set_axis_off()
         axes.imshow(ims[0], **imshowkwargs)
+    return fig, axes
 
 
 def disp2D_compare(fig, *ims, **imshowkwargs):
