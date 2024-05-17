@@ -46,7 +46,13 @@ def clear_cuda_cache():
 @pytest.fixture(scope="module")
 def generated_data_all_array(request, generated_data_all):
     xp, device = request.param
-    return tuple([xp.asarray(x) for x in generated_data_all]), device
+    volumes, poses, psf, groundtruth = tuple(
+        [xp.asarray(x) for x in generated_data_all]
+    )
+    volumes = xp.expand_dims(volumes, axis=1)
+    psf = xp.expand_dims(psf, axis=0)
+    groundtruth = xp.expand_dims(groundtruth, axis=0)
+    return (volumes, poses, psf, groundtruth), device
 
 
 @pytest.fixture
@@ -80,8 +86,6 @@ def test_shapes_reconstruction_L2(generated_data_all_array):
     (volumes, groundtruth_poses, psf, groundtruth), device = generated_data_all_array
     xp = array_namespace(volumes)
     lambda_ = xp.asarray(1.0, device=get_device(volumes))
-    volumes = volumes[:, None, ...]
-    psf = psf[None, ...]
     recon = reconstruction_L2(volumes, psf, groundtruth_poses, lambda_, device=device)
 
     assert recon.shape == volumes.shape[-4:]
@@ -109,10 +113,10 @@ def test_parallel_reconstruction_L2(minibatch, generated_data_all_array, save_re
         ]
     )
 
-    save_result("reconstructions", recon2, metadata={"axes": "TZYX"})
-    save_result("reconstructions_paralled", recon, metadata={"axes": "TZYX"})
+    save_result("reconstructions", recon2, metadata={"axes": "TCZYX"})
+    save_result("reconstructions_paralled", recon, metadata={"axes": "TCZYX"})
 
-    assert recon.shape == (M,) + volumes.shape[-3:]
+    assert recon.shape == (M,) + volumes.shape[-4:]
     assert_allclose(recon, recon2, atol=1e-5)
 
 
@@ -126,8 +130,8 @@ def test_multichannel_reconstruction_L2(
     (volumes, poses, psf, groundtruth), compute_device = generated_data_all_array
     device = get_device(volumes)
     xp = array_namespace(volumes)
-    volumes = xp.stack((volumes,) * 3, axis=1)
-    psf = xp.stack((psf,) * 3, axis=0)
+    volumes = xp.concat((volumes,) * 3, axis=1)
+    psf = xp.concat((psf,) * 3, axis=0)
     dtype = volumes.dtype
     noise = xp.asarray(
         np.random.randn(*volumes.shape) * 0.2, device=device, dtype=dtype
@@ -160,7 +164,6 @@ def test_multichannel_reconstruction_L2(
     assert_allclose(recon_multichannel, recon, atol=1e-4)
 
 
-@pytest.mark.xfail(run=False)
 @pytest.mark.parametrize(
     "generated_data_all_array", testing_libs, indirect=True, ids=ids
 )
@@ -171,18 +174,23 @@ def test_symmetry_reconstruction_L2(
     (volumes, poses, psf, groundtruth), device = generated_data_all_array
     xp = array_namespace(volumes)
     lambda_ = xp.asarray(1.0)
-    poses = xp.stack((poses,) * k)  # useless symmetry
+    poses_sym = xp.stack((poses,) * k)  # useless symmetry
     recon_sym = reconstruction_L2(
-        volumes, psf, poses, lambda_, symmetry=True, device=device
+        volumes, psf, poses_sym, lambda_, symmetry=True, device=device
     )
     recon = reconstruction_L2(
-        volumes, psf, poses[0], lambda_, symmetry=False, device=device
+        xp.concat((volumes,) * k, axis=0),
+        psf,
+        xp.concat((poses,) * k, axis=0),
+        lambda_,
+        symmetry=False,
+        device=device,
     )
 
     save_result("reconstruction_sym", recon_sym)
     save_result("reconstruction", recon)
 
-    assert recon_sym.shape == volumes.shape[-3:]
+    assert recon_sym.shape == volumes.shape[-4:]
     assert_allclose(recon_sym, recon, atol=1e-4)
 
 
@@ -218,17 +226,18 @@ def test_symmetry_reconstruction_L2_2(
         volume[0, ...],
         xp.asarray(
             get_transform_matrix(
-                volume.shape[1:], pose[0, :3], pose[0, 3:], degrees=True
+                volume.shape[2:], pose[0, :3], pose[0, 3:], degrees=True
             ),
             dtype=volume.dtype,
         ),
         order=1,
+        multichannel=True,
     )
 
     # save and assert
     save_result("reconstruction_sym", recon_sym)
     save_result("simple_rot", rot)
-    assert_volumes_aligned(recon_sym, rot)
+    assert_volumes_aligned(recon_sym, rot, multichannel=True)
 
 
 @pytest.mark.parametrize(
@@ -249,6 +258,7 @@ def test_reconstruction_L2_simple(
     save_result("reconstruction", reconstruction)
     save_result("groundtruth", groundtruth)
 
+    print(reconstruction.shape, groundtruth.shape)
     assert_volumes_aligned(reconstruction, groundtruth, atol=1)
 
 
@@ -402,14 +412,12 @@ def test_memory_convolution_matching_poses_grid(generated_data_all_array):
     # M = 10_000 -> 50 Go to transfer to GPU
     # We split the computation in batch_size
     for M in [1, 10, 100, 1_000, 10_000]:
-        potential_poses = xp.asarray(
-            np.random.randn(M, 6), dtype=volumes.dtype, device="cpu"
-        )
+        potential_poses = xp.asarray(np.random.randn(M, 6), dtype=volumes.dtype)
 
         best_poses, errors = convolution_matching_poses_grid(
-            groundtruth[:, None],
-            volumes[:, None],
-            psf[None],
+            groundtruth,
+            volumes,
+            psf,
             potential_poses,
             device=device,
             batch_size=256,
@@ -500,10 +508,10 @@ def test_shapes_convolution_matching_poses_refined(xp, device):
 @pytest.mark.slow
 @pytest.mark.parametrize("xp,device", gpu_libs, ids=gpu_ids)
 def test_shapes_find_angles_grid(xp, device):
-    N, D, H, W = 15, 32, 32, 32
-    reconstruction = xp.asarray(np.random.randn(D, H, W), device=device)
-    patches = xp.asarray(np.random.randn(N, D, H, W), device=device)
-    psf = xp.asarray(np.random.randn(D, H, W), device=device)
+    N, C, D, H, W = 15, 2, 32, 32, 32
+    reconstruction = xp.asarray(np.random.randn(C, D, H, W), device=device)
+    patches = xp.asarray(np.random.randn(N, C, D, H, W), device=device)
+    psf = xp.asarray(np.random.randn(C, D, H, W), device=device)
 
     best_poses, errors = find_angles_grid(
         xp, reconstruction, patches, psf, precision=10
@@ -557,8 +565,8 @@ def test_refine_easy(
     lambda_ = xp.asarray(1.0, device=get_device(volumes))
     poses_sym = xp.permute_dims(symmetrize_poses(poses, 9), (1, 0, 2))
     initial_reconstruction = reconstruction_L2(
-        volumes[:, None],
-        psf[None],
+        volumes,
+        psf,
         poses_sym,
         lambda_,
         symmetry=True,
@@ -574,8 +582,8 @@ def test_refine_easy(
         0,
     ] + [10, 5, 5, 2, 2, 1, 1]
     reconstruction, best_poses = refine(
-        volumes[:, None],
-        psf[None],
+        volumes,
+        psf,
         poses,
         steps,
         ranges,
@@ -616,8 +624,8 @@ def test_refine_easy_multichannel(
     )
     device = get_device(volumes)
     xp = array_namespace(volumes)
-    volumes = xp.stack((volumes,) * 3, axis=1)
-    psf = xp.stack((psf,) * 3, axis=0)
+    volumes = xp.concat((volumes,) * 3, axis=1)
+    psf = xp.concat((psf,) * 3, axis=0)
     dtype = volumes.dtype
     noise = xp.asarray(
         np.random.randn(*volumes.shape) * 0.2, device=device, dtype=dtype

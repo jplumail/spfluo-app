@@ -66,7 +66,11 @@ def random_pose(
 
 
 def assert_volumes_aligned(
-    vol1: "Array", vol2: "Array", atol: float = 0.1, nb_spatial_dims: int = 3
+    vol1: "Array",
+    vol2: "Array",
+    atol: float = 0.1,
+    nb_spatial_dims: int = 3,
+    multichannel: bool = False,
 ):
     xp = array_namespace(vol1, vol2)
     (dz, dy, dx), _, _ = phase_cross_correlation(
@@ -76,6 +80,7 @@ def assert_volumes_aligned(
         disambiguate=False,
         normalization=None,
         nb_spatial_dims=nb_spatial_dims,
+        multichannel=multichannel,
     )
     n = (dz**2 + dy**2 + dx**2) ** 0.5
     assert xp.all(n <= atol), f"{xp.max(n)} > {atol}"
