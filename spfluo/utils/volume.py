@@ -233,15 +233,18 @@ def resample(
     multichannel: bool = False,
 ):
     xp = array_namespace(volume)
-    array_kwargs = dict(device=get_device(volume), dtype=volume.dtype)
-    sampling = xp.asarray(sampling, device=get_device(volume), dtype=float)
-    in_shape = xp.asarray(volume.shape[-3:], device=get_device(volume), dtype=float)
+    device = get_device(volume)
+    sampling = xp.asarray(sampling, device=device, dtype=xp.float64)
+    in_shape = xp.asarray(volume.shape[-3:], device=device, dtype=xp.float64)
     out_shape = xp.round(in_shape * sampling)
     D, H, W = int(out_shape[0]), int(out_shape[1]), int(out_shape[2])
 
     # Compute transformation matrix
     input_center, output_center = (in_shape - 1) / 2, (out_shape - 1) / 2
-    H_center, H_homo = xp.eye(4, **array_kwargs), xp.eye(4, **array_kwargs)
+    H_center, H_homo = (
+        xp.eye(4, device=device, dtype=xp.float64),
+        xp.eye(4, device=device, dtype=xp.float64),
+    )
     H_center[:3, 3] = -input_center  # 1. translation to (0,0,0)
     H_homo[[0, 1, 2], [0, 1, 2]] = sampling  # 2. homothety
     H_homo[:3, 3] = output_center  # 3. translation to center of image
