@@ -84,9 +84,13 @@ def main(args):
     particles = xp.to_device(particles, "cpu")
     host_device = get_device(particles)
     particles = xp.stack([normalize(particles[i]) for i in range(particles.shape[0])])
+    if particles.ndim == 4:
+        particles = particles[:, None]
     psf = normalize(
         read_image(args.psf_path, xp=xp, device=host_device, dtype=args.dtype)
     )
+    if psf.ndim == 3:
+        psf = xp.stack((psf,) * particles.shape[1], axis=0)
     if args.initial_volume_path:
         initial_volume = normalize(
             read_image(
