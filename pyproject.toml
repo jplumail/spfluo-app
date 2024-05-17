@@ -80,3 +80,8 @@ Repository = "https://github.com/jplumail/spfluo.git"
 
 [tool.setuptools_scm]
 write_to = "spfluo/_version.py"
+
+[tool.pytest.ini_options]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]
