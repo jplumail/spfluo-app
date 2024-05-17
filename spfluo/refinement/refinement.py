@@ -164,8 +164,12 @@ def reconstruction_L2(
     dxyz[2, 0, 0, 1] = -1
 
     dxyz_padded = pad(dxyz, ((0, 0), *(((D - 1) // 2, (D - 2) // 2),) * 3))
-    DtD = xp.sum((xp.abs(xp.fft.fftn(dxyz_padded, axes=(1, 2, 3))) ** 2), axis=0)
-    den += lambda_[:, None, None, None] * DtD
+    DtD = xp.sum(
+        (xp.abs(xp.fft.fftn(dxyz_padded, axes=(1, 2, 3))) ** 2),
+        axis=0,
+        dtype=floating_dtype,
+    )
+    den += (xp.astype(lambda_[:, None, None, None], floating_dtype) * DtD)[:, None, ...]
     del DtD
 
     poses_psf = xp.zeros_like(new_poses)
@@ -218,18 +222,19 @@ def reconstruction_L2(
             (end1 - start1, end2 - start2, end3 - start3, number_channels, D, D, D),
         )
 
-        H_ = xp.fft.fftn(H_, axes=(-3, -2, -1))
+        H_ = xp.fft.fftn(xp.astype(H_, complex_dtype), axes=(-3, -2, -1))
 
         # Compute numerator
+        y = xp.astype(y, complex_dtype)
         y = xp.fft.fftn(xp.fft.fftshift(y, axes=(-3, -2, -1)), axes=(-3, -2, -1))
         y = xp.conj(H_) * y
         num[start1:end1, start4:end4, ...] += to_device(
-            xp.sum(y, axis=(1, 2)), host_device
+            xp.sum(y, axis=(1, 2), dtype=complex_dtype), host_device
         )  # reduce symmetry and N dims
 
         # Compute denominator
         den[start1:end1, start4:end4, ...] += to_device(
-            xp.sum(xp.abs(H_) ** 2, axis=(1, 2)), host_device
+            xp.sum(xp.abs(H_) ** 2, axis=(1, 2), dtype=floating_dtype), host_device
         )
         del H_
 
