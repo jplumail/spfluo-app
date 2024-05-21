@@ -16,6 +16,7 @@ dependencies = [
     "scipy",
     "spfluo[manual-picking,ab-initio-reconstruction,refinement,visualisation]",
     "flask",
+    "waitress",
 ]
 
 [project.urls]

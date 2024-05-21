@@ -22,6 +22,7 @@ from pyworkflow.protocol import Protocol
 from pyworkflow.utils import getSubclasses
 from pyworkflow.viewer import Viewer
 from pyworkflow.wizard import Wizard
+from waitress import serve
 
 from singleparticle.constants import (
     FLUO_ROOT_VAR,
@@ -116,8 +117,9 @@ class Plugin(plugin.Plugin):
         cls.addSingleParticlePackage(env)
 
 
-# start http server
-threading.Thread(
-    target=lambda: app.run(host="127.0.0.1", port=5000, debug=True, use_reloader=False),
-    daemon=True,
-).start()
+def run_server():
+    serve(app, host="127.0.0.1", port=5000)
+
+
+# Start Waitress server in a separate thread
+threading.Thread(target=run_server, daemon=True).start()
