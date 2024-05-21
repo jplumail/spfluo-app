@@ -117,8 +117,9 @@ class NapariSetOfParticlesWidget(Toplevel):
         self.widget = FilterSetWidget()
         self.widget.set_data(self.particles_data)
         viewer.window.add_dock_widget(self.widget)
-        self.particle_layer = Image(self.particles_data[0], name="particle")
-        viewer.add_layer(self.particle_layer)
+        self.particle_layer: list[Image] = viewer.add_image(
+            data=self.particles_data[0], channel_axis=0
+        )
         viewer.bind_key("Delete", self._on_delete)
         self.widget.list_widget.currentItemChanged.connect(self._on_item_changed)
 
@@ -144,8 +145,9 @@ class NapariSetOfParticlesWidget(Toplevel):
 
     def _on_item_changed(self, item: "QListWidgetItem", previous: "QListWidgetItem"):
         i = self.widget.list_widget.row(item)
-        self.particle_layer.data = self.particles_data[i]
-        self.particle_layer.refresh()
+        for c in range(self.particles_data[0].shape[0]):
+            self.particle_layer[c].data = self.particles_data[i][c]
+            self.particle_layer[c].refresh()
 
     def _on_delete(self, viewer: napari.Viewer):
         indices_deleted = self.widget._on_delete()
@@ -180,8 +182,9 @@ class NapariSetOfParticlesWidget(Toplevel):
 
         self.widget.set_data(self.particles_data)
         current_row = self.widget.list_widget.currentRow()
-        self.particle_layer.data = self.particles_data[current_row]
-        self.particle_layer.refresh()
+        for c in range(self.particles_data[0].shape[0]):
+            self.particle_layer[c].data = self.particles_data[current_row][c]
+            self.particle_layer[c].refresh()
 
 
 class SetOfParticlesView(View):
