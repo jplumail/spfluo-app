@@ -21,9 +21,7 @@ import org.mitiv.TiPi.base.Shape;
 import org.mitiv.TiPi.base.Traits;
 import org.mitiv.TiPi.io.ColorModel;
 import org.mitiv.TiPi.utils.FFTUtils;
-import ch.qos.logback.classic.Level;
-import ch.qos.logback.classic.LoggerContext;
-import ch.qos.logback.classic.Logger;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import loci.common.services.DependencyException;
@@ -49,11 +47,12 @@ public class MainCommand {
     @Argument
     private String args;
 
+    final static Logger logger = LoggerFactory.getLogger(MainCommand.class);
+
     public static void main(String[] args) throws FormatException, IOException, DependencyException, ServiceException {
         MainCommand job = new MainCommand();
-        LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
-        Logger rootLogger = loggerContext.getLogger(Logger.ROOT_LOGGER_NAME);
-        rootLogger.setLevel(Level.ERROR);
+        ch.qos.logback.classic.Logger root = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME);
+        root.setLevel(ch.qos.logback.classic.Level.ERROR);
         if (args.length > 1){
             String[] newArgs = Arrays.copyOfRange(args, 1, args.length);
             if (args[0].equals("deconv")) {
@@ -71,6 +70,7 @@ public class MainCommand {
 
     public static ShapedArray readOMETiffToArray(String path) throws FormatException, IOException {
         ImageReader reader = new ImageReader();
+        logger.info("Start reading OME-Tiff: {}", path);
         reader.setId(path);
         if (reader.getSeriesCount()>1 || reader.getSizeT()>1 || reader.getSizeC()>1) {
             int s = reader.getSeriesCount();
@@ -81,22 +81,37 @@ public class MainCommand {
             throw new FormatException(String.format("File no good shape (Series:%d, T:%d, C:%d, Z:%d)", s, t, c, z));
         }
         reader.setSeries(0);
-        int bitsPerPixel = reader.getBitsPerPixel();
+        int bytesPerPixel = reader.getBitsPerPixel() / 8;
         int sizeX = reader.getSizeX();
         int sizeY = reader.getSizeY();
         int sizeZ = reader.getSizeZ();
+        logger.info("reader size ZYX: {}x{}x{}", sizeZ, sizeY, sizeX);
+        logger.info("reader bits per pixel: {}", bytesPerPixel);
         // Calculate the size in bits
-        int bufferSizeInBits = bitsPerPixel * sizeX * sizeY * sizeZ;
+        int bufferSizeInBytes = bytesPerPixel * sizeX * sizeY * sizeZ;
+        logger.info("buffer size in bytes: {}", bufferSizeInBytes);
     
         ShapedArray shapedArray = null;
-        ByteBuffer byteBuffer = ByteBuffer.allocate(bufferSizeInBits / 8);
+        ByteBuffer byteBuffer = ByteBuffer.allocate(bufferSizeInBytes);
+        logger.info("Converting OME-Tiff to Array");
+        logger.debug("reader size Z: {}", reader.getSizeZ());
         for (int i=0; i<reader.getSizeZ(); i++) {
-            byte[] plane = reader.openBytes(i);
-            byteBuffer.put(plane);
+            try {
+                logger.trace("openBytes {}", i);
+                byte[] plane = reader.openBytes(i);
+                logger.trace("ByteBuffer.put: plane of size {}", plane.length);
+                logger.trace("ByteBuffer remaining : {}", byteBuffer.remaining());
+                byteBuffer.put(plane);
+            } catch (Exception e) {
+                logger.error("Failed to read plane at index {}: {}", i, e.getMessage());
+                e.printStackTrace();
+            }
+        
         }
         if (reader.isLittleEndian()){
             byteBuffer.order(ByteOrder.LITTLE_ENDIAN);
         }
+        logger.debug("reader pixel type is {}", reader.getPixelType());
         switch (reader.getPixelType()) {
             case FormatTools.INT8:
                 byteBuffer.flip();
@@ -173,6 +188,7 @@ public class MainCommand {
                 throw new IOException("format not supported", null);
         }
         reader.close();
+        logger.info("Reader closed");
         return shapedArray;
     }
 
