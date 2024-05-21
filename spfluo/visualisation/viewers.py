@@ -10,7 +10,9 @@ import tifffile
 from spfluo.manual_picking.annotate import annotate
 
 
-def show_points(im_path: str, csv_path: str, scale: tuple[float, float, float] = None):
+def show_points(
+    im_path: str, csv_path: str, scale: tuple[float, float, float] = (1.0, 1.0, 1.0)
+):
     annotate(im_path, csv_path, spacing=scale, save=False)
 
 
