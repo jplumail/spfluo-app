@@ -29,5 +29,4 @@ def user_data(subpath=None):
 
 @app.route("/<project>/<ab_initio_run>/dashboard.html")
 def ab_initio_dashboard(project, ab_initio_run):
-    root.joinpath(project).joinpath(f"{project}/Runs/{ab_initio_run}")
     return app.send_static_file("ab-initio-dashboard.html")
