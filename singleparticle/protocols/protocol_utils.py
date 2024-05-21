@@ -1,7 +1,7 @@
 import os
 from os.path import abspath, basename, join
 
-from pwfluo.objects import FluoImage, SetOfFluoImages, Transform
+from pwfluo.objects import FluoImage, SetOfFluoImages
 from pwfluo.protocols import ProtFluoBase
 from pyworkflow import BETA
 from pyworkflow.protocol import Form, Protocol
@@ -63,7 +63,7 @@ class ProtSingleParticleUtils(Protocol, ProtFluoBase):
             self.input_images.append(abspath(image.getFileName()))
 
     def functionStep(self):
-        args = ["--input", self.input_images, "--output", self.output_dir]
+        args = ["--input", *self.input_images, "--output", self.output_dir]
         args += ["--function", self.FUNCTION_CHOICES[self.function.get()]]
         if self.FUNCTION_CHOICES[self.function.get()] == "resample":
             args += ["--factor", str(self.factor.get())]
@@ -81,24 +81,11 @@ class ProtSingleParticleUtils(Protocol, ProtFluoBase):
             input_im: FluoImage
             output_path = join(self.output_dir, basename(input_im.getFileName()))
             assert os.path.exists(output_path)
-            im = FluoImage(data=output_path)
-            im.setVoxelSize(vs)
+            im = FluoImage.from_filename(
+                output_path, voxel_size=vs, num_channels=input_im.getNumChannels()
+            )
             im.setImgId(input_im.getImgId())
             im.cleanObjId()
-
-            # Set default origin
-            origin = Transform()
-            dim = im.getDim()
-            if dim is None:
-                raise ValueError()
-            x, y, z = dim
-            origin.setShifts(
-                x / -2.0 * vs[0],
-                y / -2.0 * vs[0],
-                z / -2.0 * vs[1],
-            )
-            im.setOrigin(origin)
-
             imgSet.append(im)
         imgSet.write()
 
