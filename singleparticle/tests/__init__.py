@@ -2,9 +2,9 @@ from pyworkflow.tests import DataSet
 
 DataSet(
     name="fluo",
-    folder="fluo",
+    folder="fluo-data",
     files={
-        "fluo0": "0.tif",
-        "fluo1": "1.tif",
+        "isotropic-particles-dir": "generated/isotropic-1.0/particles",
+        "isotropic-psf": "generated/isotropic-1.0/psf.tiff",
     },
 )

@@ -1,0 +1,23 @@
+[version]
+source = "vcs"
+
+[build.targets.sdist]
+exclude = [
+    "/.github",
+]
+
+[build.targets.wheel]
+artifacts = [
+  "/singleparticle/_vendored/TiPi/target/TiPi-for-spfluo-*.jar",
+  "/singleparticle/web/client/dist/*"
+]
+packages = ["singleparticle"]
+
+[build.targets.wheel.hooks.custom]
+
+
+[envs.default.env-vars]
+PIP_INDEX_URL = "https://spfluo.ovh/jean/dev/+simple"
+
+[envs.default]
+dependencies = ["ruff", "black", "pre-commit"]

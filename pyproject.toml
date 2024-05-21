@@ -24,37 +24,3 @@ Repository = "https://github.com/jplumail/scipion-fluo-singleparticle"
 
 [project.entry-points."pyworkflow.plugin"]
 singleparticle = "singleparticle"
-
-[tool.ruff]
-select = [
-    "E", "F", # default
-    "I", # isort
-]
-
-[tool.ruff.isort]
-known-first-party = ["singleparticle"]
-known-third-party = ["pyworflow", "pwfluo"]
-
-[tool.hatch.version]
-source = "vcs"
-
-[tool.hatch.build.targets.sdist]
-exclude = [
-    "/.github",
-]
-
-[tool.hatch.build.targets.wheel]
-artifacts = [
-  "/singleparticle/_vendored/TiPi/target/TiPi-for-spfluo-*.jar",
-  "/singleparticle/web/client/dist/*"
-]
-packages = ["singleparticle"]
-
-[tool.hatch.build.targets.wheel.hooks.custom]
-
-
-[tool.hatch.envs.default.env-vars]
-PIP_INDEX_URL = "https://spfluo.ovh/jean/dev/+simple"
-
-[tool.hatch.envs.default]
-dependencies = ["ruff", "black", "pre-commit"]
