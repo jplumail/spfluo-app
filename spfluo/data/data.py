@@ -61,11 +61,11 @@ def _get_data_dir():
         yield data_dir
 
 
-def _fetch_dataset(dataset_dir: str) -> Dict[str, np.ndarray]:
+def _fetch_generated_dataset(dataset_name: str) -> Dict[str, np.ndarray]:
     # Download if necessary
     with _get_data_dir() as data_dir:
         # parse data
-        root_dir = data_dir / "generated" / dataset_dir
+        root_dir = data_dir / "generated" / dataset_name
         poses_path = root_dir / "poses.csv"
         content = csv.reader(poses_path.read_text().split("\n"))
         next(content)  # skip header
@@ -106,15 +106,15 @@ def _fetch_dataset(dataset_dir: str) -> Dict[str, np.ndarray]:
 
 
 def generated_isotropic():
-    return _fetch_dataset("isotropic-1.0")
+    return _fetch_generated_dataset("isotropic-1.0")
 
 
 def generated_anisotropic():
-    return _fetch_dataset("anisotropic-5.0-1.0-1.0")
+    return _fetch_generated_dataset("anisotropic-5.0-1.0-1.0")
 
 
 def generated_with_translations():
-    return _fetch_dataset("with-translations")
+    return _fetch_generated_dataset("with-translations")
 
 
 def real_ab_initio_reconstruction():
