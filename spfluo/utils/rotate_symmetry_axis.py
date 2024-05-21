@@ -1,3 +1,4 @@
+import logging
 import math
 from functools import partial
 from typing import TYPE_CHECKING, Optional
@@ -16,6 +17,8 @@ from spfluo.utils.transform import (
     invert_pose,
 )
 from spfluo.utils.volume import affine_transform
+
+logger = logging.getLogger("spfluo.utils.rotate_symmetry_axis")
 
 if TYPE_CHECKING:
     from spfluo.utils.array import Array
@@ -212,12 +215,14 @@ def find_pose_from_z_axis_centered_to_centriole_axis(
     center_precision: float = 1,
     convention="XZX",
 ):
+    logger.info("start find_pose_from_z_axis_centered_to_centriole_axis")
     pose_from_z_axis_to_centriole = find_pose_from_z_axis_to_centriole_axis(
         centriole_im,
         axis_indice=axis_indice,
         threshold=threshold,
         convention=convention,
     )
+    logger.debug(f"{pose_from_z_axis_to_centriole=}")
     volume_z_axis = affine_transform(
         centriole_im,
         get_transform_matrix_from_pose(
@@ -227,6 +232,7 @@ def find_pose_from_z_axis_centered_to_centriole_axis(
     pose_from_z_axis_to_z_axis_centered = find_pose_from_centriole_to_center(
         volume_z_axis, symmetry, axis_indice=axis_indice, precision=center_precision
     )
+    logger.debug(f"{pose_from_z_axis_to_z_axis_centered=}")
     return compose_poses(
         invert_pose(pose_from_z_axis_to_z_axis_centered), pose_from_z_axis_to_centriole
     )
