@@ -39,8 +39,6 @@ def image_directory(pytestconfig: pytest.Config):
 def save_result(image_directory: Union[Path, None], request: pytest.FixtureRequest):
     base_name = os.path.split(request.node.nodeid)[1]
 
-    functools.wraps(tifffile.imwrite)
-
     def inner(name: str, arr: "Array", *args, **kwargs):
         saved = False
         if image_directory:
@@ -53,7 +51,7 @@ def save_result(image_directory: Union[Path, None], request: pytest.FixtureReque
             saved = True
         return saved
 
-    return inner
+    return functools.wraps(tifffile.imwrite)(inner)
 
 
 @pytest.fixture(
