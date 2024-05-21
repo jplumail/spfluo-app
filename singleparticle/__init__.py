@@ -118,7 +118,10 @@ class Plugin(plugin.Plugin):
 
 
 def run_server():
-    serve(app, host="127.0.0.1", port=5000)
+    try:
+        serve(app, host="127.0.0.1", port=5000)
+    except OSError:
+        pass
 
 
 # Start Waitress server in a separate thread
