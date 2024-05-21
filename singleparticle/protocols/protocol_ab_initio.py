@@ -30,22 +30,28 @@
 Describe your python module here:
 This module will provide the traditional Hello world example
 """
+
 import os
 from enum import Enum
 
+import numpy as np
 import pyworkflow.object as pwobj
-from pwfluo.objects import AverageParticle, PSFModel, SetOfParticles
+from pwfluo.objects import (
+    AverageParticle,
+    Particle,
+    PSFModel,
+    SetOfParticles,
+    Transform,
+)
 from pwfluo.protocols import ProtFluoBase
 from pyworkflow import BETA
 from pyworkflow.protocol import Form, Protocol, params
 
 from singleparticle import Plugin
-from singleparticle.constants import AB_INITIO_MODULE, UTILS_MODULE
+from singleparticle.constants import AB_INITIO_MODULE
 from singleparticle.convert import (
     getLastParticlesParams,
-    save_image,
-    save_particles,
-    updateSetOfParticles,
+    save_images,
 )
 
 
@@ -73,6 +79,15 @@ class ProtSingleParticleAbInitio(Protocol, ProtFluoBase):
             label="Particles",
             important=True,
             help="Select the input particles.",
+        )
+        form.addParam(
+            "downsampling_factor",
+            params.FloatParam,
+            default=1,
+            label="downsampling factor",
+            help="Downsample all images by a certain factor. Can speed up the protocol."
+            " A downsampling factor of 2 will divide the size of the images by 2 "
+            "(and speed up computation by ~8!).",
         )
         form.addParam(
             "inputPSF",
@@ -168,6 +183,8 @@ class ProtSingleParticleAbInitio(Protocol, ProtFluoBase):
     def _insertAllSteps(self):
         self.particlesDir = os.path.abspath(self._getExtraPath("particles"))
         self.outputDir = os.path.abspath(self._getExtraPath("working_dir"))
+        os.makedirs(self.particlesDir, exist_ok=True)
+        os.makedirs(self.outputDir, exist_ok=True)
         self.psfPath = os.path.abspath(self._getExtraPath("psf.ome.tiff"))
         self.final_reconstruction = self._getExtraPath("final_reconstruction.tif")
         self._insertFunctionStep(self.prepareStep)
@@ -177,60 +194,43 @@ class ProtSingleParticleAbInitio(Protocol, ProtFluoBase):
     def prepareStep(self):
         # Image links for particles
         particles: SetOfParticles = self.inputParticles.get()
+        psf: PSFModel = self.inputPSF.get()
         channel = (
             self.channel.get()
             if particles.getNumChannels() and particles.getNumChannels() > 0
             else None
         )
-        particles_paths, max_dim = save_particles(
-            self.particlesDir, particles, channel=channel
-        )
 
-        # PSF Path
-        psf: PSFModel = self.inputPSF.get()
-        save_image(self.psfPath, psf, channel=channel)
+        max_dim = particles.getMaxDataSize()
+        if self.pad:
+            max_dim = max_dim * (2**0.5)
 
         # Make isotropic
         vs = particles.getVoxelSize()
-        if vs is None:
-            raise RuntimeError("Input Particles don't have a voxel size.")
+        pixel_size = min(vs)
+        # Downsample
+        pixel_size = pixel_size * self.downsampling_factor.get()
+        self.pixel_size = pixel_size
 
-        input_paths = particles_paths + [self.psfPath]
-        args = ["-f", "isotropic_resample"]
-        args += ["-i"] + input_paths
-        folder_isotropic = os.path.abspath(self._getExtraPath("isotropic"))
-        if not os.path.exists(folder_isotropic):
-            os.makedirs(folder_isotropic, exist_ok=True)
-        args += ["-o", f"{folder_isotropic}"]
-        args += ["--spacing", f"{vs[1]}", f"{vs[0]}", f"{vs[0]}"]
-        Plugin.runJob(self, Plugin.getSPFluoProgram(UTILS_MODULE), args=args)
-
-        # Pad
-        input_paths = [
-            os.path.join(folder_isotropic, f) for f in os.listdir(folder_isotropic)
-        ]
-        if self.pad:
-            max_dim = int(max_dim * (2**0.5)) + 1
-        folder_resized = os.path.abspath(self._getExtraPath("isotropic_cropped"))
-        if not os.path.exists(folder_resized):
-            os.makedirs(folder_resized, exist_ok=True)
-        args = ["-f", "resize"]
-        args += ["-i"] + input_paths
-        args += ["--size", f"{max_dim}"]
-        args += ["-o", f"{folder_resized}"]
-        Plugin.runJob(self, Plugin.getSPFluoProgram(UTILS_MODULE), args=args)
-
-        # Links
-        os.remove(self.psfPath)
-        for p in particles_paths:
-            os.remove(p)
-        # Link to psf
-        os.link(
-            os.path.join(folder_resized, os.path.basename(self.psfPath)), self.psfPath
+        output_dir = self._getExtraPath("isotropic_downsampled")
+        os.makedirs(output_dir)
+        images_paths = save_images(
+            [psf] + list(particles.iterItems()),
+            output_dir,
+            (max_dim, max_dim, max_dim),
+            channel,
+            (pixel_size, pixel_size),
         )
+
+        # Link to psf
+        os.link(images_paths[0], self.psfPath)
+
         # Links to particles
-        for p in particles_paths:
-            os.link(os.path.join(folder_resized, os.path.basename(p)), p)
+        self.particles_paths: dict[str, str] = {}
+        for p, path in zip(particles, images_paths[1:]):
+            p: Particle
+            self.particles_paths[p.getObjId()] = path
+            os.link(path, os.path.join(self.particlesDir, os.path.basename(path)))
 
     def reconstructionStep(self):
         args = ["--particles_dir", f"{self.particlesDir}"]
@@ -258,8 +258,7 @@ class ProtSingleParticleAbInitio(Protocol, ProtFluoBase):
     def createOutputStep(self):
         inputSetOfParticles: SetOfParticles = self.inputParticles.get()
         # Output 1 : reconstruction Volume
-        vs = inputSetOfParticles.getVoxelSize()
-        vs_recon = (min(vs), min(vs))
+        vs_recon = (self.pixel_size, self.pixel_size)
         reconstruction = AverageParticle.from_filename(
             self.final_reconstruction, voxel_size=vs_recon, channel=1
         )
@@ -274,7 +273,24 @@ class ProtSingleParticleAbInitio(Protocol, ProtFluoBase):
         )
         outputSetOfParticles.copyInfo(inputSetOfParticles)
         outputSetOfParticles.setCoordinates3D(inputSetOfParticles.getCoordinates3D())
-        updateSetOfParticles(inputSetOfParticles, outputSetOfParticles, particleParams)
+        outputSetOfParticles.enableAppend()
+        for particle in inputSetOfParticles.iterItems():
+            particle: Particle
+            assert (
+                particle.getObjId() in self.particles_paths
+            ), f"{particle.getObjId()} not in {self.particles_paths}"
+            assert (
+                os.path.basename(self.particles_paths[particle.getObjId()])
+                in particleParams
+            ), f"{self.particles_paths[particle.getObjId()]} not in {particleParams}"
+            transform = particleParams[
+                os.path.basename(self.particles_paths[particle.getObjId()])
+            ]
+            H = np.array(transform["homogeneous_transform"])
+            particle.setTransform(Transform(H))
+            outputSetOfParticles.append(particle)
+        outputSetOfParticles.write()
+
         self._defineOutputs(**{outputs.particles.name: outputSetOfParticles})
         # Transform relation
         self._defineRelation(

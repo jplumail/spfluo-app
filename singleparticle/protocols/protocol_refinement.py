@@ -13,8 +13,8 @@ from pyworkflow import BETA
 from pyworkflow.protocol import Protocol
 
 from singleparticle import Plugin
-from singleparticle.constants import REFINEMENT_MODULE, UTILS_MODULE
-from singleparticle.convert import read_poses, save_image, save_particles_and_poses
+from singleparticle.constants import REFINEMENT_MODULE
+from singleparticle.convert import read_poses, save_images, save_poses
 
 
 class outputs(Enum):
@@ -43,6 +43,15 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
             help="Select the input particles.",
         )
         form.addParam(
+            "downsampling_factor",
+            params.FloatParam,
+            default=1,
+            label="downsampling factor",
+            help="Downsample all images by a certain factor. Can speed up the protocol."
+            " A downsampling factor of 2 will divide the size of the images by 2 "
+            "(and speed up computation by ~8!).",
+        )
+        form.addParam(
             "inputPSF",
             params.PointerParam,
             pointerClass="PSFModel",
@@ -57,13 +66,6 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
             label="Initial volume",
             expertLevel=params.LEVEL_ADVANCED,
             allowsNull=True,
-        )
-        form.addParam(
-            "channel",
-            params.IntParam,
-            default=0,
-            label="Reconstruct on channel?",
-            help="This protocol reconstruct an average particle in one channel only.",
         )
         form.addParam(
             "gpu",
@@ -140,12 +142,14 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
     def _insertAllSteps(self):
         self.root_dir = os.path.abspath(self._getExtraPath("root"))
         self.outputDir = os.path.abspath(self._getExtraPath("working_dir"))
+        os.makedirs(self.root_dir, exist_ok=True)
+        os.makedirs(self.outputDir, exist_ok=True)
         self.psfPath = os.path.join(self.root_dir, "psf.ome.tiff")
         self.initial_volume_path = os.path.join(
             self.root_dir, "initial_volume.ome.tiff"
         )
         self.final_reconstruction = os.path.abspath(
-            self._getExtraPath("final_reconstruction.tif")
+            self._getExtraPath("final_reconstruction.ome.tiff")
         )
         self.final_poses = os.path.abspath(self._getExtraPath("final_poses.csv"))
         self._insertFunctionStep(self.prepareStep)
@@ -155,72 +159,41 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
     def prepareStep(self):
         # Image links for particles
         particles: SetOfParticles = self.inputParticles.get()
-        channel = self.channel.get() if particles.getNumChannels() > 0 else None
-        particles_paths, max_dim = save_particles_and_poses(
-            self.root_dir, particles, channel=channel
-        )
-
-        # PSF Path
         psf: PSFModel = self.inputPSF.get()
-        save_image(self.psfPath, psf, channel=channel)
+        save_poses(os.path.join(self.root_dir, "poses.csv"), particles)
 
-        # Initial volume path
-        initial_volume: Particle = self.initialVolume.get()
+        images = [psf] + list(particles.iterItems())
+        initial_volume: Particle | None = self.initialVolume.get()
         if initial_volume:
-            save_image(self.initial_volume_path, initial_volume, channel=channel)
+            images += [initial_volume]
+
+        max_dim = particles.getMaxDataSize()
+        if self.pad:
+            max_dim = max_dim * (2**0.5)
 
         # Make isotropic
         vs = particles.getVoxelSize()
-        if vs is None:
-            raise RuntimeError("Input Particles don't have a voxel size.")
+        pixel_size = min(vs)
+        # Downsample
+        pixel_size = pixel_size * self.downsampling_factor.get()
 
-        input_paths = particles_paths + [self.psfPath]
-        if initial_volume:
-            input_paths += [self.initial_volume_path]
-        args = ["-f", "isotropic_resample"]
-        args += ["-i"] + input_paths
-        folder_isotropic = os.path.abspath(self._getExtraPath("isotropic"))
-        if not os.path.exists(folder_isotropic):
-            os.makedirs(folder_isotropic, exist_ok=True)
-        args += ["-o", f"{folder_isotropic}"]
-        args += ["--spacing", f"{vs[1]}", f"{vs[0]}", f"{vs[0]}"]
-        Plugin.runJob(self, Plugin.getSPFluoProgram(UTILS_MODULE), args=args)
-
-        # Pad
-        input_paths = [
-            os.path.join(folder_isotropic, f) for f in os.listdir(folder_isotropic)
-        ]
-        if self.pad:
-            max_dim = int(max_dim * (2**0.5)) + 1
-        folder_resized = os.path.abspath(self._getExtraPath("isotropic_cropped"))
-        if not os.path.exists(folder_resized):
-            os.makedirs(folder_resized, exist_ok=True)
-        args = ["-f", "resize"]
-        args += ["-i"] + input_paths
-        args += ["--size", f"{max_dim}"]
-        args += ["-o", f"{folder_resized}"]
-        Plugin.runJob(self, Plugin.getSPFluoProgram(UTILS_MODULE), args=args)
-
-        # Links
-        os.remove(self.psfPath)
-        for p in particles_paths:
-            os.remove(p)
-        # Link to psf
-        os.link(
-            os.path.join(folder_resized, os.path.basename(self.psfPath)), self.psfPath
+        images_paths = save_images(
+            images,
+            self.root_dir,
+            (max_dim, max_dim, max_dim),
+            voxel_size=(pixel_size, pixel_size),
         )
-        # link to initial volume
+
         if initial_volume:
-            os.remove(self.initial_volume_path)
+            os.link(images_paths[-1], self.initial_volume_path)
+        os.link(images_paths[0], self.psfPath)
+
+        os.makedirs(os.path.join(self.root_dir, "particles"), exist_ok=True)
+        for _, objId in read_poses(os.path.join(self.root_dir, "poses.csv")):
             os.link(
-                os.path.join(
-                    folder_resized, os.path.basename(self.initial_volume_path)
-                ),
-                self.initial_volume_path,
+                os.path.join(self.root_dir, objId + ".ome.tiff"),
+                os.path.join(self.root_dir, "particles", objId + ".ome.tiff"),
             )
-        # Links to particles
-        for p in particles_paths:
-            os.link(os.path.join(folder_resized, os.path.basename(p)), p)
 
     def reconstructionStep(self):
         ranges = "0 " + str(self.ranges) if len(str(self.ranges)) > 0 else "0"
@@ -261,7 +234,7 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
         # Output 1 : reconstruction Volume
         vs = min(self.inputParticles.get().getVoxelSize())
         reconstruction = AverageParticle.from_filename(
-            self.final_reconstruction, num_channels=1, voxel_size=(vs, vs)
+            self.final_reconstruction, voxel_size=(vs, vs)
         )
 
         # Output 2 : particles rotated
@@ -270,9 +243,7 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
         for particle in self.inputParticles.get():
             particle: Particle
 
-            rotated_transform = transforms[
-                "particles/" + particle.strId() + ".ome.tiff"
-            ]  # new coords
+            rotated_transform = transforms[str(particle.getObjId())]  # new coords
 
             # New file (link to particle)
             rotated_particle_path = self._getExtraPath(particle.getBaseName())

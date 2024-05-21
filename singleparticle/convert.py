@@ -1,6 +1,7 @@
 import csv
 import glob
 import itertools
+import math
 import os
 from typing import Dict, Iterator, List, Tuple
 
@@ -14,17 +15,15 @@ from pwfluo.objects import (
     Transform,
 )
 from scipy.spatial.transform import Rotation
+from spfluo.utils.volume import interpolate_to_size, resample
 
 
 def getLastParticlesParams(folder):
     # Read poses
-    print(os.path.join(folder, "estimated_poses_epoch_*.csv"))
     fpaths = glob.glob(os.path.join(folder, "estimated_poses_epoch_*.csv"))
-    print(fpaths)
     poses_path = sorted(fpaths, key=lambda x: int(x.split("_")[-1][:-4]), reverse=True)[
         0
     ]
-    print(f"Opening {poses_path}")
     output: dict[str, dict[str, np.ndarray]] = {}
     with open(poses_path, "r") as f:
         data = csv.reader(f)
@@ -52,10 +51,8 @@ def updateSetOfParticles(
             particle.getBaseName().replace(".ome.tiff", ".tiff")
         )
         if not particleParams:
-            print("Could not get params for particle %d" % index)
             setattr(particle, "_appendItem", False)
         else:
-            print("Got params for particle %d" % index)
             # Create 4x4 matrix from 4x3 e2spt_sgd align matrix and append row [0,0,0,1]
             H = np.array(particleParams["homogeneous_transform"])
             particle.setTransform(Transform(H))
@@ -75,7 +72,6 @@ def readSetOfParticles(
     coordSet: List[Coordinate3D],
 ) -> SetOfParticles:
     for counter, particleFile in enumerate(particleFileList):
-        print("Registering particle %s - %s" % (counter, particleFile))
         particle = Particle(data=particleFile)
         particle.setCoordinate3D(coordSet[counter])
         coord = coordSet[counter]
@@ -152,21 +148,20 @@ def save_boundingboxes(coords: SetOfCoordinates3D, csv_file: str):
             )
 
 
-def save_particles(particles_dir: str, particles: SetOfParticles, channel: int = None):
-    print("Creating particles directory")
+def save_particles(
+    particles_dir: str, particles: SetOfParticles, channel: int | None = None
+):
     if not os.path.exists(particles_dir):
         os.makedirs(particles_dir, exist_ok=True)
     particles_paths: dict[str, str] = {}
-    max_dim = 0
     for particle in particles:
         particle: Particle
-        max_dim = max(max_dim, max(particle.getDim()))
         im_name = particle.strId()
         im_newPath = os.path.join(particles_dir, im_name + ".ome.tiff")
         save_image(im_newPath, particle, channel=channel)
-        particles_paths[particle.getImgId()] = im_newPath
+        particles_paths[particle.getObjId()] = im_newPath
 
-    return particles_paths, max_dim
+    return particles_paths
 
 
 def save_poses(path: str, particles: SetOfParticles):
@@ -187,77 +182,66 @@ def save_poses(path: str, particles: SetOfParticles):
 
 
 def save_particles_and_poses(
-    root_dir: str, particles: SetOfParticles, channel: int = None
-) -> Tuple[List[str], int]:
-    print("Creating particles directory")
-    particles_dir = os.path.join(root_dir, "particles")
-    csv_path = os.path.join(root_dir, "poses.csv")
-    if not os.path.exists(root_dir):
-        os.makedirs(particles_dir, exist_ok=True)
-    particles_paths = []
-    max_dim = 0
-    with open(csv_path, "w") as f:
-        csvwriter = csv.writer(f)
-        csvwriter.writerow(["index", "axis-1", "axis-2", "axis-3", "size"])
-
-        for im in particles:
-            im: Particle
-            max_dim = max(max_dim, max(im.getDim()))
-            im_path = os.path.abspath(im.getFileName())
-            ext = os.path.splitext(im_path)[1]
-            im_name = im.strId()
-            im_newPath = os.path.join(particles_dir, im_name + ".ome.tiff")
-            particles_paths.append(im_newPath)
-            if channel is not None and im.getNumChannels() > 1:
-                Particle.from_data(
-                    im.getData()[channel][None],
-                    im_newPath,
-                    voxel_size=im.getVoxelSize(),
-                )
-            else:
-                if ext.endswith(".tiff") or ext.endswith(".tif"):
-                    os.link(im_path, im_newPath)
-                else:
-                    raise NotImplementedError(
-                        f"Found ext {ext} in particles: {im_path}."
-                        "Only tiff file are supported."
-                    )
-
-            # Write pose
-            rotMat = im.getTransform().getRotationMatrix()
-            euler_angles = list(
-                map(
-                    str,
-                    Rotation.from_matrix(rotMat).as_euler("XZX", degrees=True).tolist(),
-                )
-            )
-            trans = list(map(str, im.getTransform().getShifts().tolist()))
-            csvwriter.writerow(
-                [os.path.join("particles", im_name + ".ome.tiff")]
-                + euler_angles
-                + trans
-            )
-
-    return particles_paths, max_dim
+    root_dir: str, particles: SetOfParticles, channel: int | None = None
+):
+    particles_paths = save_particles(root_dir, particles, channel=channel)
+    save_poses(os.path.join(root_dir, "poses.csv"), particles)
+    return particles_paths
 
 
-def save_image(new_path: str, image: Image, channel: int = None):
-    image_path = os.path.abspath(image.getFileName())
-    ext = os.path.splitext(image_path)[1]
-    if image.getNumChannels() > 1 and channel is not None:
-        Particle.from_data(
-            image.getData()[channel][None], new_path, voxel_size=image.getVoxelSize()
+def save_image(
+    new_path: str,
+    image: Image,
+    size: tuple[float, float, float],
+    channel: int | None = None,
+    voxel_size: tuple[float, float] | None = None,
+):
+    assert new_path.endswith(".ome.tiff")
+
+    data = image.getData()
+    if voxel_size != (original_voxel_size := image.getVoxelSize()):
+        data = resample(
+            data,
+            (
+                original_voxel_size[1] / voxel_size[1],
+                original_voxel_size[0] / voxel_size[0],
+                original_voxel_size[0] / voxel_size[0],
+            ),
+            multichannel=True,
+            order=3,
         )
-    else:
-        if new_path.endswith(".ome.tiff") and not ext.endswith(".ome.tiff"):
-            # save with metadata
-            Particle.from_data(
-                image.getData(), new_path, voxel_size=image.getVoxelSize()
-            )
-        elif ext.endswith(".tiff") or ext.endswith(".tif"):
-            os.link(image_path, new_path)
-        else:
-            raise NotImplementedError(
-                f"Found ext {ext} in particles: {image}."
-                "Only tiff file are supported."
-            )
+
+    data = interpolate_to_size(
+        data,
+        tuple(
+            [
+                math.ceil(s / vs)
+                for s, vs in zip(size, (voxel_size[1], voxel_size[0], voxel_size[0]))
+            ]
+        ),
+        multichannel=True,
+        order=3,
+    )
+
+    if channel:
+        if channel > data.shape[0] - 1:
+            channel = 0
+        data = data[channel][None]
+
+    Image.from_data(data, new_path)
+
+
+def save_images(
+    images: list[Image],
+    output_dir: str,
+    size: tuple[float, float, float],
+    channel: int | None = None,
+    voxel_size: tuple[float, float] | None = None,
+):
+    output_paths: list[str] = []
+    for image in images:
+        im_name = image.strId()
+        im_newPath = os.path.join(output_dir, im_name + ".ome.tiff")
+        save_image(im_newPath, image, size, channel=channel, voxel_size=voxel_size)
+        output_paths.append(im_newPath)
+    return output_paths
