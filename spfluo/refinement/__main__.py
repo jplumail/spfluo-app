@@ -118,7 +118,11 @@ def main(args):
     )
 
     reconstruction, poses = reconstruction.cpu().numpy(), poses.cpu().numpy()
-    tifffile.imwrite(args.output_reconstruction_path, reconstruction)
+    tifffile.imwrite(
+        args.output_reconstruction_path,
+        reconstruction,
+        metadata={"axes": "CZYX"},
+    )
     save_poses(args.output_poses_path, poses, names)
 
 
