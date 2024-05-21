@@ -4,7 +4,7 @@ import os
 
 from spfluo.utils.log import base_parser, set_logging_level
 
-from .loading import isotropic_resample, resample, resize
+from .loading import resample, resize
 from .rotate_symmetry_axis import main as rotate_symmetry_axis_main
 
 utils_logger = logging.getLogger("spfluo.utils")
@@ -26,16 +26,13 @@ def create_parser() -> argparse.ArgumentParser:
         default=None,
     )
 
-    # isotropic_resample args
-    parser.add_argument(
-        "--spacing", type=float, nargs="+", help="Voxel size (ZYX)", default=None
-    )
-
     # resize args
-    parser.add_argument("--size", type=int)
+    parser.add_argument("--size", type=float, help="Size in µm")
 
     # resample args
-    parser.add_argument("--factor", type=float, help="Resampling factor", default=1.0)
+    parser.add_argument(
+        "--target_pixel_size", type=float, help="Target pixel size in µm", default=None
+    )
 
     # rotate_symmetry_axis args
     parser.add_argument("--symmetry", type=int, help="symmetry degree of the particle")
@@ -64,12 +61,10 @@ def main(args: argparse.Namespace) -> None:
     output_path = os.path.abspath(args.output) if args.output else None
     utils_logger.info("Function : " + args.function)
     utils_logger.debug("Images :" + str(image_paths))
-    if args.function == "isotropic_resample":
-        isotropic_resample(image_paths, output_path, spacing=args.spacing)
     if args.function == "resize":
         resize(image_paths, args.size, output_path)
     if args.function == "resample":
-        resample(image_paths, output_path, factor=args.factor)
+        resample(image_paths, output_path, args.target_pixel_size)
     if args.function == "rotate_symmetry_axis":
         rotate_symmetry_axis_main(
             args.input,

@@ -1,4 +1,5 @@
 import csv
+import math
 import os
 import pickle
 from typing import Dict, Optional, Tuple
@@ -6,9 +7,104 @@ from typing import Dict, Optional, Tuple
 import imageio
 import numpy as np
 import tifffile
+from ome_types import OME, from_xml
+from ome_types.model.simple_types import UnitsLength
 
 import spfluo
 from spfluo.utils.volume import interpolate_to_size
+from spfluo.utils.volume import resample as _resample
+
+
+def _get_dims_from_ome(ome: OME, scene_index: int) -> list[str]:
+    """
+    Process the OME metadata to retrieve the dimension names.
+
+    Parameters
+    ----------
+    ome: OME
+        A constructed OME object to retrieve data from.
+    scene_index: int
+        The current operating scene index to pull metadata from.
+
+    Returns
+    -------
+    dims: List[str]
+        The dimension names pulled from the OME metadata.
+
+    Taken from aicsimageio
+    """
+    # Select scene
+    scene_meta = ome.images[scene_index]
+
+    # Create dimension order by getting the current scene's dimension order
+    # and reversing it because OME store order vs use order is :shrug:
+    dims = [d for d in scene_meta.pixels.dimension_order.value[::-1]]
+
+    # Check for num samples and expand dims if greater than 1
+    n_samples = scene_meta.pixels.channels[0].samples_per_pixel
+    if n_samples is not None and n_samples > 1 and "S" not in dims:
+        # Append to the end, i.e. the last dimension
+        dims.append("S")
+
+    return dims
+
+
+def _guess_ome_dim_order(
+    tiff: tifffile.TiffFile, ome: OME, scene_index: int
+) -> list[str]:
+    """
+    Guess the dimension order based on OME metadata and actual TIFF data.
+    Parameters
+    -------
+    tiff: TiffFile
+        A constructed TIFF object to retrieve data from.
+    ome: OME
+        A constructed OME object to retrieve data from.
+    scene_index: int
+        The current operating scene index to pull metadata from.
+    Returns
+    -------
+    dims: List[str]
+        Educated guess of the dimension order for the file
+
+    Taken from aicsimageio
+    """
+    dims_from_ome = _get_dims_from_ome(ome, scene_index)
+
+    # Assumes the dimensions coming from here are align semantically
+    # with the dimensions specified in this package. Possible T dimension
+    # is not equivalent to T dimension here. However, any dimensions
+    # not also found in OME will be omitted.
+    dims_from_tiff_axes = list(tiff.series[scene_index].axes)
+
+    # Adjust the guess of what the dimensions are based on the combined
+    # information from the tiff axes and the OME metadata.
+    # Necessary since while OME metadata should be source of truth, it
+    # does not provide enough data to guess which dimension is Samples
+    # for RGB files
+    dims = [dim for dim in dims_from_ome if dim not in dims_from_tiff_axes]
+    dims += [dim for dim in dims_from_tiff_axes if dim in dims_from_ome]
+    return dims
+
+
+def get_data_from_ome_tiff(
+    tiff: tifffile.TiffFile, scene_index: int, order: str = "CZYX"
+):
+    """returns data in the order asked"""
+    assert tiff.is_ome
+    dims = _guess_ome_dim_order(tiff, from_xml(tiff.ome_metadata), scene_index)
+    image_data = tiff.series[scene_index].asarray(squeeze=False)
+    assert image_data.shape[5] == 1, f"{image_data.shape=}: S != 1"
+    image_data = image_data[:, :, :, :, :, 0]
+    unspecified_dims = set(dims).difference(set(order))
+    for dim in unspecified_dims:
+        assert image_data.shape[dims.index(dim)] == 1
+    image_data = image_data.squeeze(
+        axis=tuple([dims.index(dim) for dim in unspecified_dims])
+    )
+    dims = [dim for dim in dims if dim not in unspecified_dims]
+    assert len(order) == len(dims), f"{len(order)=} != {len(dims)=}"
+    return image_data.transpose(*tuple([dims.index(o) for o in order]))
 
 
 def get_cupy_array(image):
@@ -234,78 +330,113 @@ def reframe_corners_if_needed(
     return x_min, y_min, z_min, x_max, y_max, z_max
 
 
-def get_spacing(im_path: str) -> Tuple[Tuple[float], str]:
+def resize(im_paths: str, size: float, folder_path: str):
+    """pad isotropic OME-TIFF images to match the shape of a cube of size (size, size,
+    size).
+    If size isn't a multiple of the pixel size, new_size = ceil(size/pixel_size)
+    Arguments:
+        im_paths
+        size
+            shape of the cube in µm
+        folder_path
+            output folder
     """
-    Returns spacing (inverse of resolution) in x,y,z directions
-    and unit (usually microns)
-    """
-    tif = tifffile.TiffFile(im_path)
-    if tif.is_imagej:
-        meta = tif.imagej_metadata
-        res = tif.pages[0].resolution
-        xy_spacing = (1 / res[0], 1 / res[1])
-        z_spacing = float(meta["spacing"])
-        spacing = xy_spacing + (z_spacing,)
-        unit = meta["unit"]
-    elif tif.is_ome:
-        import xml.etree.ElementTree as ET
-
-        root = ET.fromstring(tif.ome_metadata)
-        metadata = root[1][1].attrib
-        spacing = (
-            float(metadata["PhysicalSizeX"]),
-            float(metadata["PhysicalSizeY"]),
-            float(metadata["PhysicalSizeZ"]),
-        )
-        unit = metadata["PhysicalSizeZUnit"]
-    else:
-        return None, None
-    return spacing, unit
-
-
-def isotropic_resample(
-    im_paths: list[str], folder_path: str, spacing: Tuple[float, float, float] = None
-) -> None:
-    if spacing is None:
-        spacings = np.array([get_spacing(p)[0] for p in im_paths], dtype=float)
-    else:
-        spacings = np.ones((len(im_paths), 3))
-        spacings[:] = np.array(spacing)
-    best_spacing = spacings.min()
-    zooms = spacings / best_spacing
-    os.makedirs(folder_path, exist_ok=True)
-    for im_path, zoom in zip(im_paths, zooms):
-        im = tifffile.imread(im_path)
-        zoom = tuple(zoom)
-        if im.ndim == 4:
-            zoom = (1,) + zoom
-        im = get_cupy_array(im)
-        im = get_ndimage().zoom(im, zoom)
-        im = get_numpy_array(im)
-        tifffile.imwrite(os.path.join(folder_path, os.path.basename(im_path)), im)
-
-
-def resize(im_paths: str, size: int, folder_path: str):
+    target_physical_size = size
     os.makedirs(folder_path, exist_ok=True)
     for im_path in im_paths:
-        im = tifffile.imread(im_path)
-        multichannel = im.ndim == 4
-        im_resized = interpolate_to_size(im, (size,) * 3, multichannel=multichannel)
-        tifffile.imwrite(
-            os.path.join(folder_path, os.path.basename(im_path)), im_resized
+        tif = tifffile.TiffFile(im_path, is_ome=True)
+        ome = from_xml(tif.ome_metadata)
+        im = get_data_from_ome_tiff(tif, 0, order="CZYX")
+
+        assert len(ome.images) == 1
+        # assert image is isotropic
+        (pixel_physical_size,) = set(
+            [
+                ome.images[0].pixels.physical_size_x,
+                ome.images[0].pixels.physical_size_y,
+                ome.images[0].pixels.physical_size_z,
+            ]
+        )
+        (pixel_physical_size_unit,) = set(
+            [
+                ome.images[0].pixels.physical_size_x_unit,
+                ome.images[0].pixels.physical_size_y_unit,
+                ome.images[0].pixels.physical_size_z_unit,
+            ]
         )
 
+        assert pixel_physical_size_unit == UnitsLength.MICROMETER
+        pixel_size = math.ceil(target_physical_size / pixel_physical_size)
+        im_resized = interpolate_to_size(im, (pixel_size,) * 3, multichannel=True)
+        filename = os.path.join(folder_path, os.path.basename(im_path))
 
-def resample(im_paths: str, folder_path: str, factor: float = 1.0) -> None:
+        # copy ome metadata to filename
+        tifffile.imwrite(
+            filename,
+            im_resized,
+            metadata={
+                "axes": "CZYX",
+                "PhysicalSizeX": pixel_physical_size,
+                "PhysicalSizeXUnit": "µm",
+                "PhysicalSizeY": pixel_physical_size,
+                "PhysicalSizeYUnit": "µm",
+                "PhysicalSizeZ": pixel_physical_size,
+                "PhysicalSizeZUnit": "µm",
+            },
+        )
+        tif.close()
+
+
+def resample(im_paths: str, folder_path: str, target_pixel_physical_size: float = 1.0):
+    """resample images to match the target physical size
+    Args
+        target_physical_size: float
+            in µm
+    """
     os.makedirs(folder_path, exist_ok=True)
     for im_path in im_paths:
-        im = tifffile.imread(im_path)
-        im = get_cupy_array(im)
-        im_resampled = get_ndimage().zoom(im, factor)
-        im_resampled = get_numpy_array(im_resampled)
-        tifffile.imwrite(
-            os.path.join(folder_path, os.path.basename(im_path)), im_resampled
+        tif = tifffile.TiffFile(im_path, is_ome=True)
+        image = get_data_from_ome_tiff(tif, 0, order="CZYX")
+        ome = from_xml(tif.ome_metadata)
+
+        assert len(ome.images) == 1
+        # assert image pixel units are µm
+        (pixel_physical_size_unit,) = set(
+            [
+                ome.images[0].pixels.physical_size_x_unit,
+                ome.images[0].pixels.physical_size_y_unit,
+                ome.images[0].pixels.physical_size_z_unit,
+            ]
         )
+        assert (
+            pixel_physical_size_unit == UnitsLength.MICROMETER
+        ), f"Unit is different than µm, it's {pixel_physical_size_unit.value}"
+
+        image_resampled = _resample(
+            image,
+            (
+                ome.images[0].pixels.physical_size_z / target_pixel_physical_size,
+                ome.images[0].pixels.physical_size_y / target_pixel_physical_size,
+                ome.images[0].pixels.physical_size_x / target_pixel_physical_size,
+            ),
+            multichannel=True,
+        )
+
+        filename = os.path.join(folder_path, os.path.basename(im_path))
+        tifffile.imwrite(
+            filename,
+            image_resampled,
+            metadata={
+                "axes": "CZYX",
+                "PhysicalSizeX": target_pixel_physical_size,
+                "PhysicalSizeXUnit": "µm",
+                "PhysicalSizeY": target_pixel_physical_size,
+                "PhysicalSizeYUnit": "µm",
+                "PhysicalSizeZ": target_pixel_physical_size,
+                "PhysicalSizeZUnit": "µm",
+            },
+        )
+        tif.close()
 
 
 def save_poses(path: str, poses: np.ndarray, names: Optional[list[str]] = None):
