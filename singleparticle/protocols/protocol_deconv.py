@@ -197,7 +197,6 @@ class ProtSingleParticleDeconv(Protocol, ProtFluoBase):
 
         # Input image
         a = input_fluoimage.getData().astype(np.float32)[self.channel.get()]
-        print(a.shape)
         self.epsilon_default_value = float(a.max()) / 1000
         self.input_float = FluoImage.from_data(
             a[None],
@@ -209,7 +208,12 @@ class ProtSingleParticleDeconv(Protocol, ProtFluoBase):
         self.input_psf: PSFModel | None = self.psf.get()
         self.psf_path = None
         if self.input_psf:
-            a = self.input_psf.getData().astype(np.float32)[self.channel.get()]
+            a = self.input_psf.getData().astype(np.float32)
+            if self.input_psf.getNumChannels() - 1 >= self.channel.get():
+                channel = self.channel.get()
+            else:
+                channel = 0
+            a = a[channel]
             self.psf_float = PSFModel.from_data(
                 a[None],
                 os.path.join(self.root_dir, "psf.ome.tiff"),
