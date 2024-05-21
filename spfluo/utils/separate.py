@@ -1,14 +1,20 @@
 from typing import TYPE_CHECKING
 
+from skimage.filters import threshold_otsu as skimage_threshold_otsu
 from sklearn.cluster import KMeans
 from sklearn.svm import SVC
 
-from spfluo.utils.array import array_namespace
+from spfluo.utils.array import array_namespace, numpy_only_compatibility
 from spfluo.utils.rotate_symmetry_axis import find_rotation_between_two_vectors
 from spfluo.utils.volume import affine_transform, tukey
 
 if TYPE_CHECKING:
     from spfluo.utils.array import Array
+
+
+@numpy_only_compatibility
+def _threshold_otsu(image: "Array", nbins: int = 256):
+    return skimage_threshold_otsu(image, nbins=nbins)
 
 
 def extract_particle(
@@ -193,7 +199,7 @@ def _separate_clusters(
     t = tukey(xp, xp.asarray(xp.round(size_tukey), dtype=xp.int64), alpha=tukey_alpha)
 
     # Compute hyperplane for each patch and apply tukey window
-    for patch, pos_patch in zip([patch1, patch2], centers):
+    for patch, pos_patch in ((patch1, centers[0]), (patch2, centers[1])):
         image_coords = xp.stack(
             xp.meshgrid(*[xp.arange(s) for s in patch.shape[1:]], indexing="ij"),
             axis=-1,
@@ -243,5 +249,10 @@ def _separate_clusters(
         t_rotated = affine_transform(t, xp.linalg.inv(H), output_shape=patch.shape[-3:])
 
         patch *= t_rotated
+
+    # Contrast enhancement
+    for patch in (patch1, patch2):
+        otsu = _threshold_otsu(patch)
+        patch *= (xp.tanh((patch - otsu) / (otsu * 0.1)) + 1) / 2
 
     return (patch1, patch2), centers
