@@ -24,4 +24,3 @@ source = "vcs"
 
 [tool.hatch.build.targets.app]
 pyapp-version	= "0.21.1"
-spfluo-app = ["spfluo-app"]
