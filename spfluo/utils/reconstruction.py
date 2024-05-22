@@ -42,16 +42,15 @@ def main(
     poses = xp.asarray(poses, dtype=xp.float64, device=host_device)
     poses = xp.permute_dims(symmetrize_poses(poses, symmetry), (1, 0, 2))
     reconstruction = xp.empty_like(particles[0])
-    for c in range(C):
-        reconstruction[c] = reconstruction_L2(
-            particles[:, c],
-            psf[c],
-            poses,
-            xp.asarray(lbda, dtype=particles.dtype, device=device),
-            symmetry=True,
-            device=compute_device,
-            batch_size=batch_size,
-        )
+    reconstruction = reconstruction_L2(
+        particles,
+        psf,
+        poses,
+        xp.asarray(lbda, dtype=particles.dtype, device=device),
+        symmetry=True,
+        device=compute_device,
+        batch_size=batch_size,
+    )
 
     tifffile.imwrite(
         output_volume_path, to_numpy(reconstruction), metadata={"axes": "CZYX"}
