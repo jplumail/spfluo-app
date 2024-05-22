@@ -34,7 +34,7 @@ contributions:
       python_name: napari_spfluo:MergeLabelsWidget
       title: Make MergeLabels widget
     - id: napari-spfluo.make_filter_widget
-      python_name: napari_spfluo:FilterSetWidget
+      python_name: napari_spfluo:FilterLayerWidget
       title: Make FilterSet widget
   sample_data:
     - command: napari-spfluo.make_generated_anisotropic

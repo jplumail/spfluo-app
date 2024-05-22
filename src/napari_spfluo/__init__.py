@@ -4,7 +4,7 @@ except ImportError:
     __version__ = "unknown"
 from ._sample_data import make_generated_anisotropic
 from ._utils_widgets import (
-    FilterSetWidget,
+    FilterLayerWidget,
     MergeLabelsWidget,
     threshold_widget,
 )
@@ -28,5 +28,5 @@ __all__ = (
     "run_hdbscan",
     "threshold_widget",
     "MergeLabelsWidget",
-    "FilterSetWidget",
+    "FilterLayerWidget",
 )

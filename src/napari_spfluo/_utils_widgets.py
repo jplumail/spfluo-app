@@ -212,6 +212,68 @@ def ndarray_to_QImage(numpy_array: np.ndarray):
 
 
 class FilterSetWidget(QWidget):
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__()
+        self.setLayout(QVBoxLayout(parent))
+
+        self.scroll_area = QScrollArea()
+        self.layout().addWidget(self.scroll_area)
+
+        self.list_widget = QListWidget()
+        self.list_widget.setSelectionMode(
+            QAbstractItemView.SelectionMode.ExtendedSelection
+        )
+        self.scroll_area.setWidget(self.list_widget)
+        self.scroll_area.setWidgetResizable(True)
+
+        self.image_width = 100
+
+    def set_data(self, image_data: list[np.ndarray], clear=False):
+        for _ in range(len(image_data) - self.list_widget.count()):
+            item = QListWidgetItem(self.list_widget)
+            image_label = QLabel()
+            self.list_widget.setItemWidget(item, image_label)
+
+        self.mask_indices_image = np.arange(len(image_data))
+        for i, image in enumerate(image_data):
+            multichannel = image.ndim == 4
+            data = image
+            if not multichannel:
+                data = data[None]  # C=1
+            item = self.list_widget.item(i)
+            im = data
+            im = np.sum(np.asarray(im, dtype=float), axis=1)
+            im = (im - np.min(im, axis=(-2, -1), keepdims=True)) / (
+                np.max(im, axis=(-2, -1), keepdims=True)
+                - np.min(im, axis=(-2, -1), keepdims=True)
+            )
+            im = np.asarray(im * 255, dtype=np.uint8)
+
+            image_label = QLabel()
+            pixmap = QPixmap.fromImage(ndarray_to_QImage(im)).scaled(
+                self.image_width * im.shape[0],
+                self.image_width,
+                Qt.AspectRatioMode.KeepAspectRatio,
+                Qt.TransformationMode.SmoothTransformation,
+            )
+            image_label.setPixmap(pixmap)
+            item.setSizeHint(image_label.sizeHint())
+            item.setText(str(i))
+            self.list_widget.setItemWidget(item, image_label)
+
+    def _on_delete(self):
+        indices = []
+        for item in self.list_widget.selectedItems():
+            index = self.list_widget.row(item)
+            indices.append(index)
+            self.list_widget.takeItem(index)
+            self.mask_indices_image = np.delete(
+                self.mask_indices_image, index, axis=0
+            )
+        return indices
+
+
+class FilterLayerWidget(QWidget):
     def __init__(self, viewer: "napari.viewer.Viewer"):
         super().__init__()
         self.viewer: napari.Viewer = viewer
@@ -231,63 +293,29 @@ class FilterSetWidget(QWidget):
         self.current_image_layer: napari.layers.Image | None = None
         self.layout().addWidget(self.image_layer_qcombo)
 
-        self.scroll_area = QScrollArea()
-        self.layout().addWidget(self.scroll_area)
-
-        self.list_widget = QListWidget()
-        self.list_widget.setSelectionMode(
-            QAbstractItemView.SelectionMode.ExtendedSelection
-        )
-        self.scroll_area.setWidget(self.list_widget)
-        self.scroll_area.setWidgetResizable(True)
+        self.filter_set_widget = FilterSetWidget(self)
+        self.layout().addWidget(self.filter_set_widget)
 
         self.image_layer_combo.changed.connect(self._on_layer_changed)
-        self.list_widget.currentItemChanged.connect(self._on_item_changed)
-
         self.viewer.bind_key("Delete", self._on_delete)
-
-        self.image_width = 100
+        self.filter_set_widget.list_widget.currentItemChanged.connect(
+            self._on_item_changed
+        )
 
     def _on_layer_changed(self, image_layer: napari.layers.Image):
-        self.list_widget.clear()
         if image_layer and (image_layer.ndim == 4 or image_layer.ndim == 5):
             self.current_image_layer = image_layer
-            multichannel = self.current_image_layer.ndim == 5
-            data = image_layer.data
-            if not multichannel:
-                data = data[:, None]  # C=1
-            for i in range(data.shape[0]):
-                item = QListWidgetItem(self.list_widget)
-                im = data[i]
-                im = np.sum(np.asarray(im, dtype=float), axis=1)
-                im = (im - np.min(im, axis=(-2, -1), keepdims=True)) / (
-                    np.max(im, axis=(-2, -1), keepdims=True)
-                    - np.min(im, axis=(-2, -1), keepdims=True)
-                )
-                im = np.asarray(im * 255, dtype=np.uint8)
-
-                image_label = QLabel()
-                pixmap = QPixmap.fromImage(ndarray_to_QImage(im)).scaled(
-                    self.image_width * im.shape[0],
-                    self.image_width,
-                    Qt.AspectRatioMode.KeepAspectRatio,
-                    Qt.TransformationMode.SmoothTransformation,
-                )
-                image_label.setPixmap(pixmap)
-                item.setSizeHint(image_label.sizeHint())
-                item.setText(str(i))
-                self.list_widget.setItemWidget(item, image_label)
+            self.original_data = np.copy(self.current_image_layer.data)
+            self.filter_set_widget.set_data(list(image_layer.data))
 
     def _on_item_changed(
         self, item: QListWidgetItem, previous: QListWidgetItem
     ):
-        i = self.list_widget.row(item)
+        i = self.filter_set_widget.list_widget.row(item)
         self.viewer.dims.current_step = (i, *self.viewer.dims.current_step[1:])
 
     def _on_delete(self, viewer: napari.Viewer):
-        for item in self.list_widget.selectedItems():
-            index = self.list_widget.row(item)
-            self.list_widget.takeItem(index)
-            self.current_image_layer.data = np.delete(
-                self.current_image_layer.data, index, axis=0
-            )
+        self.filter_set_widget._on_delete()
+        self.current_image_layer.data = self.original_data[
+            self.filter_set_widget.mask_indices_image
+        ]
