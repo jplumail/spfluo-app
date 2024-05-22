@@ -756,7 +756,7 @@ def _cross_correlation_multichannel_max(
     cc = xp.reshape(cc, other_shape + (-1,))
     max_idx = xp.argmax(cc, axis=-1)
     indices = tuple(
-        xp.asarray(idx, dtype=max_idx.dtype, device=max_idx.device)
+        xp.asarray(idx, dtype=max_idx.dtype, device=get_device(max_idx))
         for idx in np.ix_(*tuple(np.arange(cc.shape[i]) for i in range(cc.ndim - 1)))
     )
     maxi = cc[*indices, max_idx]
