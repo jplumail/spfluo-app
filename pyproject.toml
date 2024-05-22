@@ -31,7 +31,7 @@ dependencies = [
     "numpy",
     "qtpy",
     "scikit-image",
-    "spfluo[ab-initio-reconstruction,refinement]>=0.1b8",
+    "spfluo[ab-initio-reconstruction]>=0.1",
 ]
 
 [project.optional-dependencies]
