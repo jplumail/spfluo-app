@@ -6,7 +6,7 @@ from spfluo.ab_initio_reconstruction.common_image_processing_methods.others impo
     normalize,
 )
 from spfluo.refinement import refine
-from spfluo.utils.array import array_namespace, get_device
+from spfluo.utils.array import array_namespace, get_device, to_numpy
 from spfluo.utils.loading import read_poses, save_poses
 from spfluo.utils.log import base_parser, set_logging_level
 from spfluo.utils.read_save_files import (
@@ -77,7 +77,7 @@ def create_parser():
 
 def main(args):
     particles, _ = read_images_in_folder(
-        args.particles_dir, alphabetic_order=True, gpu=True, dtype=args.dtype
+        args.particles_dir, alphabetic_order=True, gpu=args.gpu, dtype=args.dtype
     )
     xp = array_namespace(particles)
     compute_device = get_device(particles)
@@ -117,7 +117,7 @@ def main(args):
         batch_size=args.minibatch_size,
     )
 
-    reconstruction, poses = reconstruction.cpu().numpy(), poses.cpu().numpy()
+    reconstruction, poses = to_numpy(reconstruction, poses)
     tifffile.imwrite(
         args.output_reconstruction_path,
         reconstruction,
