@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 import spfluo.utils.debug as debug
 from spfluo.utils.array import array_namespace, get_device, to_device, to_numpy
-from spfluo.utils.memory import split_batch2
+from spfluo.utils.memory import split_batch
 from spfluo.utils.transform import get_transform_matrix, symmetrize_poses
 from spfluo.utils.volume import (
     affine_transform,
@@ -177,7 +177,7 @@ def reconstruction_L2(
 
     # Move data to compute device
     psf = to_device(psf, compute_device)
-    for (start1, end1), (start2, end2), (start3, end3), (start4, end4) in split_batch2(
+    for (start1, end1), (start2, end2), (start3, end3), (start4, end4) in split_batch(
         (M, k, N, C), batch_size
     ):
         number_poses = (end1 - start1) * (end2 - start2)
@@ -313,7 +313,7 @@ def convolution_matching_poses_grid(
 
     shifts = xp.empty((N, M, 3), dtype=reference.dtype, device=host_device)
     errors = xp.empty((N, M), dtype=reference.dtype, device=host_device)
-    for (start1, end1), (start2, end2) in split_batch2(
+    for (start1, end1), (start2, end2) in split_batch(
         max_batch=batch_size, shape=(N, M)
     ):
         number_poses = end2 - start2
@@ -402,7 +402,7 @@ def convolution_matching_poses_refined(
     # Move data to compute device
     h = to_device(h, compute_device)
     reference = to_device(reference, compute_device)
-    for (start1, end1), (start2, end2) in split_batch2((N, M), batch_size):
+    for (start1, end1), (start2, end2) in split_batch((N, M), batch_size):
         minibatch_size = (end1 - start1) * (end2 - start2)
         potential_poses_minibatch = to_device(
             potential_poses[start1:end1, start2:end2], compute_device

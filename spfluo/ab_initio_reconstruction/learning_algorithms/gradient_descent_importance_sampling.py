@@ -15,7 +15,7 @@ from spfluo.ab_initio_reconstruction.volume_representation.pixel_representation 
 )
 from spfluo.utils.array import array_namespace, get_device, numpy, to_numpy
 from spfluo.utils.loading import read_poses, save_poses
-from spfluo.utils.memory import split_batch_func
+from spfluo.utils.memory import split_batch
 from spfluo.utils.transform import get_transform_matrix
 from spfluo.utils.volume import fourier_shift, phase_cross_correlation
 
@@ -190,8 +190,8 @@ def gd_importance_sampling_3d(
                 view = xp.asarray(
                     view, device=device, dtype=getattr(xp, params_learning_alg.dtype)
                 )
-                for start, end in split_batch_func(
-                    "", image_shape, N_axes * N_rot, max_batch=minibatch_size
+                for start, end in split_batch(
+                    (N_axes * N_rot,), max_batch=minibatch_size
                 ):
                     inverse_transforms_minibatch = xp.asarray(
                         inverse_transforms[start:end],
