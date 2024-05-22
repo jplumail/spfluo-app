@@ -223,7 +223,7 @@ def save_image(
         order=3,
     )
 
-    if channel:
+    if channel is not None:
         if channel > data.shape[0] - 1:
             channel = 0
         data = data[channel][None]
