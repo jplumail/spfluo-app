@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling", "hatch-vcs"]
+requires = ["hatchling>=1.16", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
@@ -8,8 +8,8 @@ authors = [
   { name="Jean Plumail", email="jplumail@unistra.fr" },
 ]
 dependencies = [
-  "scipion-fluo-singleparticle",
-  "scipion-app"
+  "scipion-fluo-singleparticle>=0.1",
+  "scipion-app>=3.3.0.1"
 ]
 dynamic = ["version"]
 
@@ -22,5 +22,6 @@ spfluo-app = "spfluo_app:main"
 [tool.hatch.version]
 source = "vcs"
 
-[tool.hatch.build.targets.binary]
+[tool.hatch.build.targets.app]
 pyapp-version	= "0.21.1"
+spfluo-app = ["spfluo-app"]
