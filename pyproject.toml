@@ -17,10 +17,13 @@ dynamic = ["version"]
 Repository = "https://github.com/jplumail/spfluo-app.git"
 
 [project.gui-scripts]
-spfluo-app = "spfluo_app:main"
+spfluo-app = "spfluo_app.__main__:main"
 
 [tool.hatch.version]
 source = "vcs"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/spfluo_app"]
 
 [tool.hatch.build.targets.app]
 pyapp-version	= "0.21.1"
