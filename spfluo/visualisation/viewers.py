@@ -11,8 +11,9 @@ from spfluo.manual_picking.annotate import annotate
 
 
 def show_points(
-    im_path: str, csv_path: str, scale: tuple[float, float, float] = (1.0, 1.0, 1.0)
+    im_path: str, csv_path: str, scale: tuple[float, float, float] | None = None
 ):
+    scale = scale if scale else (1, 1, 1)
     annotate(im_path, csv_path, spacing=scale, save=False)
 
 
