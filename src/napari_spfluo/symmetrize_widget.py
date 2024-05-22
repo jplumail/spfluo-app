@@ -1,6 +1,5 @@
 import napari
 import numpy as np
-import torch
 from magicgui.widgets import (
     ComboBox,
     Container,
@@ -62,16 +61,12 @@ class SymmetrizeWidget(Container):
                 / 2
             )
             res = symmetrize(
-                torch.as_tensor(
-                    img_as_float(self._particle_layer_combo.value.data)
-                ),
+                img_as_float(self._particle_layer_combo.value.data),
                 (center[0], center[1]),
                 9,
-                torch.as_tensor(
-                    img_as_float(self._psf_layer_combo.value.data)
-                ),
-                torch.as_tensor(10**self._lambda_widget.value),
-            ).numpy()
+                img_as_float(self._psf_layer_combo.value.data),
+                np.asarray(10**self._lambda_widget.value),
+            )
             if self.symmetric_particle is None:
                 self.symmetric_particle = self._viewer.add_image(
                     res, name="symmetric particle"
