@@ -96,17 +96,21 @@ def annotate(
         im = get_data_from_ome_tiff(tif, 0, order="CZYX")
         ome = from_xml(tif.ome_metadata)
     assert len(ome.images) == 1
-    assert im.shape[0] == len(ome.images[0].pixels.channels)
-    view.add_image(
-        im,
-        scale=spacing_normalized,
-        channel_axis=0,
-        colormap=[
+    if im.shape[0] == len(ome.images[0].pixels.channels):
+        # define colormap
+        cm = [
             Colormap(
                 [[0.0, 0.0, 0.0], [float(x) / 255.0 for x in c.color.as_rgb_tuple()]]
             )
             for c in ome.images[0].pixels.channels
-        ],
+        ]
+    else:
+        cm = None
+    view.add_image(
+        im,
+        scale=spacing_normalized,
+        channel_axis=0,
+        colormap=cm,
         blending="additive",
     )
 
