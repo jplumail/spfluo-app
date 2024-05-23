@@ -1,0 +1,1 @@
+from spfluo_app.__main__ import main

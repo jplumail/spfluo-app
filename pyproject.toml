@@ -16,6 +16,9 @@ dynamic = ["version"]
 [project.urls]
 Repository = "https://github.com/jplumail/spfluo-app.git"
 
+[project.gui-scripts]
+spfluo-app = "spfluo_app:main"
+
 [tool.hatch.version]
 source = "vcs"
 
