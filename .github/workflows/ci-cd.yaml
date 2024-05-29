@@ -74,16 +74,20 @@ jobs:
         SSH_USER: ${{ secrets.SSH_USER }}
         SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
         SSH_HOST: ${{ secrets.SSH_HOST }}
+    
+    - name: Set and modify TAG variable
+      run: |
+        TAG=${{ github.ref_name }}
+        TAG=${TAG#v}
+        echo "TAG=$TAG" >> $GITHUB_ENV
 
     - name: Create directory on VPS and upload requirements.txt
       run: |
-        export TAG=${{ github.ref_name }}
         ssh vps mkdir -p /var/www/downloads/requirements/$TAG
         echo "Copying requirements.txt to /var/www/downloads/requirements/$TAG/"
         scp requirements.txt vps:/var/www/downloads/requirements/$TAG/requirements.txt
 
     - name: Update latest symlink on VPS
       run: |
-        export TAG=${{ github.ref_name }}
         ssh vps rm -r /var/www/downloads/requirements/latest
         ssh vps ln -s /var/www/downloads/requirements/$TAG /var/www/downloads/requirements/latest
