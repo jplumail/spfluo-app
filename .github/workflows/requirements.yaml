@@ -32,10 +32,6 @@ jobs:
         git add requirements.txt
         git commit -m 'Update requirements.txt' || echo "No changes to commit"
         git push
-
-    - name: Get the current tag
-      id: get_tag
-      run: echo "::set-output name=TAG::$(git describe --tags --abbrev=0)"
     
     - name: Configure SSH
       run: |
