@@ -46,9 +46,6 @@ jobs:
 
     - name: Install pip-tools
       run: pip install uv
-    
-    - name: debug
-      run: cat requirements.in
 
     - name: Run pip-compile
       run: echo spfluo-app | uv pip compile - -o requirements.txt --refresh-package spfluo-app
