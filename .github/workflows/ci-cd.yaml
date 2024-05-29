@@ -51,7 +51,7 @@ jobs:
       run: cat requirements.in
 
     - name: Run pip-compile
-      run: echo spfluo-app | uv pip compile - -o requirements.txt
+      run: echo spfluo-app | uv pip compile - -o requirements.txt --refresh-package spfluo-app
 
     - name: Commit and push changes
       run: |
