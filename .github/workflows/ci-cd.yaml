@@ -48,6 +48,7 @@ jobs:
       run: pip install uv
 
     - name: Run pip-compile
+      run: echo requirements.in
       run: uv pip compile requirements.in -o requirements.txt
 
     - name: Commit and push changes
