@@ -18,9 +18,9 @@ jobs:
       id: check-branch
       run: |
         if [ "${{ github.ref }}" == "refs/heads/main" ]; then
-          echo "##[set-output name=is-main;]true"
+          echo "is-main=true" >> "$GITHUB_OUTPUT"
         else
-          echo "##[set-output name=is-main;]false"
+          echo "is-main=false" >> "$GITHUB_OUTPUT"
         fi
 
   publish:
@@ -32,9 +32,9 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
-        python-version: '3.10'
+        python-version: '3.12'
 
     - name: Install dependencies
       run: |
