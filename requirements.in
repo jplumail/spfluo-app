@@ -1,1 +1,1 @@
-spfluo-app==0.1.12
+spfluo-app  # will resolve to latest version available
