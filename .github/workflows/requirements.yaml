@@ -50,9 +50,9 @@ jobs:
           StrictHostKeyChecking no
         END
       env:
-        SSH_USER: ${{ secrets.VPS_SSH_USER }}
+        SSH_USER: ${{ secrets.SSH_USER }}
         SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-        SSH_HOST: ${{ secrets.VPS_SSH_HOST }}
+        SSH_HOST: ${{ secrets.SSH_HOST }}
 
     - name: Create directory on VPS and upload requirements.txt
       run: |
