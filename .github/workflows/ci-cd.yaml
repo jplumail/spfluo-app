@@ -4,11 +4,27 @@ on:
   push:
     tags:
       - '*'
-    branches:
-      - 'main'
 
 jobs:
+  check-branch:
+    runs-on: ubuntu-latest
+    outputs:
+      is-main: ${{ steps.check-branch.outputs.is-main }}
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Check if branch is main
+      id: check-branch
+      run: |
+        if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+          echo "##[set-output name=is-main;]true"
+        else
+          echo "##[set-output name=is-main;]false"
+        fi
+
   publish:
+    needs: check-branch
     runs-on: ubuntu-latest
 
     steps:
