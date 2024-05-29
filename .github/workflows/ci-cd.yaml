@@ -32,6 +32,7 @@ jobs:
         DEVPI_PASSWORD: ${{ secrets.DEVPI_PASSWORD }}
   
   pip-compile-and-deploy:
+    needs: publish
     runs-on: ubuntu-latest
 
     steps:
