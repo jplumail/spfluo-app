@@ -48,7 +48,7 @@ jobs:
       run: pip install uv
 
     - name: Run pip-compile
-      run: echo spfluo-app | uv pip compile - -o requirements.txt --refresh-package spfluo-app
+      run: echo spfluo-app | uv pip compile - -o requirements.txt --upgrade  # ignoring pinned versions in the existing output file
 
     - name: Commit and push changes
       run: |
