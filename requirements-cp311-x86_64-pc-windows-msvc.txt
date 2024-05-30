@@ -388,7 +388,7 @@ spfluo==0.1.2
     #   napari-spfluo
     #   scipion-fluo
     #   scipion-fluo-singleparticle
-spfluo-app==0.1.38
+spfluo-app==0.1.41
 sphinx==4.5.0
     # via
     #   napari
