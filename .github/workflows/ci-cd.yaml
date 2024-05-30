@@ -48,13 +48,17 @@ jobs:
       run: pip install uv
 
     - name: Run pip-compile
-      run: echo spfluo-app | uv pip compile - -o requirements.txt --upgrade  # ignoring pinned versions in the existing output file
+      run: |
+        echo spfluo-app | uv pip compile - -o requirements-cp311-x86_64-unknown-linux-gnu.txt --upgrade --python-version 3.11 --python-platform x86_64-unknown-linux-gnu
+        echo spfluo-app | uv pip compile - -o requirements-cp311-aarch64-apple-darwin.txt --upgrade --python-version 3.11 --python-platform aarch64-apple-darwin
+        echo spfluo-app | uv pip compile - -o requirements-cp311-x86_64-apple-darwin.txt --upgrade --python-version 3.11 --python-platform x86_64-apple-darwin
+        echo spfluo-app | uv pip compile - -o requirements-cp311-x86_64-pc-windows-msvc.txt --upgrade --python-version 3.11 --python-platform cp311-x86_64-pc-windows-msvc
 
     - name: Commit and push changes
       run: |
         git config --global user.name 'github-actions[bot]'
         git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-        git add requirements.txt
+        git add requirements*.txt
         git commit -m 'Update requirements.txt' || echo "No changes to commit"
         git push origin HEAD:main  # Push changes to the main branch
     
@@ -85,11 +89,11 @@ jobs:
       run: |
         ssh vps mkdir -p /var/www/downloads/requirements/$TAG
         echo "Copying requirements.txt to /var/www/downloads/requirements/$TAG/"
-        scp requirements.txt vps:/var/www/downloads/requirements/$TAG/requirements.txt
-        echo "requirements.txt available at https://downloads.spfluo.ovh/requirements/$TAG/requirements.txt"
+        scp requirements*.txt vps:/var/www/downloads/requirements/$TAG/
+        echo "requirements.txt available at https://downloads.spfluo.ovh/requirements/$TAG/requirements-cp311-x86_64-unknown-linux-gnu.txt"
 
     - name: Update latest symlink on VPS
       run: |
         ssh vps rm -r /var/www/downloads/requirements/latest
         ssh vps ln -s /var/www/downloads/requirements/$TAG /var/www/downloads/requirements/latest
-        echo "requirements.txt also available at https://downloads.spfluo.ovh/requirements/latest/requirements.txt"
+        echo "requirements.txt also available at https://downloads.spfluo.ovh/requirements/latest/requirements-cp311-x86_64-unknown-linux-gnu.txt"
