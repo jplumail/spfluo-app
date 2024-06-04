@@ -58,13 +58,5 @@ jobs:
       uses: softprops/action-gh-release@v2
       with:
         files: requirements*.txt  # Include all generated requirements files
-        name: Updated Requirements (Python 3.11)
-        tag_name: requirements-update-v${{ github.run_number }}  # Unique tag for each release
-        body: |
-          This release updates the Python 3.11 requirements files for various platforms:
-          - requirements-cp311-x86_64-unknown-linux-gnu.txt
-          - requirements-cp311-aarch64-apple-darwin.txt
-          - requirements-cp311-x86_64-apple-darwin.txt
-          - requirements-cp311-x86_64-pc-windows-msvc.txt
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Required for the release action
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
