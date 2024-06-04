@@ -28,7 +28,7 @@ build==1.2.1
     # via npe2
 cachey==0.2.1
     # via napari
-certifi==2024.2.2
+certifi==2024.6.2
     # via
     #   napari
     #   requests
@@ -47,7 +47,7 @@ contourpy==1.2.1
     # via matplotlib
 cycler==0.12.1
     # via matplotlib
-dask==2024.5.1
+dask==2024.5.2
     # via napari
 debugpy==1.8.1
     # via ipykernel
@@ -61,11 +61,11 @@ executing==2.0.1
     # via stack-data
 flask==3.0.3
     # via scipion-fluo-singleparticle
-fonttools==4.52.4
+fonttools==4.53.0
     # via matplotlib
 freetype-py==2.4.0
     # via vispy
-fsspec==2024.5.0
+fsspec==2024.6.0
     # via dask
 heapdict==1.0.1
     # via cachey
@@ -88,7 +88,7 @@ ipykernel==6.29.4
     # via
     #   napari-console
     #   qtconsole
-ipython==8.24.0
+ipython==8.25.0
     # via
     #   ipykernel
     #   napari-console
@@ -290,7 +290,7 @@ pyproject-hooks==1.1.0
     # via build
 pyqt5==5.15.10
     # via napari
-pyqt5-qt5==5.15.13
+pyqt5-qt5==5.15.14
     # via pyqt5
 pyqt5-sip==12.13.0
     # via pyqt5
@@ -350,11 +350,11 @@ scikit-learn==1.5.0
     # via spfluo
 scipion-app==3.3.0.1
     # via spfluo-app
-scipion-fluo==3!0.2
+scipion-fluo==3!0.2.2
     # via
     #   scipion-app
     #   scipion-fluo-singleparticle
-scipion-fluo-singleparticle==0.1.1
+scipion-fluo-singleparticle==0.1.3
     # via spfluo-app
 scipion-pyworkflow==3.3.1.0
     # via
@@ -385,7 +385,7 @@ spfluo==0.1.2
     #   napari-spfluo
     #   scipion-fluo
     #   scipion-fluo-singleparticle
-spfluo-app==0.1.41
+spfluo-app==0.1.42
 sphinx==4.5.0
     # via
     #   napari
@@ -444,7 +444,7 @@ traitlets==5.14.3
     #   qtconsole
 typer==0.12.3
     # via npe2
-typing-extensions==4.12.0
+typing-extensions==4.12.1
     # via
     #   app-model
     #   ipython
@@ -474,5 +474,5 @@ wrapt==1.16.0
     # via napari
 xsdata==24.3.1
     # via ome-types
-zipp==3.19.0
+zipp==3.19.1
     # via importlib-metadata
