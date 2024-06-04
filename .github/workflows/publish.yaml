@@ -69,8 +69,6 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Build exe
-
     - name: Set Up Environment Variables
       env:
         PYAPP_VERSION: "0.22.0"
@@ -87,8 +85,9 @@ jobs:
       shell: pwsh
 
     - name: Create Build Directory
-      run: New-Item -Path 'build' -ItemType Directory
-      run: Set-Location -Path 'build'
+      run: |
+        New-Item -Path 'build' -ItemType Directory
+        run: Set-Location -Path 'build'
       shell: pwsh
 
     - name: Download pyapp Source
@@ -98,10 +97,6 @@ jobs:
 
     - name: Extract pyapp Source
       run: tar -xzf pyapp-source.tar.gz
-      shell: pwsh
-
-    - name: Enter Extracted Directory
-      run: 
       shell: pwsh
 
     - name: Build the Project
@@ -121,6 +116,7 @@ jobs:
     needs: [pip-compile-and-deploy, build-executable]
     runs-on: ubuntu-latest
     
+    steps:
     - name: Create Release
       uses: softprops/action-gh-release@v2
       with:
