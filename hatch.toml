@@ -17,7 +17,7 @@ packages = ["singleparticle"]
 
 
 [envs.default.env-vars]
-PIP_INDEX_URL = "https://spfluo.ovh/jean/dev/+simple"
+PIP_INDEX_URL = "https://pypi.spfluo.ovh/jean/dev/+simple"
 
 [envs.default]
 dependencies = ["ruff", "black", "pre-commit"]
