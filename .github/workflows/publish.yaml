@@ -60,3 +60,72 @@ jobs:
         files: requirements*.txt  # Include all generated requirements files
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  
+  build-executable:
+    needs: pip-compile-and-deploy
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Build exe
+
+    - name: Set Up Environment Variables
+      env:
+        PYAPP_VERSION: "0.22.0"
+        PYAPP_PROJECT_NAME: "spfluo-app"
+        PYAPP_PROJECT_VERSION: "0.1.1"
+        PYAPP_PROJECT_DEPENDENCY_FILE: "${{ github.workspace }}/requirements-cp311-x86_64-pc-windows-msvc.txt"
+        PYAPP_IS_GUI: 1
+        PYAPP_PIP_EXTRA_ARGS: "--index-url https://pypi.spfluo.ovh/jean/dev/+simple"
+        PYAPP_EXEC_SCRIPT: "${{ github.workspace }}/src/spfluo_app/__main__.py"
+        PYAPP_PYTHON_VERSION: "3.11"
+        PYAPP_UV_ENABLED: 1
+      
+      run: Set-Location -Path 'pyapp'
+      shell: pwsh
+
+    - name: Create Build Directory
+      run: New-Item -Path 'build' -ItemType Directory
+      run: Set-Location -Path 'build'
+      shell: pwsh
+
+    - name: Download pyapp Source
+      run: |
+        Invoke-WebRequest -Uri "https://github.com/ofek/pyapp/releases/download/v$env:PYAPP_VERSION/source.tar.gz" -OutFile 'pyapp-source.tar.gz'
+      shell: pwsh
+
+    - name: Extract pyapp Source
+      run: tar -xzf pyapp-source.tar.gz
+      shell: pwsh
+
+    - name: Enter Extracted Directory
+      run: 
+      shell: pwsh
+
+    - name: Build the Project
+      run: |
+        $env:RUST_BACKTRACE = "full"
+        $env:CARGO_PROFILE_RELEASE_BUILD_OVERRIDE_DEBUG = "true"
+        Set-Location -Path "pyapp-v$env:PYAPP_VERSION"
+        cargo build --release
+      shell: pwsh
+
+    - name: Move Executable (if found)
+      run: |
+        Move-Item -Path 'target/release/pyapp.exe' -Destination '../spfluo-app.exe' -Force
+      shell: pwsh
+  
+  create-release:
+    needs: [pip-compile-and-deploy, build-executable]
+    runs-on: ubuntu-latest
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: |
+          requirements*.txt 
+          pyapp/build/spfluo-app.exe
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
