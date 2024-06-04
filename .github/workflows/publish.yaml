@@ -1,0 +1,70 @@
+name: Publish wheel on tag and deploy
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install dependencies
+      run: |
+        pip install devpi-client  # Install devpi-client
+
+    - name: Authenticate and upload to devpi
+      run: |
+        devpi use https://pypi.spfluo.ovh
+        devpi login jean --password=${{ secrets.DEVPI_PASSWORD }}
+        devpi use jean/dev
+        devpi upload
+      env:
+        DEVPI_PASSWORD: ${{ secrets.DEVPI_PASSWORD }}
+  
+  pip-compile-and-deploy:
+    needs: publish
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'  # Specify the Python version you need
+
+    - name: Install pip-tools
+      run: pip install uv
+
+    - name: Run pip-compile
+      run: |
+        echo spfluo-app | uv pip compile - -o requirements-cp311-x86_64-unknown-linux-gnu.txt --upgrade --python-version 3.11 --python-platform x86_64-unknown-linux-gnu
+        echo spfluo-app | uv pip compile - -o requirements-cp311-aarch64-apple-darwin.txt --upgrade --python-version 3.11 --python-platform aarch64-apple-darwin
+        echo spfluo-app | uv pip compile - -o requirements-cp311-x86_64-apple-darwin.txt --upgrade --python-version 3.11 --python-platform x86_64-apple-darwin
+        echo spfluo-app | uv pip compile - -o requirements-cp311-x86_64-pc-windows-msvc.txt --upgrade --python-version 3.11 --python-platform x86_64-pc-windows-msvc
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: requirements*.txt  # Include all generated requirements files
+        name: Updated Requirements (Python 3.11)
+        tag_name: requirements-update-v${{ github.run_number }}  # Unique tag for each release
+        body: |
+          This release updates the Python 3.11 requirements files for various platforms:
+          - requirements-cp311-x86_64-unknown-linux-gnu.txt
+          - requirements-cp311-aarch64-apple-darwin.txt
+          - requirements-cp311-x86_64-apple-darwin.txt
+          - requirements-cp311-x86_64-pc-windows-msvc.txt
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # Required for the release action
