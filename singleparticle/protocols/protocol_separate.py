@@ -1,3 +1,4 @@
+from pwfluo.constants import MICRON_STR
 from pwfluo.objects import FluoImage, Particle, SetOfCoordinates3D, SetOfParticles
 from pwfluo.protocols import ProtFluoBase
 from pyworkflow import BETA
@@ -37,7 +38,7 @@ class ProtSingleParticleSeparate(Protocol, ProtFluoBase):
         form.addParam(
             "size",
             params.FloatParam,
-            label="Box size (μm)",
+            label=f"Box size ({MICRON_STR})",
             help="Size of the squared box surrounding the centriole",
         )
         form.addParam(

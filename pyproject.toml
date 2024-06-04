@@ -11,7 +11,7 @@ keywords = ["scipion", "fluorescence", "imageprocessing", "scipion-3.0"]
 dynamic = ["version"]
 dependencies = [
     "scipion-pyworkflow",
-    "scipion-fluo",
+    "scipion-fluo>=v3!0.2.1",
     "numpy",
     "scipy",
     "spfluo[manual-picking,ab-initio-reconstruction,visualisation]",
