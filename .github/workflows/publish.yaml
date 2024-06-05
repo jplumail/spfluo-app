@@ -38,6 +38,12 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+    
+    - name: Cache uv
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/uv
+        key: ${{ runner.os }}-python-${{ matrix.python-version }}-uv
 
     - name: Set up Python
       uses: actions/setup-python@v5
@@ -53,12 +59,6 @@ jobs:
         echo spfluo-app | uv pip compile - -o requirements-cp311-aarch64-apple-darwin.txt -q --upgrade --python-version 3.11 --python-platform aarch64-apple-darwin
         echo spfluo-app | uv pip compile - -o requirements-cp311-x86_64-apple-darwin.txt -q --upgrade --python-version 3.11 --python-platform x86_64-apple-darwin
         echo spfluo-app | uv pip compile - -o requirements-cp311-x86_64-pc-windows-msvc.txt -q --upgrade --python-version 3.11 --python-platform x86_64-pc-windows-msvc
-
-    - name: Cache uv
-      uses: actions/cache@v3
-      with:
-        path: ~/.cache/uv
-        key: ${{ runner.os }}-python-${{ matrix.python-version }}-uv
 
     - name: Upload requirements files
       uses: actions/upload-artifact@v4
@@ -80,10 +80,17 @@ jobs:
       PYAPP_EXEC_SCRIPT: "${{ github.workspace }}/src/spfluo_app/__main__.py"
       PYAPP_PYTHON_VERSION: "3.11"
       PYAPP_UV_ENABLED: 1 
+      TARGET_DIR: "${{ github.workspace }}/target"
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+    
+    - name: Cache cargo target directory
+      uses: actions/cache@v4
+      with:
+        path: ~/target
+        key: cargo-target
     
     - name: Download requirements.txt
       uses: actions/download-artifact@v4
@@ -105,15 +112,15 @@ jobs:
         CARGO_PROFILE_RELEASE_BUILD_OVERRIDE_DEBUG: "true"
       run: |
         Set-Location -Path "pyapp-v$env:PYAPP_VERSION"
-        cargo build --release
-        Move-Item -Path 'target/release/pyapp.exe' -Destination '../spfluo-app.exe' -Force
+        cargo build --release --target-dir $env:TARGET_DIR
+        Move-Item -Path "$env:TARGET_DIR/release/pyapp.exe" -Destination '~/spfluo-app.exe' -Force
       shell: pwsh
     
     - name: Upload executable
       uses: actions/upload-artifact@v4
       with:
         name: executable
-        path: pyapp.exe
+        path: spfluo-app.exe
         retention-days: 1
   
   create-release:
