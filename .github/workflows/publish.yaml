@@ -35,9 +35,22 @@ jobs:
     needs: publish
     runs-on: ubuntu-latest
 
+    env:
+      python_version: "3.11"
+      python_version_strip: "311"
+
+    strategy:
+      matrix:
+        platform: [x86_64-unknown-linux-gnu, aarch64-apple-darwin, x86_64-apple-darwin, x86_64-pc-windows-msvc]
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+    
+    - name: Cache uv
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/uv
     
     - name: Set up Python
       uses: actions/setup-python@v5
@@ -49,15 +62,12 @@ jobs:
 
     - name: Run pip-compile
       run: |
-        echo spfluo-app | uv pip compile - -o requirements-cp311-x86_64-unknown-linux-gnu.txt -q --upgrade --python-version 3.11 --python-platform x86_64-unknown-linux-gnu
-        echo spfluo-app | uv pip compile - -o requirements-cp311-aarch64-apple-darwin.txt -q --upgrade --python-version 3.11 --python-platform aarch64-apple-darwin
-        echo spfluo-app | uv pip compile - -o requirements-cp311-x86_64-apple-darwin.txt -q --upgrade --python-version 3.11 --python-platform x86_64-apple-darwin
-        echo spfluo-app | uv pip compile - -o requirements-cp311-x86_64-pc-windows-msvc.txt -q --upgrade --python-version 3.11 --python-platform x86_64-pc-windows-msvc
+        echo spfluo-app | uv pip compile - -o requirements-cp${{ env.python_version_strip }}-${{ matrix.platform }}.txt -q --upgrade --python-version ${{ env.python_version }} --python-platform ${{ matrix.platform }}
 
     - name: Upload requirements files
       uses: actions/upload-artifact@v4
       with:
-        name: requirements
+        name: requirements-${{ matrix.platform }}
         path: requirements*.txt
         retention-days: 1
 
@@ -83,7 +93,7 @@ jobs:
     - name: Download requirements.txt
       uses: actions/download-artifact@v4
       with:
-        name: requirements
+        name: requirements-x86_64-pc-windows-msvc
 
     - name: Download pyapp Source
       run: |
