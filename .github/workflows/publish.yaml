@@ -125,7 +125,6 @@ jobs:
   create-release:
     needs: [compile-requirements, build-executable]
     runs-on: ubuntu-latest
-    if: ${{ github.ref_type }} == 'tag'
     
     steps:
     - name: Download all artifacts
