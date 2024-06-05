@@ -43,7 +43,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ~/.cache/uv
-        key: ${{ runner.os }}-python-${{ matrix.python-version }}-uv
+        key: ${{ runner.os }}-python-uv
 
     - name: Set up Python
       uses: actions/setup-python@v5
@@ -89,8 +89,8 @@ jobs:
     - name: Cache cargo target directory
       uses: actions/cache@v4
       with:
-        path: ~/target
-        key: cargo-target
+        path: "${{ github.workspace }}/target"
+        key: pyapp-${{ PYAPP_VERSION }}-cargo-target
     
     - name: Download requirements.txt
       uses: actions/download-artifact@v4
@@ -113,7 +113,7 @@ jobs:
       run: |
         Set-Location -Path "pyapp-v$env:PYAPP_VERSION"
         cargo build --release --target-dir $env:TARGET_DIR
-        Move-Item -Path "$env:TARGET_DIR/release/pyapp.exe" -Destination '~/spfluo-app.exe' -Force
+        Move-Item -Path "$env:TARGET_DIR/release/pyapp.exe" -Destination "${{ github.workspace }}/spfluo-app.exe" -Force
       shell: pwsh
     
     - name: Upload executable
