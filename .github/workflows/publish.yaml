@@ -32,7 +32,6 @@ jobs:
         DEVPI_PASSWORD: ${{ secrets.DEVPI_PASSWORD }}
   
   compile-requirements:
-    needs: publish
     runs-on: ubuntu-latest
 
     env:
@@ -64,11 +63,22 @@ jobs:
 
     - name: Run pip-compile
       if: ${{ !matrix.gpu }}
-      run: echo spfluo-app | uv pip compile - -o requirements-cp${{ env.python_version_strip }}-${{ matrix.platform }}.txt -q --upgrade --python-version ${{ env.python_version }} --python-platform ${{ matrix.platform }}
+      run: uv pip compile pyproject.toml -o requirements-cp${{ env.python_version_strip }}-${{ matrix.platform }}.txt -q --upgrade --python-version ${{ env.python_version }} --python-platform ${{ matrix.platform }}
     
     - name: Run pip-compile gpu
       if: ${{ matrix.gpu }}
-      run: echo spfluo-app | uv pip compile - -o requirements-cp${{ env.python_version_strip }}-${{ matrix.platform }}-gpu.txt -q --upgrade --python-version ${{ env.python_version }} --python-platform ${{ matrix.platform }} --extra=gpu
+      run: uv pip compile pyproject.toml -o requirements-cp${{ env.python_version_strip }}-${{ matrix.platform }}-gpu.txt -q --upgrade --python-version ${{ env.python_version }} --python-platform ${{ matrix.platform }} --extra=gpu
+
+    - name: Get spfluo-app version
+      id: version
+      run: |
+        pip install hatch
+        echo "version=$(hatch version)" >> "$GITHUB_OUTPUT"
+    
+    - name: Append to requirements spfluo-app
+      run: |
+        REQUIREMENT_FILE=$(ls requirements*.txt | head -n 1)
+        echo "spfluo-app={{ steps.version.outputs.version }}" >> $REQUIREMENT_FILE
 
     - name: Upload requirements files
       if: ${{ !matrix.gpu }}
