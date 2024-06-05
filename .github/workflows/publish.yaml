@@ -63,17 +63,24 @@ jobs:
 
     - name: Run pip-compile
       if: ${{ !matrix.gpu }}
-      run: uv pip compile pyproject.toml -o requirements-cp${{ env.python_version_strip }}-${{ matrix.platform }}.txt -q --upgrade --python-version ${{ env.python_version }} --python-platform ${{ matrix.platform }}
+      run: >
+        uv pip compile pyproject.toml
+        -o requirements-cp${{ env.python_version_strip }}-${{ matrix.platform }}.txt
+        -q
+        --upgrade
+        --python-version${{ env.python_version }}
+        --python-platform ${{ matrix.platform }}
     
     - name: Run pip-compile gpu
       if: ${{ matrix.gpu }}
-      run: uv pip compile pyproject.toml \
-        -o requirements-cp${{ env.python_version_strip }}-${{ matrix.platform }}-gpu.txt \
-        -q \
-        --upgrade \
-        --python-version ${{ env.python_version }} \
-        --python-platform ${{ matrix.platform }} \
-        --extra=gpu \
+      run: >
+        uv pip compile pyproject.toml
+        -o requirements-cp${{ env.python_version_strip }}-${{ matrix.platform }}-gpu.txt
+        -q
+        --upgrade
+        --python-version ${{ env.python_version }}
+        --python-platform ${{ matrix.platform }}
+        --extra=gpu
         --index-url https://pypi.spfluo.ovh/jean/dev-pytorch-cu118/+simple/  # pytorch is in the deps of spfluo-app[gpu], so we need a custom index
 
     - name: Get spfluo-app version
