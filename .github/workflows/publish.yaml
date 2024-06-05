@@ -64,27 +64,24 @@ jobs:
   build-executable:
     needs: pip-compile-and-deploy
     runs-on: windows-latest
+    env:
+      PYAPP_VERSION: "0.22.0"
+      PYAPP_PROJECT_NAME: "spfluo-app"
+      PYAPP_PROJECT_VERSION: "0.1.1"
+      PYAPP_PROJECT_DEPENDENCY_FILE: "${{ github.workspace }}/requirements-cp311-x86_64-pc-windows-msvc.txt"
+      PYAPP_IS_GUI: 1
+      PYAPP_PIP_EXTRA_ARGS: "--index-url https://pypi.spfluo.ovh/jean/dev/+simple"
+      PYAPP_EXEC_SCRIPT: "${{ github.workspace }}/src/spfluo_app/__main__.py"
+      PYAPP_PYTHON_VERSION: "3.11"
+      PYAPP_UV_ENABLED: 1 
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Set Up Environment Variables
-      env:
-        PYAPP_VERSION: "0.22.0"
-        PYAPP_PROJECT_NAME: "spfluo-app"
-        PYAPP_PROJECT_VERSION: "0.1.1"
-        PYAPP_PROJECT_DEPENDENCY_FILE: "${{ github.workspace }}/requirements-cp311-x86_64-pc-windows-msvc.txt"
-        PYAPP_IS_GUI: 1
-        PYAPP_PIP_EXTRA_ARGS: "--index-url https://pypi.spfluo.ovh/jean/dev/+simple"
-        PYAPP_EXEC_SCRIPT: "${{ github.workspace }}/src/spfluo_app/__main__.py"
-        PYAPP_PYTHON_VERSION: "3.11"
-        PYAPP_UV_ENABLED: 1 
-      run: Set-Location -Path 'pyapp'
-      shell: pwsh
-
     - name: Create Build Directory
       run: |
+        Set-Location -Path 'pyapp'
         New-Item -Path 'build' -ItemType Directory
         Set-Location -Path 'build'
       shell: pwsh
