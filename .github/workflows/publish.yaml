@@ -84,13 +84,6 @@ jobs:
       with:
         name: requirements
 
-    - name: Create Build Directory
-      run: |
-        Set-Location -Path 'pyapp'
-        New-Item -Path 'build' -ItemType Directory
-        Set-Location -Path 'build'
-      shell: pwsh
-
     - name: Download pyapp Source
       run: |
         Invoke-WebRequest -Uri "https://github.com/ofek/pyapp/releases/download/v$env:PYAPP_VERSION/source.tar.gz" -OutFile 'pyapp-source.tar.gz'
@@ -101,23 +94,19 @@ jobs:
       shell: pwsh
 
     - name: Build the Project
+      env:
+        RUST_BACKTRACE: "full"
+        CARGO_PROFILE_RELEASE_BUILD_OVERRIDE_DEBUG: "true"
       run: |
-        $env:RUST_BACKTRACE = "full"
-        $env:CARGO_PROFILE_RELEASE_BUILD_OVERRIDE_DEBUG = "true"
         Set-Location -Path "pyapp-v$env:PYAPP_VERSION"
         cargo build --release
-      shell: pwsh
-
-    - name: Move Executable
-      run: |
-        Move-Item -Path 'target/release/pyapp.exe' -Destination '../spfluo-app.exe' -Force
       shell: pwsh
     
     - name: Upload executable
       uses: actions/upload-artifact@v4
       with:
         name: executable
-        path: pyapp/build/spfluo-app.exe
+        path: pyapp-v$env:PYAPP_VERSION/target/release/pyapp.exe
         retention-days: 1
   
   create-release:
