@@ -49,18 +49,18 @@ jobs:
 
     - name: Run pip-compile
       run: |
-        echo spfluo-app | uv pip compile - -o requirements-cp311-x86_64-unknown-linux-gnu.txt --upgrade --python-version 3.11 --python-platform x86_64-unknown-linux-gnu
-        echo spfluo-app | uv pip compile - -o requirements-cp311-aarch64-apple-darwin.txt --upgrade --python-version 3.11 --python-platform aarch64-apple-darwin
-        echo spfluo-app | uv pip compile - -o requirements-cp311-x86_64-apple-darwin.txt --upgrade --python-version 3.11 --python-platform x86_64-apple-darwin
-        echo spfluo-app | uv pip compile - -o requirements-cp311-x86_64-pc-windows-msvc.txt --upgrade --python-version 3.11 --python-platform x86_64-pc-windows-msvc
+        echo spfluo-app | uv pip compile - -o requirements-cp311-x86_64-unknown-linux-gnu.txt -q --upgrade --python-version 3.11 --python-platform x86_64-unknown-linux-gnu
+        echo spfluo-app | uv pip compile - -o requirements-cp311-aarch64-apple-darwin.txt -q --upgrade --python-version 3.11 --python-platform aarch64-apple-darwin
+        echo spfluo-app | uv pip compile - -o requirements-cp311-x86_64-apple-darwin.txt -q --upgrade --python-version 3.11 --python-platform x86_64-apple-darwin
+        echo spfluo-app | uv pip compile - -o requirements-cp311-x86_64-pc-windows-msvc.txt -q --upgrade --python-version 3.11 --python-platform x86_64-pc-windows-msvc
 
-    - name: Create Release
-      uses: softprops/action-gh-release@v2
+    - name: Upload requirements files
+      uses: actions/upload-artifact@v4
       with:
-        files: requirements*.txt  # Include all generated requirements files
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  
+        name: requirements
+        path: requirements*.txt
+        retention-days: 1
+
   build-executable:
     needs: pip-compile-and-deploy
     runs-on: windows-latest
@@ -78,6 +78,11 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+    
+    - name: Download requirements.txt
+      uses: actions/download-artifact@v4
+      with:
+        name: requirements
 
     - name: Create Build Directory
       run: |
@@ -103,21 +108,31 @@ jobs:
         cargo build --release
       shell: pwsh
 
-    - name: Move Executable (if found)
+    - name: Move Executable
       run: |
         Move-Item -Path 'target/release/pyapp.exe' -Destination '../spfluo-app.exe' -Force
       shell: pwsh
+    
+    - name: Upload executable
+      uses: actions/upload-artifact@v4
+      with:
+        name: executable
+        path: pyapp/build/spfluo-app.exe
+        retention-days: 1
   
   create-release:
     needs: [pip-compile-and-deploy, build-executable]
     runs-on: ubuntu-latest
     
     steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      
     - name: Create Release
       uses: softprops/action-gh-release@v2
       with:
         files: |
-          requirements*.txt 
-          pyapp/build/spfluo-app.exe
+          requirements/requirements*.txt 
+          executable/spfluo-app.exe
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
