@@ -2,8 +2,6 @@ name: Publish wheel on tag and deploy
 
 on:
   push:
-    branches:
-      - main
     tags:
       - 'v*'
 
@@ -33,7 +31,7 @@ jobs:
       env:
         DEVPI_PASSWORD: ${{ secrets.DEVPI_PASSWORD }}
   
-  pip-compile-and-deploy:
+  compile-requirements:
     needs: publish
     runs-on: ubuntu-latest
 
@@ -41,12 +39,6 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
     
-    - name: Cache uv
-      uses: actions/cache@v4
-      with:
-        path: ~/.cache/uv
-        key: ${{ runner.os }}-python-uv
-
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
@@ -70,7 +62,7 @@ jobs:
         retention-days: 1
 
   build-executable:
-    needs: pip-compile-and-deploy
+    needs: compile-requirements
     runs-on: windows-latest
     env:
       PYAPP_VERSION: "0.22.0"
@@ -87,13 +79,7 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
-    - name: Cache cargo target directory
-      uses: actions/cache@v4
-      with:
-        path: "${{ github.workspace }}/target"
-        key: pyapp-${{ env.PYAPP_VERSION }}-cargo-target
-    
+        
     - name: Download requirements.txt
       uses: actions/download-artifact@v4
       with:
@@ -126,7 +112,7 @@ jobs:
         retention-days: 1
   
   create-release:
-    needs: [pip-compile-and-deploy, build-executable]
+    needs: [compile-requirements, build-executable]
     runs-on: ubuntu-latest
     if: ${{ github.ref_type }} == 'tag'
     
