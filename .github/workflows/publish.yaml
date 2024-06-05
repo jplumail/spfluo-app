@@ -86,7 +86,7 @@ jobs:
     - name: Create Build Directory
       run: |
         New-Item -Path 'build' -ItemType Directory
-        run: Set-Location -Path 'build'
+        Set-Location -Path 'build'
       shell: pwsh
 
     - name: Download pyapp Source
