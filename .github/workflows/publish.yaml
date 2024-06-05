@@ -40,7 +40,7 @@ jobs:
 
     strategy:
       matrix:
-        platform: [x86_64-unknown-linux-gnu, aarch64-apple-darwin, x86_64-apple-darwin, x86_64-pc-windows-msvc]
+        platform: [x86_64-unknown-linux-gnu, x86_64-pc-windows-msvc]
         gpu: [false, true]
 
     steps:
@@ -67,7 +67,14 @@ jobs:
     
     - name: Run pip-compile gpu
       if: ${{ matrix.gpu }}
-      run: uv pip compile pyproject.toml -o requirements-cp${{ env.python_version_strip }}-${{ matrix.platform }}-gpu.txt -q --upgrade --python-version ${{ env.python_version }} --python-platform ${{ matrix.platform }} --extra=gpu
+      run: uv pip compile pyproject.toml \
+        -o requirements-cp${{ env.python_version_strip }}-${{ matrix.platform }}-gpu.txt \
+        -q \
+        --upgrade \
+        --python-version ${{ env.python_version }} \
+        --python-platform ${{ matrix.platform }} \
+        --extra=gpu \
+        --index-url https://pypi.spfluo.ovh/jean/dev-pytorch-cu118/+simple/  # pytorch is in the deps of spfluo-app[gpu], so we need a custom index
 
     - name: Get spfluo-app version
       id: version
@@ -99,13 +106,17 @@ jobs:
   build-executable:
     needs: compile-requirements
     runs-on: windows-latest
+    strategy:
+      matrix:
+        platform: [x86_64-pc-windows-msvc]
+        gpu: [false, true]
+    
     env:
       PYAPP_VERSION: "0.22.0"
       PYAPP_PROJECT_NAME: "spfluo-app"
       PYAPP_PROJECT_VERSION: "0.1.1"
-      PYAPP_PROJECT_DEPENDENCY_FILE: "${{ github.workspace }}/requirements-cp311-x86_64-pc-windows-msvc.txt"
+      PYAPP_PROJECT_DEPENDENCY_FILE: "${{ github.workspace }}/requirements-cp311-${{ matrix.platform }}.txt"
       PYAPP_IS_GUI: 1
-      PYAPP_PIP_EXTRA_ARGS: "--index-url https://pypi.spfluo.ovh/jean/dev/+simple"
       PYAPP_EXEC_SCRIPT: "${{ github.workspace }}/src/spfluo_app/__main__.py"
       PYAPP_PYTHON_VERSION: "3.11"
       PYAPP_UV_ENABLED: 1 
@@ -114,11 +125,35 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+    
+    - name: Cache cargo target directory
+      uses: actions/cache@v4
+      with:
+        path: ${{ github.workspace }}/target
+        key: cargo-cache
+    
+    - name: Get pip index
+      shell: pwsh
+      run: |
+        if (${{ matrix.gpu }}) {
+            echo "PYAPP_PIP_EXTRA_ARGS=https://pypi.spfluo.ovh/jean/dev-pytorch-cu118/+simple" >> $env:GITHUB_ENV
+            echo "PYAPP_PROJECT_DEPENDENCY_FILE=${{ github.workspace }}/requirements-cp311-${{ matrix.platform }}-gpu.txt" >> $env:GITHUB_ENV
+        } else {
+            echo "PYAPP_PIP_EXTRA_ARGS=https://pypi.spfluo.ovh/jean/dev/+simple" >> $env:GITHUB_ENV
+            echo "PYAPP_PROJECT_DEPENDENCY_FILE=${{ github.workspace }}/requirements-cp311-${{ matrix.platform }}.txt" >> $env:GITHUB_ENV
+        }
         
     - name: Download requirements.txt
       uses: actions/download-artifact@v4
+      if: ${{ !matrix.gpu }}
       with:
-        name: requirements-x86_64-pc-windows-msvc
+        name: requirements-${{ matrix.platform }}
+
+    - name: Download requirements.txt gpu
+      uses: actions/download-artifact@v4
+      if: ${{ matrix.gpu }}
+      with:
+        name: requirements-${{ matrix.platform }}-gpu
 
     - name: Download pyapp Source
       run: |
