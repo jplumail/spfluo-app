@@ -68,7 +68,7 @@ jobs:
         -o requirements-cp${{ env.python_version_strip }}-${{ matrix.platform }}.txt
         -q
         --upgrade
-        --python-version${{ env.python_version }}
+        --python-version ${{ env.python_version }}
         --python-platform ${{ matrix.platform }}
     
     - name: Run pip-compile gpu
