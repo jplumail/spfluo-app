@@ -147,7 +147,7 @@ jobs:
         } else {
             echo "PYAPP_PIP_EXTRA_ARGS=https://pypi.spfluo.ovh/jean/dev/+simple" >> $env:GITHUB_ENV
             echo "PYAPP_PROJECT_DEPENDENCY_FILE=${{ github.workspace }}/requirements-cp311-${{ matrix.platform }}.txt" >> $env:GITHUB_ENV
-            echo "GPU_SUFFIX=''" >> $env:GITHUB_ENV
+            echo "GPU_SUFFIX=" >> $env:GITHUB_ENV
         }
         
     - name: Download requirements.txt
