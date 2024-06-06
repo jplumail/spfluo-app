@@ -2,8 +2,8 @@ name: Publish wheel on tag and deploy
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - 'main'
 
 jobs:
   publish:
