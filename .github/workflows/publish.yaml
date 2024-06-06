@@ -144,11 +144,11 @@ jobs:
       shell: pwsh
       run: |
         if ($${{ matrix.gpu }}) {
-            echo "PYAPP_PIP_EXTRA_ARGS=https://pypi.spfluo.ovh/jean/dev-pytorch-cu118/+simple" >> $env:GITHUB_ENV
+            echo "PYAPP_PIP_EXTRA_ARGS=--index-url=https://pypi.spfluo.ovh/jean/dev-pytorch-cu118/+simple" >> $env:GITHUB_ENV
             echo "PYAPP_PROJECT_DEPENDENCY_FILE=${{ github.workspace }}/requirements-cp311-${{ matrix.platform }}-gpu.txt" >> $env:GITHUB_ENV
             echo "GPU_SUFFIX=-gpu" >> $env:GITHUB_ENV
         } else {
-            echo "PYAPP_PIP_EXTRA_ARGS=https://pypi.spfluo.ovh/jean/dev/+simple" >> $env:GITHUB_ENV
+            echo "PYAPP_PIP_EXTRA_ARGS=--index-url=https://pypi.spfluo.ovh/jean/dev/+simple" >> $env:GITHUB_ENV
             echo "PYAPP_PROJECT_DEPENDENCY_FILE=${{ github.workspace }}/requirements-cp311-${{ matrix.platform }}.txt" >> $env:GITHUB_ENV
             echo "GPU_SUFFIX=" >> $env:GITHUB_ENV
         }
