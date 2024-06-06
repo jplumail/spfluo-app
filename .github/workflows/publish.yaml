@@ -139,28 +139,23 @@ jobs:
         path: ${{ github.workspace }}/target
         key: cargo-cache
     
-    - name: Get pip index
+    - name: Define gpu vars
       shell: pwsh
       run: |
         if ($${{ matrix.gpu }}) {
             echo "PYAPP_PIP_EXTRA_ARGS=https://pypi.spfluo.ovh/jean/dev-pytorch-cu118/+simple" >> $env:GITHUB_ENV
             echo "PYAPP_PROJECT_DEPENDENCY_FILE=${{ github.workspace }}/requirements-cp311-${{ matrix.platform }}-gpu.txt" >> $env:GITHUB_ENV
+            echo "GPU_SUFFIX='-gpu'" >> $env:GITHUB_ENV
         } else {
             echo "PYAPP_PIP_EXTRA_ARGS=https://pypi.spfluo.ovh/jean/dev/+simple" >> $env:GITHUB_ENV
             echo "PYAPP_PROJECT_DEPENDENCY_FILE=${{ github.workspace }}/requirements-cp311-${{ matrix.platform }}.txt" >> $env:GITHUB_ENV
+            echo "GPU_SUFFIX=''" >> $env:GITHUB_ENV
         }
         
     - name: Download requirements.txt
       uses: actions/download-artifact@v4
-      if: ${{ !matrix.gpu }}
       with:
-        name: requirements-${{ matrix.platform }}
-
-    - name: Download requirements.txt gpu
-      uses: actions/download-artifact@v4
-      if: ${{ matrix.gpu }}
-      with:
-        name: requirements-${{ matrix.platform }}-gpu
+        name: requirements-${{ matrix.platform }}${{ env.GPU_SUFFIX }}
 
     - name: Download pyapp Source
       run: |
@@ -178,7 +173,7 @@ jobs:
       run: |
         Set-Location -Path "pyapp-v$env:PYAPP_VERSION"
         cargo build --release --target-dir $env:TARGET_DIR
-        Move-Item -Path "$env:TARGET_DIR/release/pyapp.exe" -Destination "${{ github.workspace }}/spfluo-app.exe" -Force
+        Move-Item -Path "$env:TARGET_DIR/release/pyapp.exe" -Destination "${{ github.workspace }}/spfluo-app$env:GPU_SUFFIX.exe" -Force
       shell: pwsh
     
     - name: Upload executable
@@ -186,17 +181,9 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: executable
-        path: spfluo-app.exe
+        path: spfluo-app${{ env.GPU_SUFFIX }}.exe
         retention-days: 1
-    
-    - name: Upload executable gpu
-      if: ${{ matrix.gpu }}
-      uses: actions/upload-artifact@v4
-      with:
-        name: executable-gpu
-        path: spfluo-app-gpu.exe
-        retention-days: 1
-  
+      
   create-release:
     needs: [compile-requirements, build-executable]
     runs-on: ubuntu-latest
