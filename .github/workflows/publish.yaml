@@ -177,7 +177,7 @@ jobs:
     - name: Upload executable
       uses: actions/upload-artifact@v4
       with:
-        name: executable
+        name: executable${{ env.GPU_SUFFIX }}
         path: spfluo-app${{ env.GPU_SUFFIX }}.exe
         retention-days: 1
       
