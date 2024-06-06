@@ -90,7 +90,7 @@ jobs:
     - name: Append to requirements spfluo-app
       run: |
         REQUIREMENT_FILE=$(ls requirements*.txt | head -n 1)
-        echo "spfluo-app=${{ steps.version.outputs.version }}" >> $REQUIREMENT_FILE
+        echo "spfluo-app==${{ steps.version.outputs.version }}" >> $REQUIREMENT_FILE
 
     - name: Upload requirements files
       if: ${{ !matrix.gpu }}
