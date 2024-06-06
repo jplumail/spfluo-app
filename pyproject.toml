@@ -9,7 +9,8 @@ authors = [
 ]
 dependencies = [
   "scipion-fluo-singleparticle>=0.1",
-  "scipion-app>=3.3.0.1"
+  "scipion-app>=3.3.0.1",
+  "napari[pyqt5]",
 ]
 dynamic = ["version"]
 
