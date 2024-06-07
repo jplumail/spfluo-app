@@ -63,4 +63,4 @@ jobs:
       - name: Upload site to VPS
         run: |
           scp site.tar.gz vps:site.tar.gz
-          ssh vps tar -xzvf site.tar.gz -C /var/www/docs
+          ssh vps tar -xzvf site.tar.gz -C /var/www/docs --overwrite
