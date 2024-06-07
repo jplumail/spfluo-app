@@ -35,6 +35,7 @@ jobs:
   
   publish:
     runs-on: ubuntu-latest
+    needs: build
 
     steps:
       - name: Configure SSH
@@ -63,4 +64,3 @@ jobs:
         run: |
           scp site.tar.gz vps:site.tar.gz
           ssh vps tar -xzvf site.tar.gz -C /var/www/docs
-          
