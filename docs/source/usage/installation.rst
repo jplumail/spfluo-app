@@ -10,8 +10,8 @@ Windows
 
 On Windows, the installation is as simple as downloading an executable:
 
-a. If you have an NVIDIA GPU, download `spfluo-app-gpu.exe <https://github.com/jplumail/spfluo-app/releases/download/v0.2.1/spfluo-app-gpu.exe>`_.
-b. If not, download `spfluo-app.exe <https://github.com/jplumail/spfluo-app/releases/download/v0.2.1/spfluo-app.exe>`_. 
+a. If you have an NVIDIA GPU, download :spfluo-latest-released-files:`spfluo-app-gpu.exe`.
+b. If not, download :spfluo-latest-released-files:`spfluo-app.exe`.
 
 The executable will install the requirements and launch the app.
 
@@ -28,13 +28,15 @@ Linux
     $ python3 -m venv spfluo-app-venv
     $ source /path/to/spfluo-app-venv/bin/activate
 
-3. Install **spfluo-app** in the virtual environnement using the following command.
+3. Go to :spfluo-latest-release-page:`the spfluo github release page <>` and copy the link of the ``requirements.txt`` file that fits your need.
+
+4. Install **spfluo-app** in the virtual environnement using the following command.
     - If you have a GPU::
 
-        $ python3 -m pip install -r https://github.com/jplumail/spfluo-app/releases/download/v0.2.1/requirements-cp311-x86_64-unknown-linux-gnu-gpu.txt
+        $ python3 -m pip install -r $LINK
     - Otherwise::
 
-        $ python3 -m pip install -r https://github.com/jplumail/spfluo-app/releases/download/v0.2.1/requirements-cp311-x86_64-unknown-linux-gnu.txt
+        $ python3 -m pip install -r $LINK
 
 4. The app will be available at ``/path/to/spfluo-app-venv/bin/spfluo-app``.
 

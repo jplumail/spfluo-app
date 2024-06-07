@@ -19,6 +19,7 @@ release = subprocess.check_output(["hatch", "version"]).decode()
 
 extensions = [
     "sphinxcontrib.video",
+    "sphinx.ext.extlinks",
 ]
 
 templates_path = ['_templates']
@@ -38,3 +39,9 @@ numfig = True
 
 # -- Options for PDF output --
 latex_engine = 'xelatex'
+
+# extlinks
+extlinks = {
+    "spfluo-latest-released-files": (f"https://github.com/jplumail/spfluo-app/releases/download/v{release}/%s", "%s"),
+    "spfluo-latest-release-page": (f"https://github.com/jplumail/spfluo-app/releases/tag/v{release}%s", None)
+}
