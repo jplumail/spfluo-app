@@ -6,10 +6,13 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
+import subprocess
+
+
 project = 'spfluo-app'
 copyright = '2023, Jean Plumail'
 author = 'Jean Plumail'
-release = '0.1'
+release = subprocess.check_output(["hatch", "version"]).decode()
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

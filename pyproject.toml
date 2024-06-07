@@ -28,3 +28,14 @@ source = "vcs"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/spfluo_app"]
+
+[tool.hatch.envs.docs]
+detached = true
+dependencies = [
+  "sphinx",
+  "sphinxcontrib-video",
+  "furo"
+]
+
+[tool.hatch.envs.docs.scripts]
+build = "make -C docs html"
