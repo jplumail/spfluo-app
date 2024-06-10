@@ -27,7 +27,9 @@ if TYPE_CHECKING:
 refinement_logger = logging.getLogger("spfluo.refinement")
 
 
-def rotate(volumes: "Array", poses: "Array", inverse=False, batch=True):
+def rotate(
+    volumes: "Array", poses: "Array", inverse=False, batch=True, multichannel=False
+):
     xp = array_namespace(volumes, poses)
     H = get_transform_matrix(
         volumes.shape[-3:],
@@ -39,7 +41,9 @@ def rotate(volumes: "Array", poses: "Array", inverse=False, batch=True):
     if not inverse:  # scipy's affine_transform do inverse transform by default
         H = xp.linalg.inv(H)
     H = xp.asarray(H, dtype=volumes.dtype)
-    return affine_transform(volumes, H, order=1, prefilter=False, batch=batch)
+    return affine_transform(
+        volumes, H, order=1, prefilter=False, batch=batch, multichannel=multichannel
+    )
 
 
 def reconstruction_L2(
