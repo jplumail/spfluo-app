@@ -591,7 +591,9 @@ def refine(
     lambda_ = xp.asarray(lambda_, **array_kwargs)
 
     if initial_volume is not None:
-        initial_volume = interpolate_to_size(initial_volume, (D, D, D))
+        initial_volume = interpolate_to_size(
+            initial_volume, (D, D, D), multichannel=True
+        )
         current_reconstruction = initial_volume
     else:
         guessed_poses_sym = symmetrize_poses(

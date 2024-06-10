@@ -546,6 +546,33 @@ def test_refine_shapes(xp, device):
     assert poses.shape == guessed_poses.shape
 
 
+@pytest.mark.slow
+@pytest.mark.parametrize("xp,device", gpu_libs, ids=gpu_ids)
+def test_refine_initial_vol_shapes(xp, device):
+    N, C, D, H, W = 15, 2, 32, 32, 32
+    patches = xp.asarray(np.random.randn(N, C, D, H, W))
+    psf = xp.asarray(np.random.randn(C, D, H, W))
+    guessed_poses = xp.asarray(np.random.randn(N, 6))
+    initial_volume = xp.asarray(np.random.randn(C, D, H, W))
+
+    S = 2
+    steps = [(S * S, S), S * S * S]
+    ranges = [0, 40]
+    recon, poses = refine(
+        patches,
+        psf,
+        guessed_poses,
+        steps,
+        ranges,
+        device=device,
+        batch_size=256,
+        initial_volume=initial_volume,
+    )
+
+    assert recon.shape == patches[0].shape
+    assert poses.shape == guessed_poses.shape
+
+
 @pytest.mark.parametrize(
     "generated_data_all_array", gpu_libs, indirect=True, ids=gpu_ids
 )

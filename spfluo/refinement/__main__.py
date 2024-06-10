@@ -97,6 +97,8 @@ def main(args):
                 args.initial_volume_path, xp=xp, device=host_device, dtype=args.dtype
             )
         )
+        if initial_volume.ndim == 3:
+            initial_volume = xp.stack((initial_volume,) * particles.shape[1], axis=0)
     else:
         initial_volume = None
     guessed_poses, names = read_poses(args.guessed_poses_path, alphabetic_order=True)
