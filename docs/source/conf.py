@@ -12,7 +12,7 @@ import subprocess
 project = 'spfluo-app'
 copyright = '2023, Jean Plumail'
 author = 'Jean Plumail'
-release = subprocess.check_output(["hatch", "version"]).decode()
+release = subprocess.check_output(["hatch", "version"]).decode().strip()
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
