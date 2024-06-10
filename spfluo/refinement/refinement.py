@@ -60,8 +60,8 @@ def reconstruction_L2(
     M reconstructions can be done at once.
 
     Args:
-        volumes (Array): stack of N 3D images of shape (N, D, D, D)
-        psf (Array) : 3D image of shape (d, h, w)
+        volumes (Array): stack of N 3D images of shape (N, C, D, D, D)
+        psf (Array) : 3D image of shape (C, d, h, w)
         poses (Array):
             stack(s) of N poses of shape ((M), (k), N, 6)
             A 'pose' is represented by 6 numbers
@@ -85,19 +85,22 @@ def reconstruction_L2(
 
     Returns:
         recon (Array):
-            reconstruction(s) of shape ((M), D, D, D) or ((M), D+1, D+1, D+1)
+            reconstruction(s) of shape ((M), C, D, D, D) or ((M), C, D+1, D+1, D+1)
     """
     refinement_logger.info("Calling function reconstruction_L2")
 
     xp = array_namespace(volumes, poses, psf, lambda_)
     host_device = get_device(volumes)
     compute_device = device
-    N, D, H, W = volumes.shape[-4:]
+    N, C, D, H, W = volumes.shape[-4:]
     assert D == H == W
-    d, h, w = psf.shape
+    c, d, h, w = psf.shape
+    assert c == C
 
     refinement_logger.info(
-        "Arguments:" f" {N} volumes of size {D}x{D}x{D}" f" PSF of size {d}x{h}x{w}"
+        "Arguments:"
+        f" {N} volumes of size {D}x{D}x{D} with C channels"
+        f" PSF of size {d}x{h}x{w}"
     )
     if batch:
         assert poses.ndim > 2
@@ -122,8 +125,8 @@ def reconstruction_L2(
     new_poses = xp.asarray(poses, copy=True)
     if D % 2 == 0:
         # pad by 1 pixel on the right
-        volumes = pad(volumes, ((0, 0), (0, 1), (0, 1), (0, 1)))
-        assert volumes.shape == (N, D + 1, D + 1, D + 1)
+        volumes = pad(volumes, ((0, 0), (0, 0), (0, 1), (0, 1), (0, 1)))
+        assert volumes.shape == (N, C, D + 1, D + 1, D + 1)
         D = D + 1
         new_poses[..., 3:] -= 0.5
         refinement_logger.info(f"Reshaped volumes to odd size {D}x{D}x{D}")
@@ -131,9 +134,9 @@ def reconstruction_L2(
     else:
         resize = False
 
-    psf = interpolate_to_size(psf, (D, D, D))
+    psf = interpolate_to_size(psf, (D, D, D), multichannel=True)
 
-    num = xp.zeros((M, D, D, D), dtype=xp.complex64, device=host_device)
+    num = xp.zeros((M, C, D, D, D), dtype=xp.complex64, device=host_device)
     den = xp.zeros_like(num, dtype=xp.float32)
 
     dxyz = xp.zeros((3, 2, 2, 2), device=host_device, dtype=xp.complex64)
@@ -154,28 +157,34 @@ def reconstruction_L2(
 
     # Move data to compute device
     psf = to_device(psf, compute_device)
-    for (start1, end1), (start2, end2), (start3, end3) in split_batch2(
-        (M, k, N), batch_size
+    for (start1, end1), (start2, end2), (start3, end3), (start4, end4) in split_batch2(
+        (M, k, N, C), batch_size
     ):
         number_poses = (end1 - start1) * (end2 - start2)
         number_volumes = end3 - start3
+        number_channels = end4 - start4
         poses_minibatch = to_device(
             new_poses[start1:end1, start2:end2, start3:end3, ...], compute_device
         )
         poses_psf_minibatch = to_device(
             poses_psf[start1:end1, start2:end2, start3:end3, ...], compute_device
         )
-        volumes_minibatch = to_device(volumes[start3:end3, ...], compute_device)
+        volumes_minibatch = to_device(
+            volumes[start3:end3, start4:end4, ...], compute_device
+        )
         y = xp.stack(
             (volumes_minibatch,) * number_poses,
         )
         y = xp.reshape(
             rotate(
-                xp.reshape(y, (number_poses * number_volumes, D, D, D)),
+                xp.reshape(
+                    y, (number_poses * number_volumes, number_channels, D, D, D)
+                ),
                 xp.reshape(poses_minibatch, (number_poses * number_volumes, 6)),
                 inverse=True,
+                multichannel=True,
             ),
-            (end1 - start1, end2 - start2, number_volumes, D, D, D),
+            (end1 - start1, end2 - start2, number_volumes, number_channels, D, D, D),
         )
         y = xp.asarray(y, dtype=xp.complex64)
 
