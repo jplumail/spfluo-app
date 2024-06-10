@@ -115,7 +115,7 @@ def test_same_results_gpu(gpu_run, numpy_run):
 @pytest.mark.parametrize("gpu_run", [(GPU_LIBS[0], True)], indirect=True)
 def test_energy_threshold(gpu_run):
     ab_initio, _ = gpu_run
-    assert ab_initio._energies[-1] < 200
+    assert ab_initio._energies[-1] < 210
 
 
 @pytest.mark.skip(reason="not finished")

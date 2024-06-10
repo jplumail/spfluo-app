@@ -5,7 +5,6 @@ from typing import TYPE_CHECKING, Any, Callable, Tuple
 
 import numpy as np
 from numpy.core.numeric import normalize_axis_tuple
-from scipy.spatial.transform import Rotation as R
 from skimage import io
 from skimage.metrics import structural_similarity as ssim
 from tqdm.auto import tqdm
@@ -178,14 +177,7 @@ def gd_importance_sampling_3d(
                 # inverse_transforms represents transformation from the views
                 # to the reference volume
                 inverse_transforms = np.linalg.inv(transforms)
-                shifts = np.empty((inverse_transforms.shape[0], 3))
                 energies = np.empty((inverse_transforms.shape[0],))
-                view_inverse_transformed_shifted_fft = np.empty(
-                    (inverse_transforms.shape[0],) + image_shape, dtype=np.complex64
-                )
-                psf_inverse_transformed_fft = np.empty(
-                    (inverse_transforms.shape[0],) + image_shape, dtype=np.complex64
-                )
 
                 view = xp.asarray(
                     view, device=device, dtype=getattr(xp, params_learning_alg.dtype)
@@ -228,27 +220,14 @@ def gd_importance_sampling_3d(
                     del view_inverse_transformed_fft_minibatch
 
                     # save results to cpu
-                    shifts[start:end] = to_numpy(shifts_minibatch)
                     energies[start:end] = to_numpy(energies_minibatch)
-                    view_inverse_transformed_shifted_fft[start:end] = to_numpy(
-                        view_inverse_transformed_shifted_fft_minibatch
-                    )
-                    psf_inverse_transformed_fft[start:end] = to_numpy(
-                        psf_inverse_transformed_fft_minibatch
-                    )
 
                     del shifts_minibatch, energies_minibatch
 
                 # Some reshaping
-                shifts = shifts.reshape(len(indices_axes), len(indices_rot), 3)
                 energies = energies.reshape(len(indices_axes), len(indices_rot))
-                view_inverse_transformed_shifted_fft = (
-                    view_inverse_transformed_shifted_fft.reshape(
-                        len(indices_axes), len(indices_rot), *image_shape
-                    )
-                )
-                psf_inverse_transformed_fft = psf_inverse_transformed_fft.reshape(
-                    len(indices_axes), len(indices_rot), *image_shape
+                inverse_transforms = inverse_transforms.reshape(
+                    len(indices_axes), len(indices_rot), 4, 4
                 )
 
                 # Find the energy minimum
@@ -258,6 +237,30 @@ def gd_importance_sampling_3d(
                 energies_each_view[v].append(min_energy)
                 pbar2.set_description(
                     f"particle {particles_names[v]} energy : {min_energy:.1f}"
+                )
+
+                # compute the shift of the minimum
+                # get also the psf and the view rotated for the computation
+                # of the gradient
+
+                (
+                    shift,
+                    psf_inverse_transformed_fft,
+                    view_inverse_transformed_fft,
+                ) = compute_shifts(
+                    to_numpy(volume_representation.volume_fourier),
+                    to_numpy(volume_representation.psf),
+                    inverse_transforms[j, k][None],
+                    to_numpy(view),
+                    interp_order=1,
+                )
+                shift, psf_inverse_transformed_fft, view_inverse_transformed_fft = (
+                    shift[0],
+                    psf_inverse_transformed_fft[0],
+                    view_inverse_transformed_fft[0],
+                )
+                view_inverse_transformed_shifted_fft = fourier_shift(
+                    view_inverse_transformed_fft, shift
                 )
 
                 # Recover the pose of the view
@@ -271,16 +274,10 @@ def gd_importance_sampling_3d(
                 # Equivalently, (T_{- R^-1 x t} o R)(volume) = view
 
                 # The associated pose with the view is therefore
-                rot = (
-                    R.from_euler(
-                        params_learning_alg.convention,
-                        rot_vecs.reshape(-1, 3),
-                        degrees=True,
-                    )
-                    .as_matrix()
-                    .reshape(len(indices_axes), len(indices_rot), 3, 3)
+                translation = (
+                    -inverse_transforms[j, k]
+                    @ np.concatenate((shift, [0.0]), axis=0)[:, None]
                 )
-                translation = -(np.linalg.inv(rot[j, k]) @ shifts[j, k, :, None])
 
                 # The transformation associated with that minimum
                 best_idx_axes, best_idx_rot = indices_axes[j], indices_rot[k]
@@ -292,13 +289,15 @@ def gd_importance_sampling_3d(
                     ]
                 )
                 estimated_poses_iter[v, :3] = rot_vec  # store the rotation
-                estimated_poses_iter[v, 3:] = translation[:, 0]  # store the translation
+                estimated_poses_iter[v, 3:] = translation[
+                    :3, 0
+                ]  # store the translation
 
                 # Compute the gradient of the energy with respect to the volume
                 grad = compute_grad(
                     volume_representation.volume_fourier,
-                    psf_inverse_transformed_fft[j, k],
-                    view_inverse_transformed_shifted_fft[j, k],
+                    psf_inverse_transformed_fft,
+                    view_inverse_transformed_shifted_fft,
                 )
                 gradients_batch.append(grad)  # accumulate
 
