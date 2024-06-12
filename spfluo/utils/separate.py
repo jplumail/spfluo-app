@@ -1,9 +1,16 @@
 from typing import TYPE_CHECKING
 
+from patchmatch import patch_match
+from scipy.ndimage import (
+    distance_transform_edt,
+)
 from skimage.filters import threshold_otsu as skimage_threshold_otsu
 from sklearn.cluster import KMeans
 from sklearn.svm import SVC
 
+from spfluo.ab_initio_reconstruction.common_image_processing_methods.others import (
+    normalize,
+)
 from spfluo.utils.array import array_namespace, numpy_only_compatibility
 from spfluo.utils.rotate_symmetry_axis import find_rotation_between_two_vectors
 from spfluo.utils.volume import affine_transform, tukey
@@ -26,10 +33,10 @@ def extract_particle(
 ):
     xp = array_namespace(image_data)
 
-    def world_to_data_coord(pos):
+    def world_to_data_coord(pos: "Array"):
         return pos / xp.asarray(scale)
 
-    def data_to_world_coords(pos):
+    def data_to_world_coords(pos: "Array"):
         return pos * xp.asarray(scale)
 
     pos = world_to_data_coord(xp.asarray(pos))  # World coordinates to data coords
@@ -96,7 +103,7 @@ def separate_centrioles(
 
 def kmeans_cluster(points):
     # Clustering
-    kmeans = KMeans(n_clusters=2, n_init="auto")
+    kmeans = KMeans(n_clusters=2, n_init="auto", random_state=0)
     kmeans.fit(points)
 
     return kmeans.labels_, kmeans.cluster_centers_
@@ -114,6 +121,7 @@ def separate_centrioles_coords(
     tukey_alpha: float = 0.1,
 ):
     xp = array_namespace(image)
+    scale = xp.asarray(scale)
 
     if image.ndim > 3:
         multichannel = True
@@ -122,29 +130,86 @@ def separate_centrioles_coords(
         image = image[None]
 
     # extract patch from image
-    patch = extract_particle(image, pos, dim, scale, subpixel=False)[0][channel]
+    patch = extract_particle(image, pos, dim, tuple(scale), subpixel=False)[0][channel]
 
     # Thresholding
-    mask = patch > xp.max(patch) * threshold_percentage
+    threshold = xp.max(patch) * threshold_percentage
+    mask = patch > threshold
     points = xp.stack(xp.nonzero(mask), axis=-1)
 
     # Cluster in the real space
     patch_top_left_corner = xp.asarray(pos) - xp.asarray(dim) / 2
-    points = points * scale + patch_top_left_corner  # points in the image space
-    labels, _ = kmeans_cluster(points)
+    points_real_space = (
+        points * scale + patch_top_left_corner
+    )  # points in the real space
+    labels, centers = kmeans_cluster(points_real_space)
 
-    (patch1, patch2), _ = _separate_clusters(
-        image, points, labels, patch[mask], output_size, scale, tukey_alpha
-    )
+    points1_real_space = points_real_space[labels == 0]
+    points2_real_space = points_real_space[labels == 1]
+
+    # Inpainting
+    patches_inpainted = []
+    for i in range(2):
+        patches_inpainted_i = []
+        for c in range(image.shape[0]):
+            # get patch around particle
+            patch_i, real_dim_i = extract_particle(
+                image, centers[i], output_size, scale, subpixel=False
+            )
+            patch_i = patch_i[c]
+            top_left_corner_i = centers[i] - real_dim_i / 2
+
+            # Get masks on that patch
+            def create_mask(points: "Array"):
+                mask = xp.zeros(patch_i.shape, dtype=xp.bool)
+                indices = xp.astype(
+                    xp.ceil((points - top_left_corner_i) / scale), xp.int64
+                )
+                mask[indices[:, 0], indices[:, 1], indices[:, 2]] = True
+                return mask
+
+            particle1_edt = distance_transform_edt(~create_mask(points1_real_space))
+            particle2_edt = distance_transform_edt(~create_mask(points2_real_space))
+
+            if i + 1 == 1:
+                particle_edt = particle1_edt
+                other_particle_edt = particle2_edt
+            else:
+                particle_edt = particle2_edt
+                other_particle_edt = particle1_edt
+
+            k = min(patch_i.shape) // 4
+            mask_zone_to_inpaint = xp.logical_and(
+                particle_edt > other_particle_edt,  # the zone around other_particle
+                other_particle_edt < k,  # neighbourhood of other_particle
+            )
+
+            # convert to uint8
+            patch_ = xp.astype(255 * normalize(patch_i), xp.uint8)
+            mask_zone_ = 255 * xp.astype(mask_zone_to_inpaint, xp.uint8)
+
+            # convert image to RGB
+            patch_ = xp.stack((patch_,) * 3, axis=-1)
+            patch_inpainted_ = xp.asarray(patch_, copy=True)
+            patch_inpainted_ = patch_inpainted_[:, :, :, 0]
+            for z in range(patch.shape[0]):
+                patch_inpainted_[z] = patch_match.inpaint(
+                    patch_[z], mask_zone_[z], global_mask=None, patch_size=3
+                )[:, :, 0]
+
+            patches_inpainted_i.append(patch_inpainted_)
+        patches_inpainted.append(xp.stack(patches_inpainted_i))
+
+    patch1_inpainted, patch2_inpainted = patches_inpainted
 
     if not multichannel:
-        patch1, patch2 = patch1[0], patch2[0]
+        patch1_inpainted, patch2_inpainted = patch1_inpainted[0], patch2_inpainted[0]
 
-    patch1, patch2 = (
-        xp.asarray(patch1, dtype=image.dtype),
-        xp.asarray(patch2, dtype=image.dtype),
+    patch1_inpainted, patch2_inpainted = (
+        xp.asarray(patch1_inpainted, dtype=image.dtype),
+        xp.asarray(patch2_inpainted, dtype=image.dtype),
     )
-    return patch1, patch2
+    return patch1_inpainted, patch2_inpainted
 
 
 def _run_svc(clusters_points, clusters_labels, intensities):
@@ -251,8 +316,8 @@ def _separate_clusters(
         patch *= t_rotated
 
     # Contrast enhancement
-    for patch in (patch1, patch2):
-        otsu = _threshold_otsu(patch)
-        patch *= (xp.tanh((patch - otsu) / (otsu * 0.1)) + 1) / 2
+    # for patch in (patch1, patch2):
+    #    otsu = _threshold_otsu(patch)
+    #    patch *= (xp.tanh((patch - otsu) / (otsu * 0.1)) + 1) / 2
 
-    return (patch1, patch2), centers
+    return (patch1, patch2), centers, v, pos_tukey_plane

@@ -12,7 +12,8 @@ dependencies = [
   "scikit-learn",
   "tqdm",
   "matplotlib",
-  "typing-extensions ; python_version < '3.10'"
+  "typing-extensions ; python_version < '3.10'",
+  "PyPatchMatch",
 ]
 dynamic = ["version"]
 authors = [
