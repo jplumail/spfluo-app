@@ -32,6 +32,7 @@ This module will provide the traditional Hello world example
 """
 
 import os
+import webbrowser
 from enum import Enum
 
 import numpy as np
@@ -246,9 +247,9 @@ class ProtSingleParticleAbInitio(Protocol, ProtFluoBase):
             args += ["--interp_order", str(1)]
             if self.minibatch.get() > 0:
                 args += ["--minibatch", self.minibatch.get()]
-        print(
-            f"Launching reconstruction, see dashboard here: http://127.0.0.1:5000/{self.getProject().getShortName()}/{self.getWorkingDir().strip('Runs/')}/dashboard.html"
-        )
+        url = f"http://127.0.0.1:5000/{self.getProject().getShortName()}/{self.getWorkingDir().strip('Runs/')}/dashboard.html"
+        print(f"Launching reconstruction, see dashboard here: {url}")
+        webbrowser.open(url)
         Plugin.runJob(self, Plugin.getSPFluoProgram(AB_INITIO_MODULE), args=args)
         os.link(
             os.path.join(self.outputDir, "final_recons.tif"),
