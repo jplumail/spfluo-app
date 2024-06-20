@@ -167,7 +167,6 @@ class NapariSetOfParticlesWidget(Toplevel):
                     # populate particles_data_transformed
                     for p in self.particles:
                         p: pwfluoobj.Particle
-                        print(f"{p=}")
                         data, _ = p.getDataIsotropic()
                         transform = p.getTransform()
                         if transform:
