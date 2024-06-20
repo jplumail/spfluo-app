@@ -63,7 +63,7 @@ class ProtSingleParticleAlignAxis(Protocol, ProtFluoBase):
     def _insertAllSteps(self):
         self.poses_csv = self._getExtraPath("poses.csv")
         self.rotated_poses_csv = self._getExtraPath("new_poses.csv")
-        self.rotated_particle_path = self._getExtraPath("rotated-volume.tiff")
+        self.rotated_particle_path = self._getExtraPath("rotated-volume.ome.tiff")
         self._insertFunctionStep(self.prepareStep)
         self._insertFunctionStep(self.alignStep)
         self._insertFunctionStep(self.createOuputStep)
