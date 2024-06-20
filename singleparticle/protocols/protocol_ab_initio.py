@@ -187,7 +187,7 @@ class ProtSingleParticleAbInitio(Protocol, ProtFluoBase):
         os.makedirs(self.particlesDir, exist_ok=True)
         os.makedirs(self.outputDir, exist_ok=True)
         self.psfPath = os.path.abspath(self._getExtraPath("psf.ome.tiff"))
-        self.final_reconstruction = self._getExtraPath("final_reconstruction.tif")
+        self.final_reconstruction = self._getExtraPath("final_reconstruction.ome.tiff")
         self._insertFunctionStep(self.prepareStep)
         self._insertFunctionStep(self.reconstructionStep)
         self._insertFunctionStep(self.createOutputStep)
@@ -252,17 +252,14 @@ class ProtSingleParticleAbInitio(Protocol, ProtFluoBase):
         webbrowser.open(url)
         Plugin.runJob(self, Plugin.getSPFluoProgram(AB_INITIO_MODULE), args=args)
         os.link(
-            os.path.join(self.outputDir, "final_recons.tif"),
+            os.path.join(self.outputDir, "final_reconstruction.ome.tiff"),
             self.final_reconstruction,
         )
 
     def createOutputStep(self):
         inputSetOfParticles: SetOfParticles = self.inputParticles.get()
         # Output 1 : reconstruction Volume
-        vs_recon = (self.pixel_size, self.pixel_size)
-        reconstruction = AverageParticle.from_filename(
-            self.final_reconstruction, voxel_size=vs_recon, channel=1
-        )
+        reconstruction = AverageParticle.from_filename(self.final_reconstruction)
         self._defineOutputs(**{outputs.reconstructedVolume.name: reconstruction})
 
         # Output 2 : SetOfParticles
