@@ -49,14 +49,6 @@ class ProtSingleParticleSeparate(Protocol, ProtFluoBase):
             label="Threshold percentage",
             help="Thresholding as a percentage of the max of the image",
         )
-        form.addParam(
-            "tukey",
-            params.FloatParam,
-            default=0.1,
-            expertLevel=params.LEVEL_ADVANCED,
-            label="Tukey alpha",
-            help="Smoothing factor when applying the Tukey window",
-        )
 
     def _insertAllSteps(self):
         self._insertFunctionStep(self.separateStep)
@@ -81,7 +73,6 @@ class ProtSingleParticleSeparate(Protocol, ProtFluoBase):
                     threshold_percentage=self.threshold.get(),
                     output_size=self.size.get(),
                     channel=self.channel.get(),
-                    tukey_alpha=self.tukey.get(),
                 )
                 for j, im in enumerate([im1, im2]):
                     p = Particle.from_data(
