@@ -199,7 +199,7 @@ def save_image(
     assert new_path.endswith(".ome.tiff")
 
     data = image.getData()
-    if voxel_size != (original_voxel_size := image.getVoxelSize()):
+    if voxel_size and voxel_size != (original_voxel_size := image.getVoxelSize()):
         data = resample(
             data,
             (
@@ -228,7 +228,7 @@ def save_image(
             channel = 0
         data = data[channel][None]
 
-    Image.from_data(data, new_path)
+    Image.from_data(data, new_path, voxel_size=voxel_size)
 
 
 def save_images(
