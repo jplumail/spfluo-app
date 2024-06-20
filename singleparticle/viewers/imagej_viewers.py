@@ -8,6 +8,7 @@ from typing import List
 import pyworkflow.utils as pwutils
 import tifffile
 from pwfluo import objects as pwfluoobj
+from pwfluo.constants import MICRON_STR
 from pyworkflow.gui.browser import FileBrowserWindow
 from pyworkflow.viewer import DESKTOP_TKINTER, View, Viewer
 
@@ -65,11 +66,11 @@ class ImageJ:
                         "axes": "CZYX",
                         "PositionT": i,
                         "PhysicalSizeX": vs_xy,
-                        "PhysicalSizeXUnit": "µm",
+                        "PhysicalSizeXUnit": MICRON_STR,
                         "PhysicalSizeY": vs_xy,
-                        "PhysicalSizeYUnit": "µm",
+                        "PhysicalSizeYUnit": MICRON_STR,
                         "PhysicalSizeZ": vs_z,
-                        "PhysicalSizeZUnit": "µm",
+                        "PhysicalSizeZUnit": MICRON_STR,
                     }
                     logger.debug(f"{im.getVoxelSize()=}, {type(im.getVoxelSize())=}")
                     logger.debug(f"voxel size: {vs_xy}x{vs_xy}x{vs_z}")
