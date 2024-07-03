@@ -52,7 +52,7 @@ def invert_pose(pose: "Array", convention="XZX"):
     t = pose[..., 3:]
     new_pose = xp.zeros_like(pose)
     new_pose[..., :3] = matrix_to_euler(convention, inv_mat, degrees=True)
-    new_pose[..., 3:] = -inv_mat @ t
+    new_pose[..., 3:] = -xp.astype(inv_mat, t.dtype) @ t
     return new_pose
 
 
