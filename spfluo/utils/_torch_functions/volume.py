@@ -77,7 +77,7 @@ def affine_transform_batched_multichannel_pytorch(
         raise NotImplementedError()
 
     if order > 1:
-        raise NotImplementedError()
+        raise NotImplementedError("order > 1 is not implemented")
 
     pytorch_modes = {"constant": "zeros", "nearest": "border", "reflect": "reflection"}
     if mode not in pytorch_modes:
