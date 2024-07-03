@@ -44,10 +44,13 @@ if __name__ == "__main__":
     for anisotropic_param, id in [
         ((1.0, 1.0, 1.0), "isotropic-1.0"),
         ((5.0, 1.0, 1.0), "anisotropic-5.0-1.0-1.0"),
+        ((10.0, 1.0, 1.0), "anisotropic-10.0-1.0-1.0"),
     ]:
         config = default_config()
         config.augmentation.max_translation = 0
         config.sensor.anisotropic_blur_sigma = anisotropic_param
+        if anisotropic_param == (10.0, 1.0, 1.0):
+            config.voxelisation.image_shape = 70
 
         configs.append(config)
         ids.append(id)
