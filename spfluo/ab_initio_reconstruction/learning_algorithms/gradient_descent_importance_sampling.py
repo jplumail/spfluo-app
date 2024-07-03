@@ -4,6 +4,7 @@ import shutil
 from typing import TYPE_CHECKING, Any, Callable, Tuple
 
 import numpy as np
+import tifffile
 from numpy.core.numeric import normalize_axis_tuple
 from skimage import io
 from skimage.metrics import structural_similarity as ssim
@@ -18,7 +19,7 @@ from spfluo.utils.memory import split_batch
 from spfluo.utils.transform import get_transform_matrix
 from spfluo.utils.volume import fourier_shift, phase_cross_correlation
 
-from ...utils.read_save_files import make_dir, read_image, save
+from ...utils.read_save_files import make_dir, save
 from ..common_image_processing_methods.others import normalize, stopping_criteria
 from ..common_image_processing_methods.rotation_translation import (
     conversion_2_first_eulers_angles_cartesian,
@@ -461,7 +462,7 @@ def gd_importance_sampling_3d(
         )
     pbar.close()
 
-    best_image = read_image(os.path.join(sub_dir, f"recons_epoch_{itr}.tif"), xp=np)
+    best_image = tifffile.imread(os.path.join(sub_dir, f"recons_epoch_{itr}.tif"))
     best_energies_each_view = np.load(
         os.path.join(output_dir, "energies", f"energies_each_view_iter={itr:04}.npy")
     )
