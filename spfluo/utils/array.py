@@ -147,7 +147,7 @@ def get_prefered_namespace_device(
     xp: "array_api_module | None" = None,  # type: ignore
     device: "Device | None" = None,
     gpu: bool | None = None,
-) -> "tuple[array_api_module, Device]":  # type: ignore
+) -> "tuple[array_api_module, Device | None]":  # type: ignore
     if xp is not None:
         if device is not None:
             return xp, device
