@@ -5,7 +5,7 @@ import pytest
 
 from spfluo.data import generated_anisotropic
 from spfluo.utils.separate import separate_centrioles, separate_centrioles_coords
-from spfluo.utils.volume import are_volumes_translated, resample
+from spfluo.utils.volume import assert_volumes_translated, resample
 
 
 @pytest.fixture
@@ -49,18 +49,20 @@ def common_im(im1, im2):
     )
 
 
-def save_and_assert(save_result, im, im1, im2, im11, im22, atol=0.3):
+def save_and_assert(save_result, im, im1, im2, im11, im22):
     save_result("original-im", im)
     save_result("im11", im11)
     save_result("im22", im22)
 
-    are_volumes_translated_ = partial(are_volumes_translated, atol=atol)
-    same_order = are_volumes_translated_(*common_im(im1, im11))
+    ATOL = 1
+
+    assert_volumes_translated_ = partial(assert_volumes_translated, atol=ATOL)
+    same_order = assert_volumes_translated_(*common_im(im1, im11))
     if same_order:
-        assert are_volumes_translated_(*common_im(im2, im22))
+        assert_volumes_translated_(*common_im(im2, im22))
     else:
-        assert are_volumes_translated_(*common_im(im1, im22))
-        assert are_volumes_translated_(*common_im(im2, im11))
+        assert_volumes_translated_(*common_im(im1, im22))
+        assert_volumes_translated_(*common_im(im2, im11))
 
 
 def test_separate_simple(create_data_monochannel, save_result):
@@ -118,4 +120,4 @@ def test_separate_scaled(create_data_scaled, save_result):
         im, (50, 25, 25), (100, 50, 50), (50, 50, 50), scale=scale
     )
 
-    save_and_assert(save_result, im, im1, im2, im11, im22, atol=0.5)
+    save_and_assert(save_result, im, im1, im2, im11, im22)

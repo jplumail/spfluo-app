@@ -21,6 +21,7 @@ from spfluo.utils.array import (
     is_cupy_array,
     is_numpy_array,
     is_torch_array,
+    to_numpy,
 )
 
 if TYPE_CHECKING:
@@ -1305,7 +1306,7 @@ def are_volumes_aligned(vol1, vol2, atol=0.1, nb_spatial_dims=3):
     return n <= atol
 
 
-def are_volumes_translated(vol1, vol2, atol=0.1, nb_spatial_dims=3):
+def assert_volumes_translated(vol1, vol2, atol=0.1, nb_spatial_dims=3):
     """check if vol1 is a translation of vol2"""
     _, error, _ = phase_cross_correlation(
         vol1,
@@ -1315,7 +1316,7 @@ def are_volumes_translated(vol1, vol2, atol=0.1, nb_spatial_dims=3):
         normalization=None,
         nb_spatial_dims=nb_spatial_dims,
     )
-    return error.mean() <= atol
+    np.testing.assert_allclose(to_numpy(error), 0, atol=atol)
 
 
 def tukey(
