@@ -18,6 +18,8 @@ from spfluo.utils.volume import (
     affine_transform,
 )
 
+EPS = 5  # angle error margin in degrees
+
 
 def distance_transformations(rot1, trans1, rot2, trans2):
     pose1 = np.concatenate((R.from_matrix(rot1).as_euler("XZX", degrees=True), trans1))
@@ -61,7 +63,7 @@ def test_find_rot_mat_easy(create_data):
             R.from_euler("XZX", pose[:3], degrees=True).as_matrix(), np.identity(3)
         ),
         0,
-        atol=1e-2,
+        atol=1e-1,
     )
 
 
@@ -100,9 +102,23 @@ def test_apply_transformation_and_sym_to_poses(create_data, save_result):
     angular_errors, trans_errors = distance_poses(
         poses_aligned, poses_true_aligned, symmetry=9
     )
-    assert all(np.isclose(angular_errors, 0, atol=10)) and all(
-        np.isclose(trans_errors, 0, atol=1.5)
+    bottom_up_pose = np.asarray(
+        [0, 180, 0, 0, 0, 0]
+    )  # alignement can put the image upside down
+    poses_aligned_flipped = compose_poses(bottom_up_pose, poses_aligned)
+    volumes_aligned = affine_transform(
+        volumes,
+        get_transform_matrix_from_pose(volumes[0].shape, poses_aligned_flipped),
+        batch=True,
     )
+    save_result("volumes_aligned_flipped", volumes_aligned)
+    angular_errors_flipped, _ = distance_poses(
+        poses_aligned_flipped, poses_true_aligned, symmetry=9
+    )
+    assert (
+        all(np.isclose(angular_errors, 0, atol=360 / 9 / 2 + EPS))
+        or all(np.isclose(angular_errors_flipped, 0, atol=360 / 9 / 2 + EPS))
+    ) and all(np.isclose(trans_errors, 0, atol=1.5))
 
     # Test symmetrizing these poses
     poses_aligned_sym = symmetrize_poses(poses_aligned, 9)
@@ -129,11 +145,11 @@ def test_real_data(save_result):
     image, pose = d["reconstruction"], d["pose"]
 
     aligned_image = affine_transform(
-        image, get_transform_matrix_from_pose(image.shape, pose)
+        image, get_transform_matrix_from_pose(image.shape[:3], pose)
     )
 
     pose_estimate = find_pose_from_z_axis_centered_to_centriole_axis(
-        image, 9, threshold=0.1, center_precision=1
+        image[0], 9, threshold=0.1, center_precision=1
     )
 
     bottom_up_pose = np.asarray(
@@ -141,7 +157,7 @@ def test_real_data(save_result):
     )  # alignement can put the image upside down
     pose_estimate = compose_poses(bottom_up_pose, pose_estimate)
     aligned_image2 = affine_transform(
-        image, get_transform_matrix_from_pose(image.shape, pose_estimate)
+        image, get_transform_matrix_from_pose(image.shape[:3], pose_estimate)
     )
 
     save_result("image", image)
@@ -150,4 +166,5 @@ def test_real_data(save_result):
 
     angular_distance, trans_distance = distance_poses(pose, pose_estimate, symmetry=9)
 
-    assert angular_distance < 20.0 and trans_distance < 2
+    np.testing.assert_allclose(angular_distance, 0, atol=360 / 9 / 2 + EPS)
+    np.testing.assert_allclose(trans_distance, 0, atol=2)

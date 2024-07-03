@@ -42,7 +42,9 @@ def compose_poses(pose1: "Array", pose2: "Array", convention="XZX"):
     to_euler = partial(matrix_to_euler, convention, degrees=True)
     new_pose = xp.zeros_like(pose1) + xp.zeros_like(pose2)
     new_pose[..., :3] = to_euler(to_matrix(pose2[..., :3]) @ to_matrix(pose1[..., :3]))
-    new_pose[..., 3:] = pose2[..., 3:] + to_matrix(pose2[..., :3]) @ pose1[..., 3:]
+    new_pose[..., 3:] = (
+        pose2[..., 3:] + (to_matrix(pose2[..., :3]) @ pose1[..., 3:, None])[..., 0]
+    )
     return new_pose
 
 
@@ -71,6 +73,10 @@ def get_transform_matrix_around_center(
         "dtype": rotation_matrix.dtype,
         "device": get_device(rotation_matrix),
     }
+    assert rotation_matrix.ndim >= 2
+    ndim = rotation_matrix.shape[-1]
+    assert ndim == rotation_matrix.shape[-2]
+    assert ndim == len(shape)
     center = (xp.asarray(shape, **array_kwargs) - 1) / 2
     ndim = rotation_matrix.shape[-1]
     H_rot = xp.zeros(
