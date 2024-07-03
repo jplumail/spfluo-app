@@ -387,7 +387,7 @@ class DataGenerator:
         # psf = gaussian_filter(psf, sigma=B, mode='constant') # gaussian of std B
 
         sigma = np.array(anisotropic_blur_sigma, dtype=int)
-        k = 4  # +/- 4 sigmas is sufficient
+        k = 3  # +/- 3 sigmas is sufficient
         shape = np.ceil(2 * k * sigma + 1).astype(int)
         size = max(shape)
         grid = make_grid(size, 3)
@@ -459,7 +459,7 @@ class DataGenerator:
             sigma = self.config.sensor.anisotropic_blur_sigma
             mode = self.config.sensor.anisotropic_blur_border_mode
             if any([s > 0 for s in sigma]):
-                particle = ndii.convolve(particle, self.psf, mode=mode, cval=0.0)
+                ndii.convolve(particle, self.psf, mode=mode, cval=0.0, output=particle)
 
             # add gaussian noise
             image_average_db = 10 * np.log10(particle.mean())
