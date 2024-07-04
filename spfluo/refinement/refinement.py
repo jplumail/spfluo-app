@@ -166,23 +166,6 @@ def reconstruction_L2(
     num = xp.zeros((M, C, D, D, D), dtype=complex_dtype, device=host_device)
     den = xp.zeros_like(num, dtype=floating_dtype)
 
-    dxyz = xp.zeros((3, 2, 2, 2), device=host_device, dtype=complex_dtype)
-    dxyz[0, 0, 0, 0] = 1
-    dxyz[0, 1, 0, 0] = -1
-    dxyz[1, 0, 0, 0] = 1
-    dxyz[1, 0, 1, 0] = -1
-    dxyz[2, 0, 0, 0] = 1
-    dxyz[2, 0, 0, 1] = -1
-
-    dxyz_padded = pad(dxyz, ((0, 0), *(((D - 1) // 2, (D - 2) // 2),) * 3))
-    DtD = xp.sum(
-        (xp.abs(xp.fft.fftn(dxyz_padded, axes=(1, 2, 3))) ** 2),
-        axis=0,
-        dtype=floating_dtype,
-    )
-    den += (xp.astype(lambda_[:, None, None, None], floating_dtype) * DtD)[:, None, ...]
-    del DtD
-
     poses_psf = xp.zeros_like(new_poses)
     poses_psf[..., :3] = new_poses[..., :3]
 
@@ -251,12 +234,29 @@ def reconstruction_L2(
 
     num = num / (N * k)
     den = den / (N * k)
-    den += xp.asarray(lambda_[:, None, None, None] * DtD, dtype=xp.float32)
+
+    dxyz = xp.zeros((3, 2, 2, 2), device=host_device, dtype=complex_dtype)
+    dxyz[0, 0, 0, 0] = 1
+    dxyz[0, 1, 0, 0] = -1
+    dxyz[1, 0, 0, 0] = 1
+    dxyz[1, 0, 1, 0] = -1
+    dxyz[2, 0, 0, 0] = 1
+    dxyz[2, 0, 0, 1] = -1
+
+    dxyz_padded = pad(dxyz, ((0, 0), *(((D - 1) // 2, (D - 2) // 2),) * 3))
+    D_ = xp.fft.fftn(dxyz_padded, axes=(1, 2, 3))
+    DtD = xp.sum(
+        (xp.abs(D_) ** 2),
+        axis=0,
+        dtype=floating_dtype,
+    )
+
+    den += xp.asarray(lambda_[:, None, None, None, None] * DtD, dtype=xp.float32)
+
     num = xp.fft.ifftn(num / den, axes=(-3, -2, -1))
     refinement_logger.debug(f"num dtype: {num.dtype}")
     recon = xp.real(num)
     refinement_logger.debug(f"recon 1 dtype: {recon.dtype}")
-    del num
     recon = xp.where(
         recon > 0, recon, xp.asarray(0.0, device=host_device, dtype=floating_dtype)
     )
