@@ -49,9 +49,6 @@ def generated_data_all_array(request, generated_data_all):
     volumes, poses, psf, groundtruth = tuple(
         [xp.asarray(x) for x in generated_data_all]
     )
-    volumes = xp.expand_dims(volumes, axis=1)
-    psf = xp.expand_dims(psf, axis=0)
-    groundtruth = xp.expand_dims(groundtruth, axis=0)
     return (volumes, poses, psf, groundtruth), device
 
 
@@ -88,7 +85,7 @@ def test_shapes_reconstruction_L2(generated_data_all_array):
     lambda_ = xp.asarray(1.0, device=get_device(volumes))
     recon = reconstruction_L2(volumes, psf, groundtruth_poses, lambda_, device=device)
 
-    assert recon.shape == volumes.shape[-4:]
+    assert recon.shape == volumes.shape[-3:]
 
 
 @pytest.mark.parametrize("minibatch", [1, 10, None])
@@ -116,7 +113,7 @@ def test_parallel_reconstruction_L2(minibatch, generated_data_all_array, save_re
     save_result("reconstructions", recon2, metadata={"axes": "TCZYX"})
     save_result("reconstructions_paralled", recon, metadata={"axes": "TCZYX"})
 
-    assert recon.shape == (M,) + volumes.shape[-4:]
+    assert recon.shape == (M,) + volumes.shape[-3:]
     assert_allclose(recon, recon2, atol=1e-5)
 
 
@@ -130,8 +127,8 @@ def test_multichannel_reconstruction_L2(
     (volumes, poses, psf, groundtruth), compute_device = generated_data_all_array
     device = get_device(volumes)
     xp = array_namespace(volumes)
-    volumes = xp.concat((volumes,) * 3, axis=1)
-    psf = xp.concat((psf,) * 3, axis=0)
+    volumes = xp.stack((volumes,) * 3, axis=1)
+    psf = xp.stack((psf,) * 3, axis=0)
     dtype = volumes.dtype
     noise = xp.asarray(
         np.random.randn(*volumes.shape) * 0.2, device=device, dtype=dtype
@@ -142,17 +139,18 @@ def test_multichannel_reconstruction_L2(
     # reconstruction of 3-channel input should be the same as 3 mono-channel
     # input reconstrucions
     recon_multichannel = reconstruction_L2(
-        volumes, psf, poses, lambda_, device=compute_device
+        volumes, psf, poses, lambda_, device=compute_device, multichannel=True
     )
     recon = xp.stack(
         [
             reconstruction_L2(
-                volumes[:, i : i + 1, ...],
-                psf[i : i + 1, ...],
+                volumes[:, i, ...],
+                psf[i, ...],
                 poses,
                 lambda_,
                 device=compute_device,
-            )[0, ...]
+                multichannel=False,
+            )
             for i in range(3)
         ]
     )
@@ -190,7 +188,7 @@ def test_symmetry_reconstruction_L2(
     save_result("reconstruction_sym", recon_sym)
     save_result("reconstruction", recon)
 
-    assert recon_sym.shape == volumes.shape[-4:]
+    assert recon_sym.shape == volumes.shape[-3:]
     assert_allclose(recon_sym, recon, atol=1e-4)
 
 
@@ -226,18 +224,17 @@ def test_symmetry_reconstruction_L2_2(
         volume[0, ...],
         xp.asarray(
             get_transform_matrix(
-                volume.shape[2:], pose[0, :3], pose[0, 3:], degrees=True
+                volume.shape[1:], pose[0, :3], pose[0, 3:], degrees=True
             ),
             dtype=volume.dtype,
         ),
         order=1,
-        multichannel=True,
     )
 
     # save and assert
     save_result("reconstruction_sym", recon_sym)
     save_result("simple_rot", rot)
-    assert_volumes_aligned(recon_sym, rot, multichannel=True)
+    assert_volumes_aligned(recon_sym, rot)
 
 
 @pytest.mark.parametrize(
@@ -258,7 +255,6 @@ def test_reconstruction_L2_simple(
     save_result("reconstruction", reconstruction)
     save_result("groundtruth", groundtruth)
 
-    print(reconstruction.shape, groundtruth.shape)
     assert_volumes_aligned(reconstruction, groundtruth, atol=1)
 
 

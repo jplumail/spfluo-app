@@ -55,13 +55,14 @@ def reconstruction_L2(
     symmetry: bool = False,
     device: Optional["Device"] = None,
     batch_size: Optional[int] = None,
+    multichannel: bool = False,
 ):
     """Reconstruct a particule from volumes and their poses.
     M reconstructions can be done at once.
 
     Args:
-        volumes (Array): stack of N 3D images of shape (N, C, D, D, D)
-        psf (Array) : 3D image of shape (C, d, h, w)
+        volumes (Array): stack of N 3D images of shape (N, (C), D, D, D)
+        psf (Array) : 3D image of shape ((C), d, h, w)
         poses (Array):
             stack(s) of N poses of shape ((M), (k), N, 6)
             A 'pose' is represented by 6 numbers
@@ -82,20 +83,30 @@ def reconstruction_L2(
             poses must be of shape ((M), k, N, 6), the M dim is optional
         device (Device): the device to do the computation on.
         batch_size (int or None) : if None, do all the computation at once
+        multichannel (bool): choose if multichannel volumes and psf.
+            if True, volumes must be of shape (N, C, D, D, D)
 
     Returns:
         recon (Array):
-            reconstruction(s) of shape ((M), C, D, D, D) or ((M), C, D+1, D+1, D+1)
+            reconstruction(s) of shape ((M), (C), D, D, D) or ((M), (C), D+1, D+1, D+1)
     """
     refinement_logger.info("Calling function reconstruction_L2")
 
     xp = array_namespace(volumes, poses, psf, lambda_)
     host_device = get_device(volumes)
     compute_device = device
-    N, C, D, H, W = volumes.shape
+
+    if multichannel:
+        N, C, D, H, W = volumes.shape
+        c, d, h, w = psf.shape
+        assert c == C
+    else:
+        N, D, H, W = volumes.shape
+        d, h, w = psf.shape
+        volumes = volumes[:, None, ...]
+        psf = psf[None, ...]
+        C = 1
     assert D == H == W
-    c, d, h, w = psf.shape
-    assert c == C
 
     floating_dtype = volumes.dtype
     assert xp.isdtype(floating_dtype, "real floating")
@@ -257,6 +268,8 @@ def reconstruction_L2(
         )
     refinement_logger.debug(f"recon 3 end dtype: {recon.dtype}")
 
+    if not multichannel:
+        recon = recon[:, 0, ...]
     if not batch:
         recon = recon[0, ...]
 
@@ -608,6 +621,7 @@ def refine(
             symmetry=True,
             device=compute_device,
             batch_size=batch_size,
+            multichannel=True,
         )
         initial_reconstruction = interpolate_to_size(
             initial_reconstruction, (D, D, D), multichannel=True
@@ -690,6 +704,7 @@ def refine(
             symmetry=True,
             device=compute_device,
             batch_size=batch_size,
+            multichannel=True,
         )
         current_reconstruction = interpolate_to_size(
             current_reconstruction, (D, D, D), multichannel=True
