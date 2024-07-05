@@ -10,6 +10,7 @@ from ._utils_widgets import (
 )
 from .ab_initio_widget import AbInitioWidget
 from .dbscan_widget import run_dbscan, run_hdbscan
+from .manual_ab_initio_widget import ManualAbInitioWidget
 from .rotate_widget import RotateWidget
 from .separate_widget import run_separate
 from .symmetrize_widget import SymmetrizeWidget
@@ -29,4 +30,5 @@ __all__ = (
     "threshold_widget",
     "MergeLabelsWidget",
     "FilterLayerWidget",
+    "ManualAbInitioWidget",
 )
