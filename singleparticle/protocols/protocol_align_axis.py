@@ -44,15 +44,6 @@ class ProtSingleParticleAlignAxis(Protocol, ProtFluoBase):
             label="particles to rotate",
         )
         form.addParam(
-            "threshold",
-            params.FloatParam,
-            default=0.5,
-            label="threshold",
-            expertLevel=params.LEVEL_ADVANCED,
-            help="A threshold is used to binarized the image. "
-            "It is determined as a ratio of the image's maximum value.",
-        )
-        form.addParam(
             "sym",
             params.IntParam,
             default=1,
@@ -81,14 +72,12 @@ class ProtSingleParticleAlignAxis(Protocol, ProtFluoBase):
             "rotate_symmetry_axis",
             "-i",
             str(particle_path),
-            "-o",
+            "--rotated-poses",
             str(self.rotated_poses_csv),
             "--poses",
             str(self.poses_csv),
             "--rotated-volume",
             str(self.rotated_particle_path),
-            "--threshold",
-            str(self.threshold.get()),
             "--symmetry",
             str(self.sym.get()),
         ]
