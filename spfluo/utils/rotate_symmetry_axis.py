@@ -366,7 +366,6 @@ def main(
     volume_path: str,
     symmetry: int,
     convention: str = "XZX",
-    threshold: float = DEFAULT_THRESHOLD,
     output_volume_path: Optional[str] = None,
     poses_path: Optional[str] = None,
     output_poses_path: Optional[str] = None,
@@ -419,9 +418,7 @@ def main(
         target_pixel_physical_size = 1.0
         target_pixel_physical_unit = UnitsLength.MICROMETER
 
-    pose = find_pose_from_z_axis_centered_to_centriole_axis(
-        volume, symmetry, threshold=threshold
-    )
+    pose = find_pose_from_z_axis_centered_to_centriole_axis(volume, symmetry)
 
     if output_volume_path:
         rotated_volume = affine_transform(
