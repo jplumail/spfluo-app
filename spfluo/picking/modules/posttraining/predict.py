@@ -85,6 +85,7 @@ def predict_one_image_picking(
     coords, scores = [], []
     num_batches = patches.size(0) // batch_size
     generator = tqdm(range(num_batches)) if progress_bar else range(num_batches)
+    i = 0
     for i in generator:
         inputs = patches[i * batch_size : (i + 1) * batch_size].to(device)
         outputs = network(inputs)
