@@ -106,13 +106,12 @@ class ProtSingleParticlePickingPredict(ProtFluoPicking):
         checkpoint_path = os.path.abspath(
             self.trainRun._getExtraPath("picking", "checkpoint.pt")
         )
-        ps = self.trainRun.inputCoordinates.get().getBoxSize()
         args = ["--stages", "predict"]
         args += ["--checkpoint", f"{checkpoint_path}"]
         args += ["--batch_size", f"{self.batch_size.get()}"]
         args += ["--testdir", f"{self.test_dir}"]
         args += ["--output_dir", f"{self.output_dir}"]
-        args += ["--patch_size", f"{ps}"]
+        args += ["--patch_size", *self.trainRun.getPatchSize()]
         args += ["--stride", f"{self.stride.get()}"]
         args += ["--extension", "tif"]
         if self.trainRun.pu.get():
@@ -132,13 +131,7 @@ class ProtSingleParticlePickingPredict(ProtFluoPicking):
         args += ["--stride", f"{self.stride.get()}"]
         args += ["--extension", "tif"]
         args += ["--iterative"]
-        if self.patchSize.get():
-            args += ["--patch_size", f"{self.patchSize.get()}"]
-        else:
-            args += [
-                "--patch_size",
-                f"{self.trainRun.inputCoordinates.get().getBoxSize()}",
-            ]
+        args += ["--patch_size", *self.trainRun.getPatchSize()]
         Plugin.runJob(self, Plugin.getSPFluoProgram(PICKING_MODULE), args=args)
 
     def createOuputStep(self):
@@ -157,11 +150,10 @@ class ProtSingleParticlePickingPredict(ProtFluoPicking):
         step_keys = preds[
             self.image_paths[setOfImages.getFirstItem().getBaseName()]
         ].keys()
+        boxsize = self.trainRun.getPatchSize()
         for k in step_keys:
             if k != "raw":
                 coordSet = self._createSetOfCoordinates3D(setOfImages, suffix)
-                boxsize = self.trainRun.inputCoordinates.get().getBoxSize()
-                coordSet.setBoxSize(boxsize)
                 coordSet.setName("predCoord_" + k)
                 coordSet.setVoxelSize(setOfImages.getVoxelSize())
 
@@ -169,7 +161,7 @@ class ProtSingleParticlePickingPredict(ProtFluoPicking):
                     if self.image_paths[image.getBaseName()] in preds:
                         pred_dict = preds[self.image_paths[image.getBaseName()]]
                         boxes = pred_dict[k]
-                        readSetOfCoordinates3D(boxes, coordSet, image)
+                        readSetOfCoordinates3D(boxes, coordSet, image, boxsize)
                 coordSet.write()
 
                 outputname = self.OUTPUT_PREFIX + "_" + k + "_" + suffix
@@ -181,6 +173,7 @@ def readSetOfCoordinates3D(
     boxes: np.ndarray,
     coord3DSet: SetOfCoordinates3D,
     inputImage: FluoImage,
+    boxsize: tuple[int, int, int],
     updateItem: Optional[Callable] = None,
     scale=1,
 ):
@@ -194,7 +187,8 @@ def readSetOfCoordinates3D(
         newCoord.setFluoImage(inputImage)
         newCoord.setImageId(inputImage.getImgId())
         Lx, Ly, Lz = inputImage.getDim()
-        newCoord.setPosition(z, y, x)  # FIXME which coordinate system to use ?
+        newCoord.setPosition(z, y, x)
+        newCoord.setDim(*boxsize)
 
         # Execute Callback
         if updateItem:

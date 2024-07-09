@@ -30,6 +30,7 @@
 Describe your python module here:
 This module will provide the traditional Hello world example
 """
+import math
 import os
 import random
 
@@ -60,6 +61,13 @@ class ProtSingleParticlePickingTrain(Protocol):
             pointerClass="SetOfCoordinates3D",
             label="Annotations 3D coordinates",
             important=True,
+        )
+        group.addParam(
+            "channel",
+            params.IntParam,
+            default=0,
+            label="Train picking on channel?",
+            help="This picking is done on one channel only.",
         )
         form.addParam(
             "pu",
@@ -156,6 +164,16 @@ class ProtSingleParticlePickingTrain(Protocol):
         self._insertFunctionStep(self.prepareStep)
         self._insertFunctionStep(self.trainStep)
 
+    def getPatchSize(self) -> tuple[int, int, int]:
+        inputCoordinates: SetOfCoordinates3D = self.inputCoordinates.get()
+        patch_size_px_xy, patch_size_px_z = inputCoordinates.getMaxBoxSize()
+        patch_size = (
+            math.ceil(patch_size_px_z),
+            math.ceil(patch_size_px_xy),
+            math.ceil(patch_size_px_xy),
+        )
+        return patch_size
+
     def prepareStep(self):
         if not os.path.exists(self.rootDir):
             os.makedirs(self.rootDir, exist_ok=True)
@@ -164,25 +182,19 @@ class ProtSingleParticlePickingTrain(Protocol):
 
         # Image links
         inputCoordinates: SetOfCoordinates3D = self.inputCoordinates.get()
-        images = set(
-            [coord.getFluoImage() for coord in inputCoordinates.iterCoordinates()]
-        )
-        for im in images:
-            im_path = os.path.abspath(im.getFileName())
-            ext = os.path.splitext(im_path)[1]
-            im_name = im.getImgId()
-            im_newPath = os.path.join(self.rootDir, im_name + ".tif")
-            if ext != ".tif" and ext != ".tiff":
-                raise NotImplementedError(
-                    f"Found ext {ext} in particles: {im_path}. "
-                    "Only tiff file are supported."
-                )  # FIXME: allow formats accepted by AICSImageio
-            else:
-                if not os.path.exists(im_newPath):
-                    print(f"Link {im_path} -> {im_newPath}")
-                    os.link(im_path, im_newPath)
+        images = {
+            coord.getImageId(): coord.getFluoImage()
+            for coord in inputCoordinates.iterCoordinates()
+        }
+
+        print(images)
+        for im_id in images:
+            im = images[im_id]
+            im_newPath = os.path.join(self.rootDir, im.getImgId() + ".tiff")
+            im.export(im_newPath, channel=self.channel.get(), isotropic=False)
+
             for s in ["train", "val"]:
-                im_newPathSet = os.path.join(self.rootDir, s, im_name + ".tif")
+                im_newPathSet = os.path.join(self.rootDir, s, im.getImgId() + ".tiff")
                 if not os.path.exists(im_newPathSet):
                     print(f"Link {im_newPath} -> {im_newPathSet}")
                     os.link(im_newPath, im_newPathSet)
@@ -191,7 +203,7 @@ class ProtSingleParticlePickingTrain(Protocol):
         annotations = []
         for i, coord in enumerate(inputCoordinates.iterCoordinates()):
             x, y, z = coord.getPosition()
-            annotations.append((coord.getFluoImage().getImgId() + ".tif", i, x, y, z))
+            annotations.append((coord.getFluoImage().getImgId() + ".tiff", i, x, y, z))
 
         print(
             f"Found {len(annotations)} annotations in SetOfCoordinates "
@@ -211,32 +223,30 @@ class ProtSingleParticlePickingTrain(Protocol):
         )
 
         # Prepare stage
-        ps = inputCoordinates.getBoxSize()
         args = ["--stages", "prepare"]
         args += ["--rootdir", f"{self.rootDir}"]
-        args += ["--extension", "tif"]
+        args += ["--extension", "tiff"]
         args += ["--crop_output_dir", "cropped"]
         args += ["--make_u_masks"]
-        args += ["--patch_size", f"{ps}"]
+
+        args += ["--patch_size", *self.getPatchSize()]
         Plugin.runJob(self, Plugin.getSPFluoProgram(PICKING_MODULE), args=args)
 
     def trainStep(self):
-        inputCoordinates: SetOfCoordinates3D = self.inputCoordinates.get()
-        ps = inputCoordinates.getBoxSize()
         args = ["--stages", "train"]
         args += ["--batch_size", f"{self.batch_size.get()}"]
         args += ["--rootdir", f"{self.rootDir}"]
         args += ["--output_dir", f"{self.pickingPath}"]
-        args += ["--patch_size", f"{ps}"]
+        args += ["--patch_size", *self.getPatchSize()]
         args += ["--epoch_size", f"{self.epoch_size.get()}"]
         args += ["--num_epochs", f"{self.num_epochs.get()}"]
         args += ["--lr", f"{self.lr.get()}"]
-        args += ["--extension", "tif"]
+        args += ["--extension", "tiff"]
         args += ["--augment", f"{self.augment.get()}"]
         if self.pu:
             args += ["--mode", "pu"]
             if self.radius.get() is None:
-                args += ["--radius", f"{ps//2}"]
+                args += ["--radius", f"{max(self.getPatchSize())//2}"]
                 args += ["--load_u_masks"]
             else:
                 args += ["--radius", f"{self.radius.get()}"]
