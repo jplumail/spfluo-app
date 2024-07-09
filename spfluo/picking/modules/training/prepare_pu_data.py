@@ -11,6 +11,7 @@ from typing import List, Tuple
 
 import cupy as cp
 import numpy as np
+import tifffile
 import torch
 from cucim.skimage import exposure
 from cupyx.scipy import ndimage
@@ -162,7 +163,7 @@ def prepare_pu_data(
         print("| STEP [2/3]: Loading U masks ...")
         U_masks_dir = os.path.join(rootdir, "U_masks")
         U_masks = [
-            np.load(os.path.join(U_masks_dir, name + ".npz"))["u_mask"]
+            tifffile.imread(os.path.join(U_masks_dir, name))
             for name in tqdm(images_names)
         ]
     else:

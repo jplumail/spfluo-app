@@ -34,7 +34,7 @@ def make_U_masks(rootdir: str, extension: str = "npz") -> None:
     for name, u_mask in tqdm(
         zip(images_names, U_masks), total=len(U_masks), desc="Save masks"
     ):
-        np.savez(os.path.join(output_dir, name), u_mask=u_mask)
+        tifffile.imwrite(os.path.join(output_dir, name), u_mask)
 
 
 # +------------------------------------------------------------------------------------------+ #
