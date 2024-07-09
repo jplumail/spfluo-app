@@ -34,11 +34,15 @@ def load_array(path: str) -> np.ndarray:
     if extension == ".npz":
         return np.load(path)["image"]
     elif extension in [".tif", ".tiff"]:
-        image = np.stack(imageio.mimread(path, memtest=False)).astype(np.int16)
+        image = np.stack(imageio.mimread(path, memtest=False))
         # Some tiff images are heavily imbalanced: their data type is int16 but very few voxels
         # are actually > 255. If this is the case, the image in truncated and casted to uint8.
         if image.dtype == np.int16 and ((image > 255).sum() / image.size) < 1e-3:
             image[image > 255] = 255
+            image = image.astype(np.uint8)
+        else:
+            image = image.astype(np.float32)
+            image = 255 * (image - image.min()) / (image.max() - image.min())
             image = image.astype(np.uint8)
         return image
     error_msg = f"Found extension {extension}. Extension must be one of npz or tif."
