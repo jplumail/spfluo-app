@@ -57,7 +57,7 @@ def test_data(create_data, save_result):
 
 def test_find_rot_mat_easy(create_data):
     _, (_, _, centriole) = create_data
-    pose = find_pose_from_z_axis_centered_to_centriole_axis(centriole, 9, threshold=0.3)
+    pose = find_pose_from_z_axis_centered_to_centriole_axis(centriole, 9)
     assert np.isclose(
         distance_rotation_matrices(
             R.from_euler("XZX", pose[:3], degrees=True).as_matrix(), np.identity(3)
@@ -149,7 +149,7 @@ def test_real_data(save_result):
     )
 
     pose_estimate = find_pose_from_z_axis_centered_to_centriole_axis(
-        image[0], 9, threshold=0.1, center_precision=1
+        image[0], 9, center_precision=1
     )
 
     bottom_up_pose = np.asarray(
