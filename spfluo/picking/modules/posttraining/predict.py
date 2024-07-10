@@ -29,11 +29,30 @@ def load_network(
 
 
 def make_patches(
-    image: torch.Tensor, patch_size: Tuple[int], stride: Tuple[int]
-) -> torch.Tensor:
+    image: torch.Tensor, patch_size: Tuple[int], stride: Tuple[int], batch_size: int = 1
+):
     pz, py, px = patch_size
     sz, sy, sx = stride
-    return image.unfold(0, pz, sz).unfold(1, py, sy).unfold(2, px, sx)
+
+    image_batch_buffer = torch.empty((batch_size,) + patch_size, dtype=image.dtype)
+    coords_batch_buffer = torch.empty((batch_size,) + (3,), dtype=torch.int64)
+    i = 0
+    for z in range(0, image.shape[0] - pz + 1, sz):
+        for y in range(0, image.shape[1] - py + 1, sy):
+            for x in range(0, image.shape[2] - px + 1, sx):
+                image_batch_buffer[i] = image[z : z + pz, y : y + py, x : x + px]
+                coords_batch_buffer[i] = torch.as_tensor(
+                    (z + pz // 2, y + py // 2, x + px // 2), dtype=torch.int64
+                )
+                i += 1
+                if i == batch_size:
+                    yield (
+                        torch.clone(image_batch_buffer),
+                        torch.clone(coords_batch_buffer),
+                    )
+                    i = 0
+    if i > 0:
+        yield torch.clone(image_batch_buffer[:i]), torch.clone(coords_batch_buffer)
 
 
 def flatten_patch_index_to_image_coord(
@@ -65,54 +84,49 @@ def predict_one_image_picking(
     predict_on_u_mask: bool = False,
     progress_bar: bool = True,
 ) -> Tuple[np.ndarray]:
-    patches = make_patches(image, patch_size, stride)
-    Z, Y, X, pz, py, px = patches.size()
-    patches = patches.contiguous().view(-1, pz, py, px)  # flatten
+    patches_generator = make_patches(image, patch_size, stride, batch_size=batch_size)
     if predict_on_u_mask:
         # make_u_mask works on numpy array so some casting overhead is required.
         u_mask = make_U_mask(image.numpy())
         u_mask = torch.as_tensor(u_mask, dtype=torch.float32)
-        u_mask_patches = make_patches(u_mask, patch_size, stride)
-        u_mask_patches = u_mask_patches.contiguous().view(-1, pz, py, px)  # flatten
-        filtered_indices = torch.where(
-            u_mask_patches[:, pz // 2, py // 2, px // 2] > 0
-        )[0]
+        u_mask_patches_generator = make_patches(
+            u_mask, patch_size, stride, batch_size=batch_size
+        )
+    else:
+        u_mask_patches_generator = (None for _ in iter(int, 1))  # infinite None
+    coords: list[tuple[int, int, int]] = []
+    scores: list[float] = []
+    for (patches, patches_coords), (u_mask_patches, _) in zip(
+        patches_generator, u_mask_patches_generator
+    ):
+        # Filter out patches not on U masks
+        if u_mask_patches is not None:
+            pz, py, px = patch_size
+            filtered_indices = torch.where(
+                u_mask_patches[:, pz // 2, py // 2, px // 2] > 0
+            )[0]
+        else:
+            filtered_indices = torch.arange((patches.size(0),), dtype=torch.int64)
         patches = patches[filtered_indices]
-    if dim == 2:
-        patches = patches.sum(axis=1)
-    patches = torch.stack([(p - p.min()) / (p.max() - p.min()) for p in patches])
-    patches = patches.unsqueeze(1)  # add channels dim
-    coords, scores = [], []
-    num_batches = patches.size(0) // batch_size
-    generator = tqdm(range(num_batches)) if progress_bar else range(num_batches)
-    i = 0
-    for i in generator:
-        inputs = patches[i * batch_size : (i + 1) * batch_size].to(device)
-        outputs = network(inputs)
-        positive_indices = torch.where(outputs > 0)[0]
-        for batch_index in positive_indices:
-            scores.append(outputs[batch_index].item())
-            patch_index = (i * batch_size + batch_index).item()
-            if predict_on_u_mask:
-                patch_index = filtered_indices[patch_index].item()
-            coord = flatten_patch_index_to_image_coord(
-                patch_index, (Z, Y, X, pz, py, px), stride
+        patches_coords = patches_coords[filtered_indices]
+
+        if patches.size(0) > 0:
+            patches = torch.stack(
+                [(p - p.min()) / (p.max() - p.min()) for p in patches]
             )
-            coords.append(coord)
-    # last batch
-    if patches.size(0) % batch_size != 0:
-        inputs = patches[num_batches * batch_size :].to(device)
-        outputs = network(inputs)
-        positive_indices = torch.where(outputs > 0)[0]
-        for batch_index in positive_indices:
-            scores.append(outputs[batch_index].item())
-            patch_index = (i * batch_size + batch_index).item()
-            if predict_on_u_mask:
-                patch_index = filtered_indices[patch_index].item()
-            coord = flatten_patch_index_to_image_coord(
-                patch_index, (Z, Y, X, pz, py, px), stride
-            )
-            coords.append(coord)
+            patches = patches.unsqueeze(1)  # add channels dim
+
+            # Project
+            if dim == 2:
+                patches = patches.sum(axis=-3)
+
+            # Predict
+            inputs = patches.to(device)
+            outputs = network(inputs)
+            positive_indices = torch.where(outputs > 0)[0]
+            for batch_index in positive_indices:
+                scores.append(outputs[batch_index].item())
+                coords.append(patches_coords[batch_index].tolist())
     return np.array(coords), np.array(scores)
 
 
