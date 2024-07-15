@@ -1,10 +1,13 @@
 import argparse
+from pathlib import Path
 
 from spfluo.ab_initio_reconstruction.api import AbInitioReconstruction
 from spfluo.utils.log import base_parser, set_logging_level
 from spfluo.utils.read_save_files import (
+    ensure_images_psf_isotropic_same_pixel_size,
     read_image,
     read_images_in_folder,
+    save_image,
 )
 from spfluo.utils.volume import interpolate_to_size, move_center_of_mass_to_center
 
@@ -54,10 +57,21 @@ def create_parser():
 
 
 def main(args):
-    particles, names = read_images_in_folder(
+    # Read inputs
+    particles, names, images_metadata = read_images_in_folder(
         args.particles_dir, gpu=args.gpu, dtype=args.dtype
     )
-    psf = read_image(args.psf_path, gpu=args.gpu, dtype=args.dtype)
+    psf, psf_metadata = read_image(args.psf_path, gpu=args.gpu, dtype=args.dtype)
+
+    ensure_images_psf_isotropic_same_pixel_size(images_metadata, psf_metadata)
+
+    base_metadata = psf_metadata
+    assert particles.shape[1] == psf.shape[0] == 1, "input data should be monochannel"
+
+    # squeeze data
+    particles = particles[:, 0]
+    psf = psf[0]
+
     ab_initio_params = dict(vars(args))
     for k in [
         "output_dir",
@@ -76,6 +90,12 @@ def main(args):
         output_dir=args.output_dir,
         minibatch_size=args.minibatch_size,
         particles_names=names,
+    )
+    save_image(
+        str(Path(args.output_dir) / "final_reconstruction.ome.tiff"),
+        reconstruction._volume,
+        order="ZYX",
+        metadata=base_metadata,
     )
 
 
