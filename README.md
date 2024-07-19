@@ -1,17 +1,9 @@
-### Install
+### spfluo-app
 
-##### GPU
-```bash
-pip install -r requirements-gpu.txt
-```
-On windows : `pip install -r requirements-gpu-windows.txt`
-##### CPU only
-```bash
-pip install -r requirements-cpu.txt
-```
-On linux : `pip install -r requirements-cpu-linux.txt`
+This is the main repository of the `spfluo-app`.
 
-### Update
-```bash
-pip install -U -r requirements-cpu.txt
-```
+`spfluo-app` aims at bringing 3D reconstruction techniques to fluorescence imaging!
+
+`spfluo-app` is built on top of a fork [Scipion](https://scipion.i2pc.es/), so that it runs on Windows.
+
+nvidia gpu compatibility: https://docs.nvidia.com/deploy/cuda-compatibility/#cuda-11-and-later-defaults-to-minor-version-compatibility
