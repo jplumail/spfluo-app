@@ -374,7 +374,7 @@ def main(
     volume = get_data_from_ome_tiff(tif, 0, order="CZYX")
 
     # Volume is mono-channel
-    assert volume.shape[0] == 1
+    assert volume.shape[0] == 1, f"volume of shape {volume.shape} is not monochannel"
     volume = volume[0]
 
     ome = from_xml(tif.ome_metadata)
