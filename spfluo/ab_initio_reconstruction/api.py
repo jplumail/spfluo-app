@@ -5,7 +5,7 @@ import numpy as np
 from spfluo.ab_initio_reconstruction.common_image_processing_methods.others import (
     normalize,
 )
-from spfluo.utils.array import array_namespace, get_device, to_numpy
+from spfluo.utils.array import array_namespace, get_device
 from spfluo.utils.volume import (
     discretize_sphere_uniformly,
 )
@@ -49,10 +49,10 @@ class AbInitioReconstruction:
         fourier_volume = Fourier_pixel_representation(
             3,
             psf.shape[0],
-            to_numpy(psf),
+            psf,
             init_vol=None,
             random_init=True,
-            dtype=np.dtype(params_learning_alg.dtype),
+            dtype=params_learning_alg.dtype,
         )
 
         N = X.shape[0]

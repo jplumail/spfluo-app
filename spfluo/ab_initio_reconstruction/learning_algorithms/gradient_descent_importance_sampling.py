@@ -1,7 +1,7 @@
 import json
 import os
 import shutil
-from typing import TYPE_CHECKING, Any, Callable, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Literal, Tuple
 
 import numpy as np
 import tifffile
@@ -183,40 +183,53 @@ def gd_importance_sampling_3d(
                 view = xp.asarray(
                     view, device=device, dtype=getattr(xp, params_learning_alg.dtype)
                 )
+                inverse_transforms = xp.asarray(
+                    inverse_transforms,
+                    device=device,
+                    dtype=getattr(xp, params_learning_alg.dtype),
+                )
                 for start, end in split_batch(
                     (N_axes * N_rot,), max_batch=minibatch_size
                 ):
-                    inverse_transforms_minibatch = xp.asarray(
-                        inverse_transforms[start:end],
-                        device=device,
-                        dtype=getattr(xp, params_learning_alg.dtype),
-                    )
+                    inverse_transforms_minibatch = inverse_transforms[start:end]
 
                     # Compute shifts
                     # views are transformed back to the reference volume
                     # then phase cross correlation is computed to get the shifts
+                    reference = xp.asarray(
+                        xp.fft.ifftn(volume_representation.volume_fourier).real,
+                        device=device,
+                    )
+                    psf = xp.asarray(volume_representation.psf, device=device)
+                    transforms_minibatch = xp.linalg.inv(inverse_transforms_minibatch)
+                    view_ = view
                     (
                         shifts_minibatch,
-                        psf_inverse_transformed_fft_minibatch,
-                        view_inverse_transformed_fft_minibatch,
+                        (
+                            psf_inverse_transformed_fft_minibatch,
+                            view_inverse_transformed_fft_minibatch,
+                        ),
                     ) = compute_shifts(
-                        volume_representation.volume_fourier,
-                        volume_representation.psf,
-                        inverse_transforms_minibatch,
-                        view,
+                        reference,
+                        psf,
+                        transforms_minibatch,
+                        view_,
                         interp_order=1,
                     )
 
                     # Shift the view
-                    view_inverse_transformed_shifted_fft_minibatch = fourier_shift(
-                        view_inverse_transformed_fft_minibatch, shifts_minibatch
-                    )
+                    # view_inverse_transformed_shifted_fft_minibatch = fourier_shift(
+                    #    view_inverse_transformed_fft_minibatch, shifts_minibatch
+                    # )
 
                     # Compute the energy associated with each transformation
                     energies_minibatch = compute_energy(
-                        volume_representation.volume_fourier,
-                        psf_inverse_transformed_fft_minibatch,
-                        view_inverse_transformed_shifted_fft_minibatch,
+                        xp.fft.ifftn(volume_representation.volume_fourier),
+                        xp.asarray(volume_representation.psf, device=device),
+                        view,
+                        transform=xp.linalg.inv(inverse_transforms_minibatch),
+                        shift=shifts_minibatch,
+                        space="real",
                     )
                     del view_inverse_transformed_fft_minibatch
 
@@ -246,13 +259,15 @@ def gd_importance_sampling_3d(
 
                 (
                     shift,
-                    psf_inverse_transformed_fft,
-                    view_inverse_transformed_fft,
+                    (psf_inverse_transformed_fft, view_inverse_transformed_fft),
                 ) = compute_shifts(
-                    to_numpy(volume_representation.volume_fourier),
-                    to_numpy(volume_representation.psf),
-                    inverse_transforms[j, k][None],
-                    to_numpy(view),
+                    xp.asarray(
+                        xp.fft.ifftn(volume_representation.volume_fourier),
+                        device=device,
+                    ),
+                    volume_representation.psf,
+                    xp.linalg.inv(inverse_transforms[j, k][None]),
+                    view,
                     interp_order=1,
                 )
                 shift, psf_inverse_transformed_fft, view_inverse_transformed_fft = (
@@ -276,8 +291,8 @@ def gd_importance_sampling_3d(
 
                 # The associated pose with the view is therefore
                 translation = (
-                    -inverse_transforms[j, k]
-                    @ np.concatenate((shift, [0.0]), axis=0)[:, None]
+                    -to_numpy(inverse_transforms[j, k])
+                    @ np.concatenate((to_numpy(shift), [0.0]), axis=0)[:, None]
                 )
 
                 # The transformation associated with that minimum
@@ -296,11 +311,11 @@ def gd_importance_sampling_3d(
 
                 # Compute the gradient of the energy with respect to the volume
                 grad = compute_grad(
-                    volume_representation.volume_fourier,
+                    xp.asarray(volume_representation.volume_fourier, device=device),
                     psf_inverse_transformed_fft,
                     view_inverse_transformed_shifted_fft,
                 )
-                gradients_batch.append(grad)  # accumulate
+                gradients_batch.append(to_numpy(grad))  # accumulate
 
                 # Update the importance distributions
                 energies = normalize(energies, max=6)
@@ -340,13 +355,15 @@ def gd_importance_sampling_3d(
             grad_weights = e / e.sum()
             grad = (grad_weights * np.stack(gradients_batch, axis=-1)).sum(axis=-1)
             volume_representation.gd_step(
-                grad, params_learning_alg.lr, params_learning_alg.reg_coeff
+                volume_representation.xp.asarray(grad),
+                params_learning_alg.lr,
+                params_learning_alg.reg_coeff,
             )
 
             # Center of mass centered
-            shift = volume_representation.center()
+            shift = to_numpy(volume_representation.center())
             for v in range(estimated_poses_iter.shape[0]):
-                estimated_poses_iter[v, 3:] -= shift
+                estimated_poses_iter[v, 3:] -= to_numpy(shift)
 
             # Increase energy
             total_energy += np.sum(energies_batch)
@@ -492,18 +509,19 @@ def update_imp_distr(imp_distr, phi, K, prop, M, v):
 
 
 def compute_shifts(
-    reference_volume_fft: "Array",
+    reference: "Array",
     psf: "Array",
-    inverse_transforms: "Array",
+    transforms: "Array",
     view: "Array",
     interp_order: int = 1,
 ) -> Tuple["Array", "Array", "Array"]:
-    xp = array_namespace(inverse_transforms, view)
+    xp = array_namespace(transforms, view, psf, view)
+
+    inverse_transforms = xp.linalg.inv(transforms)
 
     device = get_device(inverse_transforms)
     assert device == get_device(view)
-    psf = xp.asarray(psf, device=device)
-    volume_fourier = xp.asarray(reference_volume_fft, device=device)
+    reference_fft = xp.fft.fftn(reference)
 
     N = inverse_transforms.shape[0]
     image_shape = psf.shape
@@ -525,7 +543,7 @@ def compute_shifts(
     view_rotated_fft = xp.fft.fftn(view_rotated, axes=(1, 2, 3))
 
     shift, _, _ = phase_cross_correlation(
-        psfs_rotated_fft * volume_fourier,
+        psfs_rotated_fft * reference_fft,
         view_rotated_fft,
         nb_spatial_dims=3,
         upsample_factor=10,
@@ -533,17 +551,60 @@ def compute_shifts(
         space="fourier",
     )
     shift = xp.stack(shift, axis=-1)
-    return shift, psfs_rotated_fft, view_rotated_fft
+    return shift, (psfs_rotated_fft, view_rotated_fft)
 
 
 def compute_energy(
-    reference_volume_fft: "Array", psf_rotated_fft: "Array", view_rotated_fft: "Array"
+    reference: "Array",
+    psf: "Array",
+    view: "Array",
+    transform: "Array | None" = None,
+    shift: "Array | None" = None,
+    space: Literal["fourier", "real"] = "fourier",
+    order: int = 1,
 ):
-    xp = array_namespace(view_rotated_fft)
-    device = get_device(view_rotated_fft)
-    reference_volume_fft = xp.asarray(reference_volume_fft, device=device)
+    """Compute the energy for a given reference, psf and view
+    If the transform is not given, the psf and the view are considered to be rotated.
+    If the shift is not given, the view is considered to be shifted.
+    """
+    xp = array_namespace(view)
+    device = get_device(view)
+    image_shape = psf.shape[-3:]
+    if transform is not None:
+        N = transform.shape[0]
+        inverse_transform = xp.linalg.inv(transform)
+        view_real = view if space == "real" else xp.fft.ifftn(view).real
+        view_rotated_real = rotation(
+            xp.broadcast_to(view_real, (N,) + image_shape),
+            inverse_transform,
+            order=order,
+        )
+        view_rotated_fft = xp.fft.fftn(view_rotated_real, axes=(1, 2, 3))
+
+        psf_real = psf if space == "real" else xp.fft.ifftn(psf).real
+        psf_rotated_real = rotation(
+            xp.broadcast_to(psf_real, (N,) + image_shape),
+            inverse_transform,
+            order=order,
+        )
+        psf_rotated_fft = xp.fft.fftn(psf_rotated_real, axes=(1, 2, 3))
+    else:
+        view_rotated_fft = view if space == "fourier" else xp.fft.fftn(view)
+        psf_rotated_fft = psf if space == "fourier" else xp.fft.fftn(psf)
+
+    if shift is not None:
+        view_rotated_shifted_fft = fourier_shift(view_rotated_fft, shift)
+    else:
+        view_rotated_shifted_fft = view_rotated_fft
+
+    if space == "real":
+        reference_fft = xp.fft.fftn(reference)
+    else:
+        reference_fft = reference
+
+    reference_volume_fft = xp.asarray(reference_fft, device=device)
     psf_rotated_fft = xp.asarray(psf_rotated_fft, device=device)
-    image_size = xp.prod(xp.asarray(reference_volume_fft.shape[-3:], device=device))
+    image_size = xp.prod(xp.asarray(image_shape, device=device))
 
     def vector_norm(x: "Array", axis: tuple[int]):
         normalized_axis = normalize_axis_tuple(axis, x.ndim)
@@ -560,7 +621,7 @@ def compute_energy(
 
     energy = (
         vector_norm(
-            psf_rotated_fft * reference_volume_fft - view_rotated_fft,
+            psf_rotated_fft * reference_volume_fft - view_rotated_shifted_fft,
             axis=(-3, -2, -1),
         )
         ** 2
