@@ -47,9 +47,12 @@ def read_images_in_folder(
     return xp.stack(images), files
 
 
-def save(path: str, array: "Array"):
-    # save with conversion to float32 so that imaej can open it
-    tifffile.imwrite(path, np.asarray(array, dtype=np.float32))
+def save_image(path: str, array: "Array", order: str = None, metadata: dict = None):
+    assert path.endswith(".ome.tiff")
+    metadata = {} if metadata is None else metadata
+    if order is not None:
+        metadata.update({"axes": order})
+    tifffile.imwrite(path, np.asarray(array, dtype=np.float32), metadata=metadata)
 
 
 def make_dir(dir):

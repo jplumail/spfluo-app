@@ -8,7 +8,7 @@ import numpy as np
 from spfluo.utils.array import array_namespace, to_numpy
 from spfluo.utils.volume import center_of_mass, fourier_shift
 
-from ...utils.read_save_files import save
+from ...utils.read_save_files import save_image
 from ..common_image_processing_methods.others import crop_center
 from ..common_image_processing_methods.registration import (
     center_connected_component,
@@ -71,8 +71,8 @@ class Fourier_pixel_representation:
         return image
 
     def save(self, output_dir, output_name):
-        path = f"{output_dir}/{output_name}.tif"
-        save(path, self.get_image_from_fourier_representation())
+        path = f"{output_dir}/{output_name}.ome.tiff"
+        save_image(path, self.get_image_from_fourier_representation(), order="ZYX")
 
     def register_and_save(self, output_dir, output_name, ground_truth=None):
         im = self.get_image_from_fourier_representation()
@@ -83,7 +83,7 @@ class Fourier_pixel_representation:
             _, im = registration_exhaustive_search(ground_truth, im)
 
         path = os.path.join(output_dir, output_name)
-        save(path, im)
+        save_image(path, im, order="ZYX")
         return im
 
     def center(self):

@@ -25,7 +25,7 @@ def test_main_ab_initio(tmpdir):
         ]
     )
     main(args)
-    reconstruction_path = tmpdir / "final_recons.tif"
+    reconstruction_path = tmpdir / "final_recons.ome.tiff"
     poses_path = tmpdir / "poses.csv"
     assert reconstruction_path.exists()
     assert poses_path.exists()

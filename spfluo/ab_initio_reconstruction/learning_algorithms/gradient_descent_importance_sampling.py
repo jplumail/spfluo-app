@@ -19,7 +19,7 @@ from spfluo.utils.memory import split_batch
 from spfluo.utils.transform import get_transform_matrix
 from spfluo.utils.volume import fourier_shift, phase_cross_correlation
 
-from ...utils.read_save_files import make_dir, save
+from ...utils.read_save_files import make_dir, save_image
 from ..common_image_processing_methods.others import normalize, stopping_criteria
 from ..common_image_processing_methods.rotation_translation import (
     conversion_2_first_eulers_angles_cartesian,
@@ -402,12 +402,12 @@ def gd_importance_sampling_3d(
             )
             make_dir(folder_views_selected_step)
             for i, fn in enumerate(particles_names):
-                save(f"{folder_views_selected_step}/{fn}", views[i])
+                save_image(f"{folder_views_selected_step}/{fn}", views[i])
 
         # Register reconstrution with groundtruth and save it
         volume_representation.register_and_save(
             sub_dir,
-            f"recons_epoch_{itr}.tif",
+            f"recons_epoch_{itr}.ome.tiff",
             ground_truth=ground_truth,
         )
 
@@ -470,8 +470,8 @@ def gd_importance_sampling_3d(
     if itr > 0:
         itr = best_itr if keep_best else itr
         shutil.copyfile(
-            os.path.join(sub_dir, f"recons_epoch_{itr}.tif"),
-            os.path.join(output_dir, "final_recons.tif"),
+            os.path.join(sub_dir, f"recons_epoch_{itr}.ome.tiff"),
+            os.path.join(output_dir, "final_recons.ome.tiff"),
         )
         shutil.copyfile(
             os.path.join(sub_dir, f"estimated_poses_epoch_{itr}.csv"),
@@ -479,7 +479,7 @@ def gd_importance_sampling_3d(
         )
     pbar.close()
 
-    best_image = tifffile.imread(os.path.join(sub_dir, f"recons_epoch_{itr}.tif"))
+    best_image = tifffile.imread(os.path.join(sub_dir, f"recons_epoch_{itr}.ome.tiff"))
     best_energies_each_view = np.load(
         os.path.join(output_dir, "energies", f"energies_each_view_iter={itr:04}.npy")
     )
