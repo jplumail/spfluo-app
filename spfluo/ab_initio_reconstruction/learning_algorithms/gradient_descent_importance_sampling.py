@@ -172,36 +172,32 @@ def gd_importance_sampling_3d(
                     convention=params_learning_alg.convention,
                     degrees=True,
                 )
-                # transforms represents transformation from reference volume
-                # to the views
-
-                # inverse_transforms represents transformation from the views
-                # to the reference volume
-                inverse_transforms = np.linalg.inv(transforms)
-                energies = np.empty((inverse_transforms.shape[0],))
+                energies = np.empty((transforms.shape[0],))
 
                 view = xp.asarray(
                     view, device=device, dtype=getattr(xp, params_learning_alg.dtype)
                 )
-                inverse_transforms = xp.asarray(
-                    inverse_transforms,
+                # transforms represents transformation from reference volume
+                # to the views
+                transforms = xp.asarray(
+                    transforms,
                     device=device,
                     dtype=getattr(xp, params_learning_alg.dtype),
                 )
+                reference = xp.asarray(
+                    xp.fft.ifftn(volume_representation.volume_fourier).real,
+                    device=device,
+                )
+                reference_fft = volume_representation.volume_fourier
+                psf = xp.asarray(volume_representation.psf, device=device)
                 for start, end in split_batch(
                     (N_axes * N_rot,), max_batch=minibatch_size
                 ):
-                    inverse_transforms_minibatch = inverse_transforms[start:end]
+                    transforms_minibatch = transforms[start:end]
 
                     # Compute shifts
                     # views are transformed back to the reference volume
                     # then phase cross correlation is computed to get the shifts
-                    reference = xp.asarray(
-                        xp.fft.ifftn(volume_representation.volume_fourier).real,
-                        device=device,
-                    )
-                    psf = xp.asarray(volume_representation.psf, device=device)
-                    transforms_minibatch = xp.linalg.inv(inverse_transforms_minibatch)
                     view_ = view
                     (
                         shifts_minibatch,
@@ -217,19 +213,13 @@ def gd_importance_sampling_3d(
                         interp_order=1,
                     )
 
-                    # Shift the view
-                    # view_inverse_transformed_shifted_fft_minibatch = fourier_shift(
-                    #    view_inverse_transformed_fft_minibatch, shifts_minibatch
-                    # )
-
                     # Compute the energy associated with each transformation
                     energies_minibatch = compute_energy(
-                        xp.fft.ifftn(volume_representation.volume_fourier),
-                        xp.asarray(volume_representation.psf, device=device),
-                        view,
-                        transform=xp.linalg.inv(inverse_transforms_minibatch),
+                        reference_fft,
+                        psf_inverse_transformed_fft_minibatch,
+                        view_inverse_transformed_fft_minibatch,
                         shift=shifts_minibatch,
-                        space="real",
+                        space="fourier",
                     )
                     del view_inverse_transformed_fft_minibatch
 
@@ -240,8 +230,8 @@ def gd_importance_sampling_3d(
 
                 # Some reshaping
                 energies = energies.reshape(len(indices_axes), len(indices_rot))
-                inverse_transforms = inverse_transforms.reshape(
-                    len(indices_axes), len(indices_rot), 4, 4
+                transforms = xp.reshape(
+                    transforms, (len(indices_axes), len(indices_rot), 4, 4)
                 )
 
                 # Find the energy minimum
@@ -266,7 +256,7 @@ def gd_importance_sampling_3d(
                         device=device,
                     ),
                     volume_representation.psf,
-                    xp.linalg.inv(inverse_transforms[j, k][None]),
+                    transforms[j, k][None],
                     view,
                     interp_order=1,
                 )
@@ -291,7 +281,7 @@ def gd_importance_sampling_3d(
 
                 # The associated pose with the view is therefore
                 translation = (
-                    -to_numpy(inverse_transforms[j, k])
+                    -np.linalg.inv(to_numpy(transforms[j, k]))
                     @ np.concatenate((to_numpy(shift), [0.0]), axis=0)[:, None]
                 )
 
