@@ -50,6 +50,7 @@ def main(
         symmetry=True,
         device=compute_device,
         batch_size=batch_size,
+        multichannel=True,
     )
 
     tifffile.imwrite(
