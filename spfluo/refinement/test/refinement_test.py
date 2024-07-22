@@ -411,9 +411,9 @@ def test_memory_convolution_matching_poses_grid(generated_data_all_array):
         potential_poses = xp.asarray(np.random.randn(M, 6), dtype=volumes.dtype)
 
         best_poses, errors = convolution_matching_poses_grid(
-            groundtruth,
-            volumes,
-            psf,
+            groundtruth[None],
+            volumes[:, None],
+            psf[None],
             potential_poses,
             device=device,
             batch_size=256,
@@ -596,7 +596,6 @@ def test_refine_easy(
         device=compute_device,
         batch_size=1,
     )
-    initial_reconstruction = initial_reconstruction[0]
 
     S = 5
     A = 5 * 2
@@ -605,8 +604,8 @@ def test_refine_easy(
         0,
     ] + [10, 5, 5, 2, 2, 1, 1]
     reconstruction, best_poses = refine(
-        volumes,
-        psf,
+        volumes[:, None],
+        psf[None],
         poses,
         steps,
         ranges,
@@ -615,6 +614,7 @@ def test_refine_easy(
         device=compute_device,
         batch_size=256,
     )
+    reconstruction = reconstruction[0]
 
     rot_dist_deg1, trans_dist_pix1 = distance_family_poses(
         best_poses, groundtruth_poses, symmetry=9
@@ -647,8 +647,8 @@ def test_refine_easy_multichannel(
     )
     device = get_device(volumes)
     xp = array_namespace(volumes)
-    volumes = xp.concat((volumes,) * 3, axis=1)
-    psf = xp.concat((psf,) * 3, axis=0)
+    volumes = xp.stack((volumes,) * 3, axis=1)
+    psf = xp.stack((psf,) * 3, axis=0)
     dtype = volumes.dtype
     noise = xp.asarray(
         np.random.randn(*volumes.shape) * 0.2, device=device, dtype=dtype
@@ -666,6 +666,7 @@ def test_refine_easy_multichannel(
         symmetry=True,
         device=compute_device,
         batch_size=1,
+        multichannel=True,
     )
 
     S = 5
