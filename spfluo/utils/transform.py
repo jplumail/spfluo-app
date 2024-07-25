@@ -50,11 +50,13 @@ def compose_poses(pose1: "Array", pose2: "Array", convention="XZX"):
 
 def invert_pose(pose: "Array", convention="XZX"):
     xp = array_namespace(pose)
-    inv_mat = euler_to_matrix(convention, pose[..., :3], degrees=True).T
+    inv_mat = xp.linalg.matrix_transpose(
+        euler_to_matrix(convention, pose[..., :3], degrees=True)
+    )
     t = pose[..., 3:]
     new_pose = xp.zeros_like(pose)
     new_pose[..., :3] = matrix_to_euler(convention, inv_mat, degrees=True)
-    new_pose[..., 3:] = -xp.astype(inv_mat, t.dtype) @ t
+    new_pose[..., 3:] = -(xp.astype(inv_mat, t.dtype) @ t[..., None])[..., 0]
     return new_pose
 
 
