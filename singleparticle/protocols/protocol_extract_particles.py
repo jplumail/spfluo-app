@@ -1,6 +1,7 @@
 import os
 
 import numpy as np
+from pwfluo.constants import MICRON_STR
 from pwfluo.objects import (
     FluoImage,
     Particle,
@@ -51,6 +52,14 @@ class ProtSingleParticleExtractParticles(Protocol, ProtFluoBase):
             important=True,
         )
         form.addParam(
+            "size",
+            params.FloatParam,
+            label=f"Box size ({MICRON_STR}), optional",
+            help="Size of the squared box surrounding the particle",
+            expertLevel=params.LEVEL_ADVANCED,
+            allowsNull=True,
+        )
+        form.addParam(
             "subpixel",
             params.BooleanParam,
             label="Subpixel precision?",
@@ -66,6 +75,11 @@ class ProtSingleParticleExtractParticles(Protocol, ProtFluoBase):
         coords: SetOfCoordinates3D = self.inputCoordinates.get()
         fluoimages = coords.getPrecedents()
         vs_xy, vs_z = fluoimages.getVoxelSize()
+        if self.size.get() is not None:
+            bs: float = self.size.get()
+            box_size = (bs, bs, bs)
+        else:
+            box_size = None
         for im in fluoimages.iterItems():
             im: FluoImage
             image_data = im.getData()
@@ -73,7 +87,7 @@ class ProtSingleParticleExtractParticles(Protocol, ProtFluoBase):
                 particle_data = self.extract_particle(
                     image_data,
                     coord_im.getPosition(),
-                    coord_im.getDim(),
+                    coord_im.getDim() if box_size is None else box_size,
                     voxel_size=im.getVoxelSize(),
                     subpixel=self.subpixel.get(),
                 )
