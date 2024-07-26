@@ -2,7 +2,13 @@ import os
 from enum import Enum
 
 import numpy as np
-from pwfluo.objects import FluoImage, PSFModel
+from pwfluo.objects import (
+    FluoImage,
+    Particle,
+    PSFModel,
+    SetOfFluoImages,
+    SetOfParticles,
+)
 from pwfluo.protocols import ProtFluoBase
 from pyworkflow import BETA
 from pyworkflow.protocol import Form, Protocol, params
@@ -10,13 +16,8 @@ from pyworkflow.protocol import Form, Protocol, params
 from singleparticle import Plugin
 
 
-class ProtSingleParticleDeconv(Protocol, ProtFluoBase):
-    """Deconvolve an image"""
-
-    OUTPUT_NAME = "FluoImage"
-    _label = "deconvolve"
-    _devStatus = BETA
-    _possibleOutputs = {OUTPUT_NAME: FluoImage}
+class ProtSingleParticleDeconvBase:
+    """Base methods for deconv protocols"""
 
     def createGroupWidefieldParams(self, form: Form):
         group = form.addGroup("Widefields params", condition="usePSF is False")
@@ -123,6 +124,35 @@ class ProtSingleParticleDeconv(Protocol, ProtFluoBase):
             help="This protocol deconvolves in one channel only.",
         )
         return group
+
+
+class ProtSingleParticleDeconvSetBase(ProtSingleParticleDeconvBase):
+    def createInputParams(self, form: Form):
+        group = form.addGroup("Input")
+        group.addParam(
+            "fluoimages",
+            params.PointerParam,
+            pointerClass="SetOfFluoImages",
+            label="Images",
+            important=True,
+        )
+        group.addParam(
+            "channel",
+            params.IntParam,
+            default=0,
+            label="Deconvolve on channel?",
+            help="This protocol deconvolves in one channel only.",
+        )
+        return group
+
+
+class ProtSingleParticleDeconv(Protocol, ProtSingleParticleDeconvBase):
+    """Deconvolve an image"""
+
+    OUTPUT_NAME = "FluoImage"
+    _label = "deconvolve"
+    _devStatus = BETA
+    _possibleOutputs = {OUTPUT_NAME: FluoImage}
 
     def _defineParams(self, form: Form):
         form.addSection(label="Data params")
@@ -270,7 +300,7 @@ class outputs(Enum):
     deconvolution = FluoImage
 
 
-class ProtSingleParticleBlindDeconv(ProtSingleParticleDeconv):
+class ProtSingleParticleBlindDeconv(Protocol, ProtSingleParticleDeconvBase):
     """Deconvolve an image"""
 
     OUTPUT_NAME = "FluoImage"
@@ -374,6 +404,20 @@ class ProtSingleParticleBlindDeconv(ProtSingleParticleDeconv):
         self._insertFunctionStep(self.deconvStep)
         self._insertFunctionStep(self.createOutputStep)
 
+    def prepareStep(self):
+        os.makedirs(self.root_dir, exist_ok=True)
+        input_fluoimage: FluoImage = self.fluoimage.get()
+        self.out_path = os.path.join(self.root_dir, "out.ome.tiff")
+
+        # Input image
+        a = input_fluoimage.getData().astype(np.float32)[self.channel.get()]
+        self.epsilon_default_value = float(a.max()) / 1000
+        self.input_float = FluoImage.from_data(
+            a[None],
+            os.path.join(self.root_dir, "in.ome.tiff"),
+            voxel_size=input_fluoimage.getVoxelSize(),
+        )
+
     def deconvStep(self):
         args = list(
             map(
@@ -432,3 +476,186 @@ class ProtSingleParticleBlindDeconv(ProtSingleParticleDeconv):
             self.out_psf_path, voxel_size=self.input_fluoimage.getVoxelSize()
         )
         self._defineOutputs(**{outputs.psf.name: psf})
+
+
+class ProtSingleParticleDeconvSet(
+    Protocol, ProtSingleParticleDeconvSetBase, ProtFluoBase
+):
+    """Deconvolve a set of images"""
+
+    OUTPUT_NAME = "deconvolved images"
+    _label = "deconvolve set"
+    OUTPUT_PREFIX = "Deconv"
+    _devStatus = BETA
+    _possibleOutputs = {OUTPUT_NAME: SetOfFluoImages}
+
+    def _defineParams(self, form: Form):
+        form.addSection(label="Data params")
+        self.createInputParams(form)
+
+        form.addParam(
+            "paddingMethod",
+            params.StringParam,
+            label="Padding size (in pixels)",
+            default="30",
+            help="padding in xyz directions",
+            expertLevel=params.LEVEL_ADVANCED,
+        )
+        form.addParam(
+            "usePSF",
+            params.BooleanParam,
+            label="PSF?",
+            help="If no PSF is provided, will use the widefield params to build one.",
+            default=False,
+        )
+
+        form.addParam(
+            "psf",
+            params.PointerParam,
+            pointerClass="PSFModel",
+            label="PSF",
+            allowsNull=True,
+            condition="usePSF is True",
+        )
+
+        self.createGroupWidefieldParams(form)
+
+        form.addParam(
+            "normalizePSF",
+            params.BooleanParam,
+            label="Normalize the PSF",
+            default=False,
+        )
+
+        form.addParam(
+            "crop",
+            params.BooleanParam,
+            label="Crop result to the same size as input",
+            default=True,
+        )
+
+        form.addSection(label="Parameters")
+
+        group = self.createOptimizationParams(form)
+        group.addParam(
+            "maxeval",
+            params.IntParam,
+            label="Number of evaluations",
+            help="Maximum number of evalutions\n" "-1 for no limit",
+            expertLevel=params.LEVEL_ADVANCED,
+            default=-1,
+        )
+
+        self.createNoiseParams(form)
+
+    def _insertAllSteps(self):
+        self.root_dir = self._getExtraPath("rootdir")
+        self._insertFunctionStep(self.prepareStep)
+        self._insertFunctionStep(self.prepareStepPSF)
+        self._insertFunctionStep(self.deconvStep)
+        self._insertFunctionStep(self.createOutputStep)
+
+    def prepareStep(self):
+        os.makedirs(self.root_dir, exist_ok=True)
+        input_fluoimages: SetOfFluoImages = self.fluoimages.get()
+        self.fluoimages_dir = os.path.join(self.root_dir, "fluoimages")
+        self.fluoimages_deconv_dir = os.path.join(self.root_dir, "fluoimages_deconv")
+        os.makedirs(self.fluoimages_dir)
+        os.makedirs(self.fluoimages_deconv_dir)
+        self.out_path = os.path.join(self.root_dir, "out.ome.tiff")
+
+        self.input_fluoimages_float: list[FluoImage] = []
+
+        # Input image
+        for fluoimage in input_fluoimages:
+            fluoimage: FluoImage
+            a = fluoimage.getData().astype(np.float32)[self.channel.get()]
+            self.epsilon_default_value = float(a.max()) / 1000
+            self.input_fluoimages_float.append(
+                FluoImage.from_data(
+                    a[None],
+                    os.path.join(self.fluoimages_dir, fluoimage.getBaseName()),
+                    voxel_size=fluoimage.getVoxelSize(),
+                )
+            )
+
+    def prepareStepPSF(self):
+        self.input_psf: PSFModel | None = self.psf.get()
+        self.psf_path = None
+        if self.input_psf:
+            a = self.input_psf.getData().astype(np.float32)
+            if self.input_psf.getNumChannels() - 1 >= self.channel.get():
+                channel = self.channel.get()
+            else:
+                channel = 0
+            a = a[channel]
+            self.psf_float = PSFModel.from_data(
+                a[None],
+                os.path.join(self.root_dir, "psf.ome.tiff"),
+                voxel_size=self.input_psf.getVoxelSize(),
+            )
+
+    def deconvStep(self):
+        for input_float in self.input_fluoimages_float:
+            args = list(
+                map(
+                    os.path.abspath,
+                    [
+                        input_float.getFileName(),
+                        os.path.join(
+                            self.fluoimages_deconv_dir, input_float.getBaseName()
+                        ),
+                    ],
+                )
+            )
+            if self.usePSF.get():
+                args += ["-dxy", f"{self.input_psf.getVoxelSize()[0]*1000}"]
+                args += ["-dz", f"{self.input_psf.getVoxelSize()[1]*1000}"]
+                args += ["-psf", f"{os.path.abspath(self.psf_float.getFileName())}"]
+            else:
+                args += ["-dxy", f"{input_float.getVoxelSize()[0]*1000}"]
+                args += ["-dz", f"{input_float.getVoxelSize()[1]*1000}"]
+                args += ["-NA", f"{self.NA.get()}"]
+                args += ["-lambda", f"{self.lbda.get()}"]
+                args += ["-ni", f"{self.ni.get()}"]
+            if self.normalizePSF.get():
+                args += ["-normalize"]
+            if self.sigma.get():
+                args += ["-noise", f"{self.sigma.get()}"]
+            if self.gamma.get():
+                args += ["-gain", f"{self.gamma.get()}"]
+            args += ["-mu", f"{10**self.mu.get()}"]
+            eps = self.epsilon.get()
+            args += ["-epsilon", f"{eps if eps else self.epsilon_default_value}"]
+            if self.nonneg.get():
+                args += ["-min", "0"]
+            if self.single.get():
+                args += ["-single"]
+            args += ["-maxiter", f"{self.maxiter.get()}"]
+            args += ["-maxeval", f"{self.maxeval.get()}"]
+            args += ["-pad", f"{self.paddingMethod.get()}"]
+            args += ["-debug", "-verbose"]
+            if self.crop.get():
+                args += ["-crop"]
+
+            Plugin.runJob(self, Plugin.getMicroTipiProgram("deconv"), args=args)
+
+    def createOutputStep(self):
+        self.inputSet: SetOfFluoImages = self.fluoimages.get()
+        if isinstance(self.inputSet, SetOfParticles):
+            self.outputSet = self._createSetOfParticles(
+                self._getOutputSuffix(SetOfParticles)
+            )
+            self.outputSet.enableAppend()
+            for particle in self.inputSet.iterItems():
+                particle: Particle
+                particle_deconv_path = os.path.join(
+                    self.fluoimages_deconv_dir, particle.getBaseName()
+                )
+                self.outputSet.append(
+                    Particle.from_filename(
+                        particle_deconv_path, voxel_size=particle.getVoxelSize()
+                    )
+                )
+            self.outputSet.write()
+        self._defineOutputs(**{self.OUTPUT_NAME: self.outputSet})

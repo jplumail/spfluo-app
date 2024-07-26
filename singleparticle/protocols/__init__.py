@@ -10,6 +10,7 @@ from singleparticle.protocols.protocol_align_axis import ProtSingleParticleAlign
 from singleparticle.protocols.protocol_deconv import (
     ProtSingleParticleBlindDeconv,
     ProtSingleParticleDeconv,
+    ProtSingleParticleDeconvSet,
 )
 from singleparticle.protocols.protocol_extract_particles import (
     ProtSingleParticleExtractParticles,
@@ -45,4 +46,5 @@ __all__ = [
     ProtSingleParticleSeparate,
     ProtSingleParticleReconstruction,
     ProtSingleParticleSelectSubset,
+    ProtSingleParticleDeconvSet,
 ]
