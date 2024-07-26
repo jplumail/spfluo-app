@@ -51,7 +51,7 @@ def annotate(
 
     bbox_layer = BoundingBoxLayer(
         ndim=3,
-        edge_color=[0, 0, 255, 255],
+        edge_color=[255, 0, 255, 255],
         face_color=[0, 0, 0, 0],
         scale=spacing_normalized,
         name="Picking",
