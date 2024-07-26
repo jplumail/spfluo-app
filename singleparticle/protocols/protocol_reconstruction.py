@@ -12,7 +12,10 @@ from pyworkflow.protocol import Protocol
 from spfluo.utils.reconstruction import main as reconstruction
 
 from singleparticle.constants import DEFAULT_BATCH
-from singleparticle.convert import read_poses, save_images, save_poses
+from singleparticle.convert import (
+    save_image,
+    save_particles_and_poses,
+)
 
 
 class ProtSingleParticleReconstruction(Protocol, ProtFluoBase):
@@ -101,7 +104,6 @@ class ProtSingleParticleReconstruction(Protocol, ProtFluoBase):
         # Image links for particles
         particles: SetOfParticles = self.inputParticles.get()
         psf: PSFModel = self.inputPSF.get()
-        save_poses(os.path.join(self.root_dir, "poses.csv"), particles)
 
         max_dim = particles.getMaxDataSize()
         if self.pad:
@@ -111,26 +113,28 @@ class ProtSingleParticleReconstruction(Protocol, ProtFluoBase):
         vs = particles.getVoxelSize()
         pixel_size = min(vs)
 
-        images_paths = save_images(
-            [psf] + list(particles.iterItems()),
+        common_size = (max_dim, max_dim, max_dim)
+        self.common_pixel_size = (pixel_size, pixel_size)
+        self.particles_path, _, self.poses_path, _ = save_particles_and_poses(
             self.root_dir,
-            (max_dim, max_dim, max_dim),
-            voxel_size=(pixel_size, pixel_size),
+            particles,
+            common_size,
+            channel=None,
+            voxel_size=self.common_pixel_size,
+        )
+        save_image(
+            self.psfPath,
+            psf,
+            common_size,
+            channel=None,
+            voxel_size=self.common_pixel_size,
         )
 
-        os.link(images_paths[0], os.path.join(self.root_dir, "psf.ome.tiff"))
-
     def reconstructionStep(self):
-        poses_path = os.path.join(self.root_dir, "poses.csv")
-        particles_paths = [
-            os.path.join(self.root_dir, objId + ".ome.tiff")
-            for _, objId in read_poses(poses_path)
-        ]
-
         minibatch = self.minibatch.get() if self.minibatch.get() > 0 else None
         reconstruction(
-            particles_paths,
-            poses_path,
+            self.particles_path,
+            self.poses_path,
             self.psfPath,
             self.final_reconstruction,
             self.lbda.get(),
@@ -140,9 +144,8 @@ class ProtSingleParticleReconstruction(Protocol, ProtFluoBase):
         )
 
     def createOutputStep(self):
-        vs = min(self.inputParticles.get().getVoxelSize())
         reconstruction = AverageParticle.from_filename(
-            self.final_reconstruction, voxel_size=(vs, vs)
+            self.final_reconstruction, voxel_size=self.common_pixel_size
         )
 
         self._defineOutputs(**{self.OUTPUT_NAME: reconstruction})

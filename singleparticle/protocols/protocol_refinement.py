@@ -14,6 +14,11 @@ from pyworkflow.protocol import Protocol
 
 from singleparticle import Plugin
 from singleparticle.constants import DEFAULT_BATCH, REFINEMENT_MODULE
+from singleparticle.convert import (
+    read_poses,
+    save_image,
+    save_particles_and_poses,
+)
 
 
 class outputs(Enum):
@@ -159,12 +164,8 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
         # Image links for particles
         particles: SetOfParticles = self.inputParticles.get()
         psf: PSFModel = self.inputPSF.get()
-        save_poses(os.path.join(self.root_dir, "poses.csv"), particles)
 
-        images = [psf] + list(particles.iterItems())
         initial_volume: Particle | None = self.initialVolume.get()
-        if initial_volume:
-            images += [initial_volume]
 
         max_dim = particles.getMaxDataSize()
         if self.pad:
@@ -176,22 +177,39 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
         # Downsample
         pixel_size = pixel_size * self.downsampling_factor.get()
 
-        images_paths = save_images(
-            images,
+        common_size = (max_dim, max_dim, max_dim)
+        common_voxel_size = (pixel_size, pixel_size)
+
+        # save psf
+        save_image(
+            self.psfPath,
+            psf,
+            size=common_size,
+            channel=None,
+            voxel_size=common_voxel_size,
+        )
+
+        (
+            _,
+            self.particles_dir,
+            self.poses_path,
+            self.mapping_particles_to_poses,
+        ) = save_particles_and_poses(
             self.root_dir,
+            particles,
             (max_dim, max_dim, max_dim),
+            channel=None,
             voxel_size=(pixel_size, pixel_size),
         )
 
+        # save initial volume
         if initial_volume:
-            os.link(images_paths[-1], self.initial_volume_path)
-        os.link(images_paths[0], self.psfPath)
-
-        os.makedirs(os.path.join(self.root_dir, "particles"), exist_ok=True)
-        for _, objId in read_poses(os.path.join(self.root_dir, "poses.csv")):
-            os.link(
-                os.path.join(self.root_dir, objId + ".ome.tiff"),
-                os.path.join(self.root_dir, "particles", objId + ".ome.tiff"),
+            save_image(
+                self.initial_volume_path,
+                initial_volume,
+                common_size,
+                channel=None,
+                voxel_size=common_voxel_size,
             )
 
     def reconstructionStep(self):
@@ -201,11 +219,11 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
             args += ["--initial_volume_path", self.initial_volume_path]
         args += [
             "--particles_dir",
-            os.path.join(self.root_dir, "particles"),
+            self.particles_dir,
             "--psf_path",
             self.psfPath,
             "--guessed_poses_path",
-            os.path.join(self.root_dir, "poses.csv"),
+            self.poses_path,
             "--ranges",
             *ranges.split(" "),
             "--steps",
@@ -238,11 +256,12 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
 
         # Output 2 : particles rotated
         output_particles = self._createSetOfParticles()
-        transforms = {img_id: t for t, img_id in read_poses(self.final_poses)}
+        transforms = {i: t for i, t in read_poses(self.final_poses)}
         for particle in self.inputParticles.get():
             particle: Particle
-
-            rotated_transform = transforms[str(particle.getObjId())]  # new coords
+            rotated_transform = transforms[
+                self.mapping_particles_to_poses[particle.getObjId()]
+            ]
 
             # New file (link to particle)
             rotated_particle_path = self._getExtraPath(particle.getBaseName())

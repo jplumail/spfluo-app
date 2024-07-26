@@ -12,7 +12,8 @@ from pyworkflow.protocol import Form, Protocol, params
 
 from singleparticle import Plugin
 from singleparticle.constants import UTILS_MODULE
-from singleparticle.convert import read_poses, save_poses
+from singleparticle.convert import _save_poses as save_poses
+from singleparticle.convert import read_poses
 
 
 class outputs(Enum):
@@ -61,7 +62,11 @@ class ProtSingleParticleAlignAxis(Protocol, ProtFluoBase):
 
     def prepareStep(self):
         self.input_particles: SetOfParticles = self.inputParticles.get()
-        save_poses(self.poses_csv, self.input_particles)
+        self.mapping_particles_poses = save_poses(
+            self.poses_csv,
+            self.input_particles,
+            ["" for i in range(len(list(self.input_particles)))],
+        )
 
     def alignStep(self):
         self.particle: Particle = self.inputParticle.get()
@@ -95,13 +100,13 @@ class ProtSingleParticleAlignAxis(Protocol, ProtFluoBase):
         # Rotated particles
         output_particles = self._createSetOfParticles()
 
-        transforms = {
-            int(img_id): t for t, img_id in read_poses(self.rotated_poses_csv)
-        }
+        transforms = {i: t for i, t in read_poses(self.rotated_poses_csv)}
         for particle in self.input_particles:
             particle: Particle
 
-            rotated_transform = transforms[particle.getObjId()]  # new coords
+            rotated_transform = transforms[
+                self.mapping_particles_poses[particle.getObjId()]
+            ]  # new coords
 
             # New file (link to particle)
             rotated_particle_path = self._getExtraPath(particle.getBaseName())

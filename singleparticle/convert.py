@@ -115,7 +115,7 @@ def read_poses(poses_csv: str):
     with open(poses_csv, "r") as f:
         data = csv.reader(f)
         next(data)
-        for row in data:
+        for i, row in enumerate(data):
             t = Transform()
             matrix = np.eye(4)
             matrix[:3, :3] = Rotation.from_euler(
@@ -123,7 +123,7 @@ def read_poses(poses_csv: str):
             ).as_matrix()
             t.setMatrix(matrix)
             t.setShifts(float(row[4]), float(row[5]), float(row[6]))
-            yield t, row[0]
+            yield i, t
 
 
 def save_boundingboxes(coords: SetOfCoordinates3D, csv_file: str):
@@ -149,26 +149,40 @@ def save_boundingboxes(coords: SetOfCoordinates3D, csv_file: str):
 
 
 def save_particles(
-    particles_dir: str, particles: SetOfParticles, channel: int | None = None
+    particles_dir: str,
+    particles: SetOfParticles,
+    size: tuple[float, float, float],
+    channel: int | None = None,
+    voxel_size: tuple[float, float] | None = None,
 ):
     if not os.path.exists(particles_dir):
         os.makedirs(particles_dir, exist_ok=True)
-    particles_paths: dict[str, str] = {}
+    particles_paths: list[str] = []
     for particle in particles:
         particle: Particle
         im_name = particle.strId()
         im_newPath = os.path.join(particles_dir, im_name + ".ome.tiff")
-        save_image(im_newPath, particle, channel=channel)
-        particles_paths[particle.getObjId()] = im_newPath
+        save_image(
+            im_newPath, particle, size=size, channel=channel, voxel_size=voxel_size
+        )
+        particles_paths.append(im_newPath)
 
     return particles_paths
 
 
-def save_poses(path: str, particles: SetOfParticles):
-    with open(path, "w") as f:
+def _save_poses(
+    poses_path: str,
+    particles: SetOfParticles,
+    particles_paths: list[str],
+    prefix: str = "",
+):
+    mapping_particles_to_poses: dict[int, int] = {}
+    with open(poses_path, "w") as f:
         csvwriter = csv.writer(f)
         csvwriter.writerow(["index", "axis-1", "axis-2", "axis-3", "size"])
-        for p in particles:
+        for i, p, path in zip(
+            range(len(particles_paths)), particles, particles_paths, strict=True
+        ):
             p: Particle
             rotMat = p.getTransform().getRotationMatrix()
             euler_angles = list(
@@ -178,15 +192,32 @@ def save_poses(path: str, particles: SetOfParticles):
                 )
             )
             trans = list(map(str, p.getTransform().getShifts().tolist()))
-            csvwriter.writerow([str(p.getObjId())] + euler_angles + trans)
+            mapping_particles_to_poses[p.getObjId()] = i
+            csvwriter.writerow(
+                [os.path.join(prefix, os.path.basename(path))] + euler_angles + trans
+            )
+    return mapping_particles_to_poses
 
 
 def save_particles_and_poses(
-    root_dir: str, particles: SetOfParticles, channel: int | None = None
+    rootdir: str,
+    particles: SetOfParticles,
+    size: tuple[float, float, float],
+    channel: int | None = None,
+    voxel_size: tuple[float, float] | None = None,
 ):
-    particles_paths = save_particles(root_dir, particles, channel=channel)
-    save_poses(os.path.join(root_dir, "poses.csv"), particles)
-    return particles_paths
+    particles_dir = os.path.join(rootdir, "particles")
+    poses_path = os.path.join(rootdir, "poses.csv")
+    os.makedirs(particles_dir, exist_ok=True)
+    particles_paths = save_particles(
+        os.path.join(rootdir, "particles"),
+        particles,
+        size,
+        channel=channel,
+        voxel_size=voxel_size,
+    )
+    mapping = _save_poses(poses_path, particles, particles_paths, prefix="particles")
+    return particles_paths, particles_dir, poses_path, mapping
 
 
 def save_image(
@@ -239,9 +270,10 @@ def save_images(
     voxel_size: tuple[float, float] | None = None,
 ):
     output_paths: list[str] = []
-    for image in images:
-        im_name = image.strId()
-        im_newPath = os.path.join(output_dir, im_name + ".ome.tiff")
+    for i, image in enumerate(images):
+        im_newPath = os.path.join(
+            output_dir, f"{image.__class__.__qualname__}-{i}.ome.tiff"
+        )
         save_image(im_newPath, image, size, channel=channel, voxel_size=voxel_size)
         output_paths.append(im_newPath)
     return output_paths
