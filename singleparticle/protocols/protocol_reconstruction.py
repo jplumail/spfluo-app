@@ -79,7 +79,7 @@ class ProtSingleParticleReconstruction(Protocol, ProtFluoBase):
         form.addParam(
             "lbda",
             params.FloatParam,
-            default=100.0,
+            default=1.0,
             label="Lambda",
             help="Higher results in smoother results.",
         )
