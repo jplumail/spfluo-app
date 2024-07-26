@@ -13,8 +13,7 @@ from pyworkflow import BETA
 from pyworkflow.protocol import Protocol
 
 from singleparticle import Plugin
-from singleparticle.constants import REFINEMENT_MODULE
-from singleparticle.convert import read_poses, save_images, save_poses
+from singleparticle.constants import DEFAULT_BATCH, REFINEMENT_MODULE
 
 
 class outputs(Enum):
@@ -77,7 +76,7 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
         form.addParam(
             "minibatch",
             params.IntParam,
-            default=0,
+            default=DEFAULT_BATCH,
             label="Size of a minibatch",
             expertLevel=params.LEVEL_ADVANCED,
             help="The smaller the size, the less memory will be used.\n"

@@ -49,7 +49,7 @@ from pyworkflow import BETA
 from pyworkflow.protocol import Form, Protocol, params
 
 from singleparticle import Plugin
-from singleparticle.constants import AB_INITIO_MODULE
+from singleparticle.constants import AB_INITIO_MODULE, DEFAULT_BATCH
 from singleparticle.convert import (
     getLastParticlesParams,
     save_images,
@@ -114,7 +114,7 @@ class ProtSingleParticleAbInitio(Protocol, ProtFluoBase):
         form.addParam(
             "minibatch",
             params.IntParam,
-            default=0,
+            default=DEFAULT_BATCH,
             label="Size of a minibatch",
             expertLevel=params.LEVEL_ADVANCED,
             help="The smaller the size, the less memory will be used.\n"

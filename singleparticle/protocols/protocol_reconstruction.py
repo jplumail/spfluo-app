@@ -11,6 +11,7 @@ from pyworkflow import BETA
 from pyworkflow.protocol import Protocol
 from spfluo.utils.reconstruction import main as reconstruction
 
+from singleparticle.constants import DEFAULT_BATCH
 from singleparticle.convert import read_poses, save_images, save_poses
 
 
@@ -53,7 +54,7 @@ class ProtSingleParticleReconstruction(Protocol, ProtFluoBase):
         form.addParam(
             "minibatch",
             params.IntParam,
-            default=0,
+            default=DEFAULT_BATCH,
             label="Size of a minibatch",
             expertLevel=params.LEVEL_ADVANCED,
             help="The smaller the size, the less memory will be used.\n"

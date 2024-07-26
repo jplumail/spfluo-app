@@ -28,3 +28,5 @@ TIPI_JAR = os.path.join(target_dir, "TiPi-for-spfluo-1.0.jar")
 JAVA_XMX = "16G"
 
 FIJI_HOME = "/opt/fiji-linux64/Fiji.app"
+
+DEFAULT_BATCH = 1
