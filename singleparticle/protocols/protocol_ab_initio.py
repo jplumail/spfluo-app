@@ -108,7 +108,7 @@ class ProtSingleParticleAbInitio(Protocol, ProtFluoBase):
         form.addParam(
             "gpu",
             params.BooleanParam,
-            default=False,
+            default=True,
             label="Use GPU?",
         )
         form.addParam(
