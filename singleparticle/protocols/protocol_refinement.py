@@ -101,28 +101,28 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
         form.addParam(
             "lbda",
             params.FloatParam,
-            default=100.0,
+            default=1.0,
             label="Lambda",
-            help="Higher results in smoother results.",
+            help="Higher results in smoother reconstruction.",
         )
         form.addParam(
             "ranges",
             params.StringParam,
             label="Ranges",
             help="Sequence of angle ranges, in degrees.",
-            default="40 20 10 5",
+            default="40 20 10 5 2 1",
         )
         form.addParam(
             "steps",
             params.StringParam,
             label="Steps",
             help="Number of steps in the range to create the discretization",
-            default="10 10 10 10",
+            default="3 3 3 3 3 3",
         )
         form.addParam(
             "N_axes",
             params.IntParam,
-            default=25,
+            default=200,
             label="N axes",
             expertLevel=params.LEVEL_ADVANCED,
             help="For the first iteration, number of axes for the discretization of the"
