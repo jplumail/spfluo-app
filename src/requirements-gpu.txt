@@ -1,2 +1,0 @@
--r requirements.txt
-spfluo[manual-picking,visualisation,ab-initio-reconstruction,refinement,gpu]

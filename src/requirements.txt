@@ -1,4 +1,0 @@
---trusted-host vps-429048d2.vps.ovh.net
---index-url http://vps-429048d2.vps.ovh.net/jean/dev/+simple
-scipion-fluo-singleparticle
-scipion-app
