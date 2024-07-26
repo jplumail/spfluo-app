@@ -3,7 +3,6 @@ import pickle
 from typing import Callable, Dict, Optional
 
 import numpy as np
-import pyworkflow.object as pwobj
 from pwfluo.objects import (
     Coordinate3D,
     FluoImage,
@@ -140,7 +139,6 @@ class ProtSingleParticlePickingPredict(ProtFluoPicking):
             if not hasattr(self, outputname):
                 suffix = "user%s" % count
                 break
-        suffix = self._getOutputSuffix(SetOfCoordinates3D)
 
         pickleFile = self._getExtraPath("picking", "predictions.pickle")
         with open(os.path.abspath(pickleFile), "rb") as f:
@@ -151,9 +149,10 @@ class ProtSingleParticlePickingPredict(ProtFluoPicking):
             self.image_paths[setOfImages.getFirstItem().getBaseName()]
         ].keys()
         boxsize = self.trainRun.getPatchSize()
+        outputs = {}
         for k in step_keys:
             if k != "raw":
-                coordSet = self._createSetOfCoordinates3D(setOfImages, suffix)
+                coordSet = self._createSetOfCoordinates3D(setOfImages, "_" + k)
                 coordSet.setName("predCoord_" + k)
                 coordSet.setVoxelSize(setOfImages.getVoxelSize())
 
@@ -166,7 +165,10 @@ class ProtSingleParticlePickingPredict(ProtFluoPicking):
 
                 outputname = self.OUTPUT_PREFIX + "_" + k + "_" + suffix
                 self._defineOutputs(**{outputname: coordSet})
-                self._defineRelation(pwobj.RELATION_SOURCE, setOfImages, coordSet)
+                outputs.update({outputname: coordSet})
+        print(outputs)
+        # self._defineOutputs(**outputs)
+        # self._defineRelation(pwobj.RELATION_SOURCE, setOfImages, coordSet)
 
 
 def readSetOfCoordinates3D(
@@ -175,20 +177,16 @@ def readSetOfCoordinates3D(
     inputImage: FluoImage,
     boxsize: tuple[int, int, int],
     updateItem: Optional[Callable] = None,
-    scale=1,
 ):
     for box in boxes:
         x_min, y_min, z_min, x_max, y_max, z_max = box
-        center = np.array(
-            [(x_min + x_max) / 2, (y_min + y_max) / 2, (z_min + z_max) / 2]
-        )
-        x, y, z = scale * center
+        x, y, z = (x_min + x_max) / 2, (y_min + y_max) / 2, (z_min + z_max) / 2
         newCoord = Coordinate3D()
         newCoord.setFluoImage(inputImage)
         newCoord.setImageId(inputImage.getImgId())
-        Lx, Ly, Lz = inputImage.getDim()
-        newCoord.setPosition(z, y, x)
-        newCoord.setDim(*boxsize)
+        vs_xy, vs_z = inputImage.getVoxelSize()
+        newCoord.setPosition(z * vs_z, y * vs_xy, x * vs_xy)
+        newCoord.setDim(boxsize[0] * vs_z, boxsize[1] * vs_xy, boxsize[2] * vs_xy)
 
         # Execute Callback
         if updateItem:

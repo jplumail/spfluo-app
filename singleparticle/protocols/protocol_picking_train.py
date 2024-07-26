@@ -166,7 +166,7 @@ class ProtSingleParticlePickingTrain(Protocol):
 
     def getPatchSize(self) -> tuple[int, int, int]:
         inputCoordinates: SetOfCoordinates3D = self.inputCoordinates.get()
-        patch_size_px_xy, patch_size_px_z = inputCoordinates.getMaxBoxSize()
+        patch_size_px_xy, patch_size_px_z = inputCoordinates.getMinBoxSize()
         patch_size = (
             math.ceil(patch_size_px_z),
             math.ceil(patch_size_px_xy),
@@ -202,8 +202,17 @@ class ProtSingleParticlePickingTrain(Protocol):
         # Splitting annotations in train/val
         annotations = []
         for i, coord in enumerate(inputCoordinates.iterCoordinates()):
-            x, y, z = coord.getPosition()
-            annotations.append((coord.getFluoImage().getImgId() + ".tiff", i, x, y, z))
+            z, y, x = coord.getPosition()
+            vs_xy, vs_z = coord.getFluoImage().getVoxelSize()
+            annotations.append(
+                (
+                    coord.getFluoImage().getImgId() + ".tiff",
+                    i,
+                    z / vs_z,
+                    y / vs_xy,
+                    x / vs_xy,
+                )
+            )
 
         print(
             f"Found {len(annotations)} annotations in SetOfCoordinates "
