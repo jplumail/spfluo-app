@@ -170,15 +170,6 @@ class ProtSingleParticleAbInitio(Protocol, ProtFluoBase):
             help="Increase to get faster results. "
             "However, a value too high can break the algorithm.",
         )
-        form.addParam(
-            "eps",
-            params.FloatParam,
-            default=-100,
-            label="eps",
-            expertLevel=params.LEVEL_ADVANCED,
-            help="minimum gain in energy before stopping"
-            "a negative value allows for eventual losses in energy",
-        )
 
     # --------------------------- STEPS functions ------------------------------
     def _insertAllSteps(self):
@@ -241,7 +232,7 @@ class ProtSingleParticleAbInitio(Protocol, ProtFluoBase):
         args += ["--lr", f"{self.lr.get()}"]
         args += ["--N_axes", f"{self.N_axes.get()}"]
         args += ["--N_rot", f"{self.N_rot.get()}"]
-        args += ["--eps", self.eps.get()]
+        args += ["--eps", "-100"]
         if self.gpu.get():
             args += ["--gpu"]
             args += ["--interp_order", str(1)]
