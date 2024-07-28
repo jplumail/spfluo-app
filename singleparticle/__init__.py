@@ -10,6 +10,7 @@
 # **************************************************************************
 
 import os
+import sys
 import threading
 from typing import List, Union
 
@@ -80,17 +81,21 @@ class Plugin(plugin.Plugin):
         )
 
     @classmethod
+    def getPythonPath(cls):
+        return sys.executable
+
+    @classmethod
     def getSPFluoProgram(cls, program: Union[str, List[str]]):
         if isinstance(program, str):
             program = [program]
-        command = "python -m spfluo"
+        command = f"{cls.getPythonPath()} -m spfluo"
         for p in program:
             command += f".{p}"
         return command
 
     @classmethod
     def getNapariProgram(cls):
-        return "python -m napari"
+        return f"{cls.getPythonPath()} -m napari"
 
     @classmethod
     def getMicroTipiProgram(cls, program: str):
