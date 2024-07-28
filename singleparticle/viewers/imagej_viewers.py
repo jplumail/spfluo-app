@@ -81,9 +81,13 @@ class ImageJ:
                         raise ValueError(f"Data is None for {im}.")
             series_str = " ".join(["series_" + str(i + 1) for i in range(len(images))])
             color_mode = "Composite" if multichannel else "Default"
+            if os.name == "nt":
+                p = os.fspath(temp_file).replace("\\", "\\\\")
+            else:
+                p = temp_file
             script = (
                 "run('Bio-Formats', "
-                f"'open={temp_file} autoscale color_mode={color_mode} "
+                f"'open={p} autoscale color_mode={color_mode} "
                 "concatenate_series rois_import=[ROI manager] view=Hyperstack "
                 f"stack_order=XYCZT {series_str}');"
             )
