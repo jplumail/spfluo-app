@@ -57,9 +57,9 @@ class ImageJ:
 
     def runProgram(self, images: list[pwfluoobj.Image], cwd=None):
         with tempfile.TemporaryDirectory() as temp_dir:
-            temp_file = os.path.join(temp_dir, "temp.ome.tiff")
-            with tifffile.TiffWriter(temp_file, ome=True, bigtiff=True) as tif:
-                for i, im in enumerate(images):
+            for i, im in enumerate(images):
+                temp_file = os.path.join(temp_dir, f"temp-{i}.ome.tiff")
+                with tifffile.TiffWriter(temp_file, ome=True, bigtiff=True) as tif:
                     multichannel = im.getNumChannels() > 1
                     vs_xy, vs_z = im.getVoxelSize() if im.getVoxelSize() else (1, 1)
                     metadata = {
@@ -75,21 +75,38 @@ class ImageJ:
                     logger.debug(f"{im.getVoxelSize()=}, {type(im.getVoxelSize())=}")
                     logger.debug(f"voxel size: {vs_xy}x{vs_xy}x{vs_z}")
                     data = im.getData()
+                    X, Y, Z = im.getDim()
                     if data is not None:
                         tif.write(data, metadata=metadata, contiguous=False)
                     else:
                         raise ValueError(f"Data is None for {im}.")
-            series_str = " ".join(["series_" + str(i + 1) for i in range(len(images))])
+            first_temp_file = os.path.join(temp_dir, "temp-0.ome.tiff")
+            temp_files_pattern = (
+                os.path.join(temp_dir, f"temp-<0-{len(images)}>.ome.tiff")
+                if len(images) > 1
+                else os.path.join(temp_dir, "temp-0.ome.tiff")
+            )
             color_mode = "Composite" if multichannel else "Default"
             if os.name == "nt":
-                p = os.fspath(temp_file).replace("\\", "\\\\")
-            else:
-                p = temp_file
+                first_temp_file = os.fspath(first_temp_file).replace("\\", "\\\\")
+                temp_files_pattern = os.fspath(temp_files_pattern).replace("\\", "\\\\")
+            swap_dims_options = (
+                (
+                    f"dimensions axis_1_number_of_images={len(images)} "
+                    "axis_1_axis_first_image=0 axis_1_axis_increment=1 "
+                )
+                if len(images) > 1
+                else ""
+            )
             script = (
                 "run('Bio-Formats', "
-                f"'open={p} autoscale color_mode={color_mode} "
-                "concatenate_series rois_import=[ROI manager] view=Hyperstack "
-                f"stack_order=XYCZT {series_str}');"
+                f"'open={first_temp_file} "
+                f"autoscale color_mode={color_mode} group_files "
+                "rois_import=[ROI manager] view=Hyperstack stack_order=XYCZT "
+                f"swap_dimensions "
+                f"{swap_dims_options}"
+                f"contains=[] name={temp_files_pattern} "
+                f"z_1={Z} c_1=1 t_1={len(images)}');"
             )
             logger.debug(script)
             pwutils.runJob(
