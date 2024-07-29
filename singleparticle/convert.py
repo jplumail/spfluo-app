@@ -85,7 +85,7 @@ def readSetOfParticles(
 
 
 def write_csv(filename, data):
-    with open(filename, "w") as f:
+    with open(filename, "w", newline="") as f:
         csvwriter = csv.writer(f)
         csvwriter.writerows(data)
 
@@ -127,7 +127,7 @@ def read_poses(poses_csv: str):
 
 
 def save_boundingboxes(coords: SetOfCoordinates3D, csv_file: str):
-    with open(csv_file, "w") as f:
+    with open(csv_file, "w", newline="") as f:
         csvwriter = csv.writer(f)
         csvwriter.writerow(
             ["index", "axis-1", "axis-2", "axis-3", "axis-1", "axis-2", "axis-3"]
