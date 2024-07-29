@@ -332,14 +332,16 @@ def find_pose_from_z_axis_centered_to_centriole_axis(
     centriole_im: "Array",
     symmetry: int,
     axis_indice=0,
+    threshold: float = DEFAULT_THRESHOLD,
     center_precision: float = 1,
     convention="XZX",
 ):
     xp = array_namespace(centriole_im)
     logger.info("start find_pose_from_z_axis_centered_to_centriole_axis")
-    pose_from_z_axis_to_centriole = find_pose_from_z_axis_to_centriole_axis2(
+    pose_from_z_axis_to_centriole = find_pose_from_z_axis_to_centriole_axis(
         centriole_im,
         axis_indice=axis_indice,
+        threshold=threshold,
         convention=convention,
     )
     logger.debug(f"{pose_from_z_axis_to_centriole=}")
@@ -366,6 +368,7 @@ def main(
     volume_path: str,
     symmetry: int,
     convention: str = "XZX",
+    threshold: float = DEFAULT_THRESHOLD,
     output_volume_path: Optional[str] = None,
     poses_path: Optional[str] = None,
     output_poses_path: Optional[str] = None,
@@ -418,7 +421,9 @@ def main(
         target_pixel_physical_size = 1.0
         target_pixel_physical_unit = UnitsLength.MICROMETER
 
-    pose = find_pose_from_z_axis_centered_to_centriole_axis(volume, symmetry)
+    pose = find_pose_from_z_axis_centered_to_centriole_axis(
+        volume, symmetry, threshold=threshold
+    )
 
     if output_volume_path:
         rotated_volume = affine_transform(

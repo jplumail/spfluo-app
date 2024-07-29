@@ -46,6 +46,12 @@ def create_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--rotated-poses", type=str, help="path to the rotated poses", default=None
     )
+    parser.add_argument(
+        "--threshold",
+        type=float,
+        help="threshold in percentage of the max",
+        default=0.5,
+    )
 
     return parser
 
@@ -68,6 +74,7 @@ def main(args: argparse.Namespace) -> None:
             args.input[0],
             args.symmetry,
             args.convention,
+            threshold=args.threshold,
             output_volume_path=args.rotated_volume,
             poses_path=args.poses,
             output_poses_path=args.rotated_poses,
