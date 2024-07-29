@@ -14,7 +14,7 @@ dependencies = [
     "scipion-fluo>=v3!0.2.1",
     "numpy",
     "scipy",
-    "spfluo[manual-picking,ab-initio-reconstruction,visualisation]",
+    "spfluo[manual-picking,ab-initio-reconstruction,visualisation,picking]",
     "flask",
     "waitress",
 ]
