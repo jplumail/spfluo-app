@@ -9,12 +9,11 @@ import os
 import pickle
 from typing import List, Tuple
 
-import cupy as cp
 import numpy as np
 import tifffile
 import torch
-from cucim.skimage import exposure
-from cupyx.scipy import ndimage
+from scipy import ndimage
+from skimage import exposure
 from skimage.measure import label, regionprops
 from sklearn.mixture import GaussianMixture
 from torch.utils.data import DataLoader, Dataset, Sampler
@@ -61,21 +60,17 @@ def make_U_mask(
     dilation_iter: int = 10,
     return_all_steps: bool = False,
 ) -> np.ndarray:
-    # Load on GPU
-    image_gpu = cp.array(image)
     # STEP 1: Gamma correction
-    step1 = exposure.adjust_gamma(image_gpu, gamma, gain)
+    step1 = exposure.adjust_gamma(image, gamma, gain)
     # STEP 2: GMM Fitting & Binarize via GMM means
     # GMM fits on one slice: whitest slice if no slice specified
     fit_slice = find_max_positive_ratio_slice(step1)
     classifier = GaussianMixture(n_components=2)
-    classifier.fit(fit_slice.reshape((fit_slice.size, 1)).get())
+    classifier.fit(fit_slice.reshape((fit_slice.size, 1)))
     threshold = np.mean(classifier.means_)
-    step2 = step1 > cp.array(threshold)
+    step2 = step1 > threshold
     # STEP 3: Remove Small Objects
-    step3 = cp.array(
-        remove_small_objects_by_area(step2.get(), area_min=area_min)
-    )  # this step is faster on CPU
+    step3 = remove_small_objects_by_area(step2, area_min=area_min)
     # STEP 4: Erosion: make a little 3D cube and erode 1 time with it
     cube = ndimage.generate_binary_structure(rank=3, connectivity=3)
     step4 = ndimage.binary_erosion(step3, cube, iterations=1)
@@ -83,11 +78,7 @@ def make_U_mask(
     step5 = ndimage.binary_dilation(
         step4, cube, iterations=dilation_iter, brute_force=True
     )
-    return (
-        (step1.get(), step2.get(), step3.get(), step4.get(), step5.get())
-        if return_all_steps
-        else step5.get()
-    )
+    return (step1, step2, step3, step4, step5) if return_all_steps else step5
 
 
 def recenter_if_needed(
