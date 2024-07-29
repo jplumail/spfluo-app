@@ -86,7 +86,7 @@ def train(
     epoch_size: int = None,
     downscale: float = 1.0,
     # pu optional params
-    radius: int = None,
+    radius: int | None = None,
     num_particles_per_image: int = None,
     load_u_masks: bool = False,
     # autoencoder params
