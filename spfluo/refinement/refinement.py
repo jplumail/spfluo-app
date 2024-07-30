@@ -326,9 +326,14 @@ def convolution_matching_poses_grid(
 
     shifts = xp.empty((N, M, 3), dtype=reference.dtype, device=host_device)
     errors = xp.empty((N, M), dtype=reference.dtype, device=host_device)
-    for (start1, end1), (start2, end2) in split_batch(
-        max_batch=batch_size, shape=(N, M)
-    ):
+    number_batches = N * M if batch_size is None else N * M // batch_size
+    pbar = tqdm(
+        split_batch(max_batch=batch_size, shape=(N, M)),
+        leave=False,
+        total=number_batches,
+        desc="convolution_matching_poses_grid",
+    )
+    for (start1, end1), (start2, end2) in pbar:
         number_poses = end2 - start2
         volumes_minibatch = xp.asarray(volumes[start1:end1], device=compute_device)
         potential_poses_minibatch = xp.asarray(
