@@ -25,7 +25,7 @@ from spfluo.utils.transform import (
     invert_pose,
     matrix_to_euler,
 )
-from spfluo.utils.volume import affine_transform, resample
+from spfluo.utils.volume import affine_transform, interpolate_to_size, resample
 
 logger = logging.getLogger("spfluo.utils.rotate_symmetry_axis")
 
@@ -417,8 +417,14 @@ def main(
         target_pixel_physical_size = 1.0
         target_pixel_physical_unit = UnitsLength.MICROMETER
 
+    # Volume must be a cube
+    size = max(volume.shape)
+    volume = interpolate_to_size(volume, (size, size, size))
+
     pose = find_pose_from_z_axis_centered_to_centriole_axis(
-        volume, symmetry, threshold=threshold
+        volume,
+        symmetry,
+        threshold=threshold,
     )
 
     if output_volume_path:
