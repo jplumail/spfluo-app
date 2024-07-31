@@ -293,7 +293,7 @@ def find_pose_from_centriole_to_center(
             affine_transform(
                 to_numpy(
                     xp.stack((im_proj,) * N_trans * symmetry)
-                ),  # to numpy because affine transform only works in 2D for numpy
+                ),  # to numpy because affine transform only works in numpy for 2D
                 to_numpy(xp.reshape(H_inv, (-1, 3, 3))),
                 batch=True,
             ),
