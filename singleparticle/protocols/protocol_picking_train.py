@@ -252,6 +252,11 @@ class ProtSingleParticlePickingTrain(Protocol):
         args += ["--lr", f"{self.lr.get()}"]
         args += ["--extension", "tiff"]
         args += ["--augment", f"{self.augment.get()}"]
+        cpu = os.cpu_count() or 1
+        cpu = cpu // 2 or 1
+        if os.name == "nt":
+            cpu = 0
+        args += ["--num_workers", cpu]
         if self.pu:
             args += ["--mode", "pu"]
             if self.radius.get() is None:
