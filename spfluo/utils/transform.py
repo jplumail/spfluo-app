@@ -103,6 +103,7 @@ def get_transform_matrix(
     translation: "Array",
     convention: str = "XZX",
     degrees: bool = False,
+    dtype: str = "float64",
 ):
     """
     Returns the transformation matrix in pixel coordinates.
@@ -144,7 +145,8 @@ def get_transform_matrix(
         An (or N) affine tranformation(s) in homogeneous coordinates.
     """
     xp = array_namespace(euler_angles, translation)
-    (dtype,) = set((euler_angles.dtype, translation.dtype))
+    dtype = getattr(xp, dtype)
+    assert xp.isdtype(dtype, "real floating")
     rot = euler_to_matrix(convention, euler_angles, degrees=degrees)
     H_rot = get_transform_matrix_around_center(shape, rot)
     H_rot[..., :3, 3] += translation  # adds the translation

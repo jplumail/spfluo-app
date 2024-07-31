@@ -336,7 +336,6 @@ def find_pose_from_z_axis_centered_to_centriole_axis(
     center_precision: float = 1,
     convention="XZX",
 ):
-    xp = array_namespace(centriole_im)
     logger.info("start find_pose_from_z_axis_centered_to_centriole_axis")
     pose_from_z_axis_to_centriole = find_pose_from_z_axis_to_centriole_axis(
         centriole_im,
@@ -347,11 +346,8 @@ def find_pose_from_z_axis_centered_to_centriole_axis(
     logger.debug(f"{pose_from_z_axis_to_centriole=}")
     volume_z_axis = affine_transform(
         centriole_im,
-        xp.astype(
-            get_transform_matrix_from_pose(
-                centriole_im.shape, pose_from_z_axis_to_centriole, convention=convention
-            ),
-            centriole_im.dtype,
+        get_transform_matrix_from_pose(
+            centriole_im.shape, pose_from_z_axis_to_centriole, convention=convention
         ),
         order=1,
     )
