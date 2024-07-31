@@ -228,8 +228,8 @@ def _corr(im1: "Array", im2: "Array", nb_spatial_dims: int = 2):
     xp = array_namespace(im1, im2)
     assert im1.shape[-nb_spatial_dims:] == im2.shape[-nb_spatial_dims:]
     mean = partial(xp.mean, axis=tuple(range(-nb_spatial_dims, 0)), keepdims=True)
-    im1_stdv = (mean(im1**2) - mean(im1) ** 2) ** 0.5
-    im2_stdv = (mean(im2**2) - mean(im2) ** 2) ** 0.5
+    im1_stdv = mean((im1 - mean(im1)) ** 2) ** 0.5
+    im2_stdv = mean((im2 - mean(im2)) ** 2) ** 0.5
     c = mean((im1 - mean(im1)) * (im2 - mean(im2))) / (im1_stdv * im2_stdv)
     c = c[
         (slice(None),) * (c.ndim - nb_spatial_dims) + (0,) * nb_spatial_dims
