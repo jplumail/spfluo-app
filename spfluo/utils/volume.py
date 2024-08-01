@@ -1121,7 +1121,7 @@ def disp2D(*ims, fig=None, **imshowkwargs):
     h = int(math.floor(len(ims) ** 0.5))
     w = int(math.ceil(len(ims) / h))
     axes = fig.subplots(h, w)
-    if type(axes) == np.ndarray:
+    if isinstance(axes, np.ndarray):
         axes = axes.flatten()
         for ax in axes:
             ax.set_axis_off()
@@ -1137,7 +1137,7 @@ def disp2D_compare(fig, *ims, **imshowkwargs):
     h = int(np.floor(len(ims) ** 0.5))
     w = int(np.ceil(len(ims) / h))
     axes = fig.subplots(h, w)
-    if type(axes) == np.ndarray:
+    if isinstance(axes, np.ndarray):
         axes = axes.flatten()
         for ax in axes:
             ax.set_axis_off()
