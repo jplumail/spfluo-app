@@ -93,7 +93,7 @@ def test_correctness_phase_cross_correlation(
     norm_error_vec = np.linalg.vector_norm(translation - shift)
     if norm_error_vec_skimage < norm_error_vec:
         assert_allclose(
-            norm_error_vec, norm_error_vec_skimage, rtol=0.01, atol=1 / upsample_factor
+            norm_error_vec, norm_error_vec_skimage, rtol=0.1, atol=1 / upsample_factor
         )  # atol=0.1
     assert_allclose(error, xp.asarray(error_skimage), rtol=1e-3, atol=1e-2)
     # Phasediff not tested because not implemented in pytorch

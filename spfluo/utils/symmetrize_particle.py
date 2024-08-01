@@ -27,8 +27,8 @@ def symmetrize(
         symmetry=symmetry,
     )
     return reconstruction_L2(
-        xp.astype(particle[None, None], xp.float32),
-        xp.astype(psf[None], xp.float32),
+        xp.astype(particle[None], xp.float32),
+        xp.astype(psf, xp.float32),
         pose_syms[:, None],
         lambda_,
         symmetry=True,

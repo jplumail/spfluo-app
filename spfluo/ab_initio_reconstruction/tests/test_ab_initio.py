@@ -79,7 +79,7 @@ def test_files_exist(numpy_run):
     files = [
         "energies.csv",
         "params_learning_alg.json",
-        "final_recons.tif",
+        "final_recons.ome.tiff",
         "poses.csv",
     ]
     for f in files:

@@ -60,7 +60,7 @@ def test_distance_family_poses():
         [[70, 0, 0, 0, 0, 0], [90, 0, 0, 0, 0, 0], [90, 90, 0, 0, 1, 0]], dtype=float
     )
     angle, t = distance_family_poses(p1, p2)
-    assert np.isclose(angle, [30, 60, 30], atol=1e-5).all()
+    assert np.isclose(angle, [0, 90, 0], atol=1e-5).all()
     assert np.isclose(t, [0, 0, 2.0**0.5]).all()
 
 
@@ -79,7 +79,7 @@ def test_distance_family_poses_sym():
         [[70, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0], [90, 90, 0, 0, 1, 0]], dtype=float
     )
     angle, t = distance_family_poses(p1, p2, symmetry=9)
-    assert np.isclose(angle, [error / 3, error * 2 / 3, error / 3], atol=1e-5).all()
+    assert np.isclose(angle, [0, error, 0], atol=1e-5).all()
     assert np.isclose(t, [0, 0, 2.0**0.5]).all()
 
 

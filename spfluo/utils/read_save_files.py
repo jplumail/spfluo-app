@@ -17,7 +17,7 @@ def read_image(
     xp: "array_api_module | None" = None,  # type: ignore
     device: "Device | None" = None,
     gpu: bool | None = None,
-) -> "Array":
+):
     xp, device = get_prefered_namespace_device(xp, device, gpu)
     arr = numpy.asarray(
         imageio.mimread(path, memtest=False),

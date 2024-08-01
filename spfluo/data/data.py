@@ -123,5 +123,5 @@ def real_ab_initio_reconstruction():
         poses = data_dir / "real" / "poses.csv"
         poses, names = read_poses(str(poses))
         pose = poses[names.index("reconstruction.tiff")]
-        recon, _ = read_image(str(recon), dtype="float64", xp=np)
+        recon = read_image(str(recon), dtype="float64", xp=np)
         return {"reconstruction": recon, "pose": pose}

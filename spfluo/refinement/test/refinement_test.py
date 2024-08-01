@@ -2,11 +2,10 @@
 
 from typing import TYPE_CHECKING, Callable, Tuple
 
-import cupy
 import numpy as np
 import pytest
-import torch
 
+import spfluo
 from spfluo.refinement import (
     convolution_matching_poses_grid,
     convolution_matching_poses_refined,
@@ -38,9 +37,15 @@ if TYPE_CHECKING:
 @pytest.fixture(autouse=True)
 def clear_cuda_cache():
     yield
-    torch.cuda.empty_cache()
-    mempool = cupy.get_default_memory_pool()
-    mempool.free_all_blocks()
+    if spfluo.has_torch_cuda():
+        import torch
+
+        torch.cuda.empty_cache()
+    if spfluo.has_cupy():
+        import cupy
+
+        mempool = cupy.get_default_memory_pool()
+        mempool.free_all_blocks()
 
 
 @pytest.fixture(scope="module")
