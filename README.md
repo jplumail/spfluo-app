@@ -18,3 +18,9 @@ git clone https://github.com/jplumail/spfluo
 cd spfluo
 pip install .
 ```
+
+## Run tests
+
+```bash
+hatch test -i py=3.11 spfluo
+```

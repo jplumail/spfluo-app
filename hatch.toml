@@ -1,0 +1,18 @@
+[version]
+source = "vcs"
+
+[build.targets.wheel]
+packages = ["pwfluo"]
+
+[envs.hatch-test]
+installer = "uv"
+features = ["all", "dev", "gpu"]
+dependencies = ["pyqt5"]
+
+[[envs.hatch-test.matrix]]
+python = ["3.8", "3.9", "3.10", "3.11"]
+
+[envs.hatch-test.env-vars]
+UV_INDEX_URL = "https://download.pytorch.org/whl/cu121"
+UV_EXTRA_INDEX_URL = "https://pypi.spfluo.ovh/jean/dev/+simple"  # for napari-spfluo
+
