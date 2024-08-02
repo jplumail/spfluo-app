@@ -760,7 +760,7 @@ def _cross_correlation_multichannel_max(
         xp.asarray(idx, dtype=max_idx.dtype, device=get_device(max_idx))
         for idx in np.ix_(*tuple(np.arange(cc.shape[i]) for i in range(cc.ndim - 1)))
     )
-    maxi = cc[*indices, max_idx]
+    maxi = cc[(*indices, max_idx)]
     shift = unravel_index(max_idx, spatial_shape)
     return maxi**2, shift, z
 
@@ -920,7 +920,7 @@ def _phase_cross_correlation_broadcasted_array_api(
                 )
             )
         )
-        error = cross_correlation_reshaped[*indices, max_idx] ** 2
+        error = cross_correlation_reshaped[(*indices, max_idx)] ** 2
         maxima = unravel_index(max_idx, cross_correlation.shape[-nb_spatial_dims:])
         maxima -= dftshift
 
