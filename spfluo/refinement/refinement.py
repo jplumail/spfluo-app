@@ -139,7 +139,7 @@ def reconstruction_L2(
     else:
         M = 1
         poses = xp.expand_dims(poses, axis=0)
-        lambda_ = xp.reshape(lambda_, shape=(1,))
+        lambda_ = xp.reshape(lambda_, (1,))
 
     if symmetry:
         assert poses.ndim == 4

@@ -3,6 +3,7 @@ from __future__ import annotations
 import functools
 from typing import TYPE_CHECKING, Any, overload
 
+import numpy
 from array_api_compat import (
     array_namespace as _array_namespace,
 )
@@ -14,13 +15,15 @@ from array_api_compat import (
     is_cupy_array,
     is_numpy_array,
     is_torch_array,
-    numpy,
     to_device,
 )
 
 import spfluo
 
 API_VERSION = "2022.12"
+
+if int(numpy.__version__[0]) < 2:
+    from array_api_compat import numpy
 
 
 def array_namespace(*xs):
@@ -36,7 +39,10 @@ def array_namespace(*xs):
             # Now use xp as the array library namespace
             return xp.mean(x, axis=0) + 2*xp.std(y, axis=0)
     """
-    xp = _array_namespace(*xs, api_version=API_VERSION, use_compat=None)
+    try:
+        xp = _array_namespace(*xs, api_version=API_VERSION, use_compat=True)
+    except ValueError:
+        xp = _array_namespace(*xs, api_version=API_VERSION, use_compat=False)
     return xp
 
 
@@ -50,12 +56,6 @@ def get_cupy():
     from array_api_compat import cupy
 
     return cupy
-
-
-def get_numpy():
-    from array_api_compat import numpy
-
-    return numpy
 
 
 def numpy_only_compatibility(numpy_func):
@@ -154,7 +154,7 @@ def get_prefered_namespace_device(
                 raise RuntimeError(f"{xp} cannot create non cuda arrays")
             device = None
         elif _is_numpy_namespace(xp):
-            xp = get_numpy()
+            xp = numpy
             if gpu is True:
                 raise RuntimeError(f"{xp} cannot create gpu arrays")
             device = "cpu"

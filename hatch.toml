@@ -6,19 +6,32 @@ source = "vcs"
 [build.targets.wheel]
 packages = ["spfluo"]
 
-[envs.hatch-test]
+[envs.test]
 installer = "uv"
-features = ["all", "dev", "gpu", "array-api-strict"]
+features = ["ab-initio-reconstruction", "dev", "gpu", "array-api-strict"]
 dependencies = ["napari[pyqt5]"]
+scripts = { test = "pytest spfluo/ab_initio_reconstruction spfluo/refinement spfluo/tests spfluo/utils" }
 
-[[envs.hatch-test.matrix]]
+[[envs.test.matrix]]
 python = ["3.9", "3.10", "3.11"]
 
-[envs.hatch-test.env-vars]
+[envs.test.env-vars]
 UV_INDEX_URL = "https://download.pytorch.org/whl/cu121"
 UV_EXTRA_INDEX_URL = "https://pypi.org/simple"  # for napari-spfluo
 
-[envs.hatch-test-38]
-template = "hatch-test"
+[envs.test-38]
+template = "test"
 python = "3.8"
-features = ["all", "dev", "gpu"]
+features = ["ab-initio-reconstruction", "dev", "gpu"]
+
+[envs.test-visualisation]
+template = "test"
+features = ["dev", "visualisation"]
+scripts = { test = "pytest spfluo/manual_picking" }
+
+[[envs.test-visualisation.matrix]]
+python = ["3.8", "3.9", "3.10", "3.11"]
+
+[envs.test-numpy2]
+template = "test"
+dependencies = ["napari[pyqt5]", "numpy>=2"]
