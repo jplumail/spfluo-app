@@ -1,3 +1,5 @@
+metadata.allow-direct-references = true
+
 [version]
 source = "vcs"
 
@@ -6,13 +8,17 @@ packages = ["pwfluo"]
 
 [envs.hatch-test]
 installer = "uv"
-features = ["all", "dev", "gpu"]
-dependencies = ["pyqt5"]
+features = ["all", "dev", "gpu", "array-api-strict"]
+dependencies = ["napari[pyqt5]"]
 
 [[envs.hatch-test.matrix]]
-python = ["3.8", "3.9", "3.10", "3.11"]
+python = ["3.9", "3.10", "3.11"]
 
 [envs.hatch-test.env-vars]
 UV_INDEX_URL = "https://download.pytorch.org/whl/cu121"
-UV_EXTRA_INDEX_URL = "https://pypi.spfluo.ovh/jean/dev/+simple"  # for napari-spfluo
+UV_EXTRA_INDEX_URL = "https://pypi.org/simple"  # for napari-spfluo
 
+[envs.hatch-test-38]
+template = "hatch-test"
+python = "3.8"
+features = ["all", "dev", "gpu"]

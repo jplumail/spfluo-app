@@ -11,7 +11,7 @@ dependencies = [
   "numpy",
   "array_api_compat>=1.6",
   "scipy",
-  "scikit-image>=0.22",
+  "scikit-image>=0.21",
   "scikit-learn",
   "tqdm",
   "matplotlib",
@@ -41,9 +41,9 @@ dev = [
   "hypothesis",
   "pyfigtree",
   "scikit-image[data]",
-  "array-api-strict",
   "pytest-qt",
 ]
+array-api-strict = ["array-api-strict"]
 manual-picking = [
   "spfluo[visualisation]"
 ]
@@ -57,8 +57,7 @@ picking = [
 ]
 visualisation = [
   "napari>=0.4.18,<0.4.19",
-  "napari-spfluo",
-  "napari-bbox>=0.0.7",
+  "napari-bbox @ git+https://github.com/jplumail/napari-bbox.git@0b2fa2d7a04a3d2d8b13ea7b831fdd569d229ced",
   "numpy<2"
 ]
 all = [

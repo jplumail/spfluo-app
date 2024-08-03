@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import itertools
 import math
 from typing import TYPE_CHECKING, Optional, Sequence, Tuple, Union

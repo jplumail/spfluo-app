@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 from spfluo.refinement.refinement import reconstruction_L2

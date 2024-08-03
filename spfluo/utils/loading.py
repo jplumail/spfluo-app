@@ -1,4 +1,5 @@
 # Some functions were taken from aicsimageio source code
+from __future__ import annotations
 
 import csv
 import math

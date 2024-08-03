@@ -21,6 +21,12 @@ pip install .
 
 ## Run tests
 
+To test for python 3.9, 3.10 and 3.11:
 ```bash
-hatch test -i py=3.11 spfluo
+hatch test spfluo
+```
+
+For python 3.8:
+```bash
+hatch env run -e hatch-test-38 pytest -- spfluo
 ```

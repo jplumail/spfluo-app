@@ -1,9 +1,9 @@
 import csv
 import io
+import sys
 import tempfile
 import zipfile
 from contextlib import contextmanager
-from importlib.resources import as_file, files
 from pathlib import Path
 from typing import Dict
 
@@ -15,6 +15,19 @@ from spfluo.data.upload import _file_hash
 from spfluo.utils.array import numpy as np
 from spfluo.utils.loading import read_poses
 from spfluo.utils.read_save_files import read_image
+
+if sys.version_info >= (3, 9):
+    from importlib.resources import as_file, files
+
+    @contextmanager
+    def _get_data_dir():
+        with as_file(files("spfluo").joinpath("data")) as data_dir:
+            yield data_dir
+else:
+
+    @contextmanager
+    def _get_data_dir():
+        yield Path(__file__).parent
 
 
 def _download_data(d: Path):
@@ -52,8 +65,8 @@ def _check_data(d: Path):
 
 
 @contextmanager
-def _get_data_dir():
-    with as_file(files("spfluo").joinpath("data")) as data_dir:
+def _get_data():
+    with _get_data_dir() as data_dir:
         if not _check_data(data_dir):
             _download_data(data_dir)
             if not _check_data(data_dir):
@@ -63,7 +76,7 @@ def _get_data_dir():
 
 def _fetch_generated_dataset(dataset_name: str) -> Dict[str, np.ndarray]:
     # Download if necessary
-    with _get_data_dir() as data_dir:
+    with _get_data() as data_dir:
         # parse data
         root_dir = data_dir / "generated" / dataset_name
         poses_path = root_dir / "poses.csv"

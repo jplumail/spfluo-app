@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import functools
-from typing import TYPE_CHECKING, Any, TypeAlias, overload
+from typing import TYPE_CHECKING, Any, overload
 
 from array_api_compat import (
     array_namespace as _array_namespace,
@@ -21,7 +23,7 @@ import spfluo
 API_VERSION = "2022.12"
 
 
-def array_namespace(*xs) -> "array_api_module":
+def array_namespace(*xs):
     """
     Get the array API compatible namespace for the arrays `xs`.
 
@@ -56,19 +58,6 @@ def get_numpy():
     return numpy
 
 
-if TYPE_CHECKING:
-    import array_api_strict as xp
-    from array_api_strict._array_object import Array as ArrayAPIArray
-    from array_api_strict._array_object import Device as ArrayAPIDevice
-    from array_api_strict._array_object import Dtype as ArrayAPIDtype
-
-    Array: TypeAlias = ArrayAPIArray
-    Device: TypeAlias = ArrayAPIDevice
-    Dtype: TypeAlias = ArrayAPIDtype
-
-    array_api_module: TypeAlias = xp
-
-
 def numpy_only_compatibility(numpy_func):
     """
     Apply this decorator to numpy only functions to make them compliant
@@ -78,7 +67,7 @@ def numpy_only_compatibility(numpy_func):
     """
 
     @functools.wraps(numpy_func)
-    def func(*args, **kwargs) -> "Array":
+    def func(*args, **kwargs):
         array_args = list(filter(is_array_api_obj, args))
         array_kwargs = list(filter(is_array_api_obj, kwargs.values()))
         xp = array_namespace(*array_args, *array_kwargs)
@@ -120,7 +109,7 @@ def to_numpy(*xs):
         return ret
 
 
-def _to_numpy(x: "Array") -> numpy.ndarray:
+def _to_numpy(x) -> numpy.ndarray:
     if is_numpy_array(x):
         return x
     elif is_cupy_array(x):
@@ -144,10 +133,10 @@ def _is_torch_namespace(xp):
 
 
 def get_prefered_namespace_device(
-    xp: "array_api_module | None" = None,  # type: ignore
-    device: "Device | None" = None,
-    gpu: bool | None = None,
-) -> "tuple[array_api_module, Device | None]":  # type: ignore
+    xp=None,
+    device=None,
+    gpu=None,
+):
     if xp is not None:
         if device is not None:
             return xp, device
@@ -208,7 +197,7 @@ def get_prefered_namespace_device(
     return xp, device
 
 
-def median(a: "Array", axis: int | None = None, xp=None):
+def median(a, axis=None, xp=None):
     xp = array_namespace(a) if xp is None else xp
     if axis is None:
         a = xp.reshape(a, (-1,))
@@ -233,11 +222,9 @@ __all__ = [array_namespace, is_array_api_obj, to_device, to_numpy, get_device]
 
 if TYPE_CHECKING:
     __all__ = [
-        Array,
         array_namespace,
         is_array_api_obj,
         to_device,
         to_numpy,
-        array_api_module,
         get_device,
     ]

@@ -1,6 +1,7 @@
 import hashlib
+import sys
 import zipfile
-from importlib.resources import as_file, files
+from contextlib import contextmanager
 from pathlib import Path
 
 import requests
@@ -12,6 +13,20 @@ from spfluo.data.constants import (
     UNISTRA_PASSWORD,
     UNISTRA_USERNAME,
 )
+
+if sys.version_info >= (3, 9):
+    from importlib.resources import as_file, files
+
+    @contextmanager
+    def _get_registry_file():
+        with as_file(files("spfluo").joinpath("data/registry.txt")) as registry:
+            yield registry
+else:
+
+    @contextmanager
+    def _get_registry_file():
+        registry = Path(__file__).parent.joinpath("data/registry.txt")
+        yield registry
 
 
 def _file_hash(file: Path):
@@ -33,9 +48,9 @@ def get_token():
 
 def upload_archive():
     # Step 0: Create a zip archive from registry.txt
-    with (
-        zipfile.ZipFile(ARCHIVE_NAME, "w") as zipf,
-        as_file(files("spfluo").joinpath("data/registry.txt")) as registry_path,
+    with zipfile.ZipFile(ARCHIVE_NAME, "w"), _get_registry_file() as (
+        zipf,
+        registry_path,
     ):
         with open(registry_path, "r") as registry:
             for line in registry:

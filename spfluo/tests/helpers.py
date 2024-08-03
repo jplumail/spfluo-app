@@ -1,8 +1,6 @@
 from typing import TYPE_CHECKING
 
-import array_api_strict as xp
 import numpy
-from array_api_strict._array_object import CPU_DEVICE
 from hypothesis import assume
 from hypothesis import strategies as st
 from scipy.spatial.transform import Rotation as R
@@ -16,8 +14,18 @@ if TYPE_CHECKING:
     from spfluo.utils.array import Array
 
 
-testing_libs = [(np, "cpu"), (xp, CPU_DEVICE)]
-ids = ["numpy", "array-api-strict"]
+testing_libs = [(np, "cpu")]
+ids = ["numpy"]
+
+try:
+    import array_api_strict as xp
+    from array_api_strict._array_object import CPU_DEVICE
+
+    testing_libs.append((xp, CPU_DEVICE))
+    ids.append("array-api-strict")
+except ModuleNotFoundError:
+    pass
+
 
 if spfluo.has_cupy():
     cupy = get_cupy()
