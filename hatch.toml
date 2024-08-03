@@ -4,7 +4,7 @@ metadata.allow-direct-references = true
 source = "vcs"
 
 [build.targets.wheel]
-packages = ["pwfluo"]
+packages = ["spfluo"]
 
 [envs.hatch-test]
 installer = "uv"
