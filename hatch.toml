@@ -1,3 +1,5 @@
+metadata.allow-direct-references = true
+
 [version]
 source = "vcs"
 
@@ -15,9 +17,12 @@ packages = ["singleparticle"]
 
 [build.targets.wheel.hooks.custom]
 
-
-[envs.default.env-vars]
-PIP_INDEX_URL = "https://pypi.spfluo.ovh/jean/dev/+simple"
-
 [envs.default]
-dependencies = ["ruff", "black", "pre-commit"]
+installer = "uv"
+dependencies = ["scipion-app @ git+ssh://git@github.com/jplumail/scipion-app@fluo", "napari[pyqt5]"]
+
+[[envs.default.matrix]]
+python = ["3.8", "3.9", "3.10", "3.11"]
+
+[envs.default.scripts]
+test = "python -m scipion tests singleparticle.tests.test_protocols_classic_workflow --run"

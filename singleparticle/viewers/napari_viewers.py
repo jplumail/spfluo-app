@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import multiprocessing as mp
 import os
 import threading
@@ -159,25 +161,24 @@ class NapariSetOfParticlesWidget(Toplevel):
 
     def _on_transform_changed(self, state: int):
         assert isinstance(state, int)
-        match state:
-            case Qt.CheckState.Unchecked:
-                self.particles_data = self.particles_data_not_transformed
-            case Qt.CheckState.Checked:
-                if not self.particles_data_transformed:
-                    # populate particles_data_transformed
-                    for p in self.particles:
-                        p: pwfluoobj.Particle
-                        data, _ = p.getDataIsotropic()
-                        transform = p.getTransform()
-                        if transform:
-                            H = get_transform_matrix_around_center(
-                                data.shape[1:], transform.getRotationMatrix()
-                            )
-                            H[:3, 3] += transform.getShifts()
-                            for c in range(data.shape[0]):
-                                data[c] = affine_transform(data[c], H)
-                        self.particles_data_transformed.append(data)
-                self.particles_data = self.particles_data_transformed
+        if state == Qt.CheckState.Unchecked:
+            self.particles_data = self.particles_data_not_transformed
+        elif state == Qt.CheckState.Checked:
+            if not self.particles_data_transformed:
+                # populate particles_data_transformed
+                for p in self.particles:
+                    p: pwfluoobj.Particle
+                    data, _ = p.getDataIsotropic()
+                    transform = p.getTransform()
+                    if transform:
+                        H = get_transform_matrix_around_center(
+                            data.shape[1:], transform.getRotationMatrix()
+                        )
+                        H[:3, 3] += transform.getShifts()
+                        for c in range(data.shape[0]):
+                            data[c] = affine_transform(data[c], H)
+                    self.particles_data_transformed.append(data)
+            self.particles_data = self.particles_data_transformed
 
         self.widget.set_data(self.particles_data)
         current_row = self.widget.list_widget.currentRow()

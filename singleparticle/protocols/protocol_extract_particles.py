@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 
 import numpy as np
@@ -118,7 +120,7 @@ class ProtSingleParticleExtractParticles(Protocol, ProtFluoBase):
         image_data: np.ndarray,
         pos: tuple[float, float, float],
         box_size: tuple[float, float, float],
-        voxel_size=tuple[float, float],
+        voxel_size: tuple[float, float],
         subpixel: bool = False,
     ) -> np.ndarray:
         vs_xy, vs_z = voxel_size

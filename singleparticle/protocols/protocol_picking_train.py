@@ -30,6 +30,8 @@
 Describe your python module here:
 This module will provide the traditional Hello world example
 """
+from __future__ import annotations
+
 import math
 import os
 import random

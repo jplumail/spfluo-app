@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from pwfluo.objects import FluoSet, SetOfParticles
 from pwfluo.protocols import ProtFluoBase
 from pyworkflow import BETA

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import csv
 import glob
 import itertools
@@ -180,9 +182,7 @@ def _save_poses(
     with open(poses_path, "w") as f:
         csvwriter = csv.writer(f)
         csvwriter.writerow(["index", "axis-1", "axis-2", "axis-3", "size"])
-        for i, p, path in zip(
-            range(len(particles_paths)), particles, particles_paths, strict=True
-        ):
+        for i, p, path in zip(range(len(particles_paths)), particles, particles_paths):
             p: Particle
             rotMat = p.getTransform().getRotationMatrix()
             euler_angles = list(
