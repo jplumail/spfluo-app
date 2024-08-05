@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import napari
 import napari.layers
 import numpy as np
@@ -39,8 +41,8 @@ from skimage.util import img_as_float
     }
 )
 def threshold_widget(
-    image: "napari.layers.Image", threshold: "float" = 0.5
-) -> "napari.layers.Labels":
+    image: napari.layers.Image, threshold: float = 0.5
+) -> napari.layers.Labels:
     d = img_as_float(image.data)
     return Labels(
         d > threshold * d.max(),
@@ -119,7 +121,7 @@ class QtColorBox(QWidget):
 
 
 class MergeLabelsWidget(QWidget):
-    def __init__(self, viewer: "napari.viewer.Viewer"):
+    def __init__(self, viewer: napari.viewer.Viewer):
         super().__init__()
         self.viewer: napari.Viewer = viewer
         # self.viewer.layers.events.inserted.connect()
@@ -274,7 +276,7 @@ class FilterSetWidget(QWidget):
 
 
 class FilterLayerWidget(QWidget):
-    def __init__(self, viewer: "napari.viewer.Viewer"):
+    def __init__(self, viewer: napari.viewer.Viewer):
         super().__init__()
         self.viewer: napari.Viewer = viewer
         self.setLayout(QVBoxLayout())

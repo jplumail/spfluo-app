@@ -32,7 +32,7 @@ dependencies = [
     "numpy",
     "qtpy",
     "scikit-image",
-    "spfluo[ab-initio-reconstruction]>=0.1",
+    "spfluo[ab-initio-reconstruction] @ git+ssh://git@github.com/jplumail/spfluo",
 ]
 
 [project.optional-dependencies]
@@ -42,7 +42,6 @@ testing = [
     "pytest",
     "pytest-cov",
     "pytest-qt",
-    "tox",
 ]
 
 [project.entry-points."napari.manifest"]
@@ -54,18 +53,6 @@ Documentation = "https://github.com/jplumail/napari-spfluo#README.md"
 Homepage = "https://github.com/jplumail/napari-spfluo"
 "Source Code" = "https://github.com/jplumail/napari-spfluo"
 "User Support" = "https://github.com/jplumail/napari-spfluo/issues"
-
-[tool.hatch.version]
-source = "vcs"
-
-[tool.hatch.build.hooks.vcs]
-version-file = "src/napari_spfluo/_version.py"
-
-
-[tool.hatch.build.targets.sdist]
-include = [
-    "/src",
-]
 
 [tool.black]
 line-length = 79

@@ -31,7 +31,7 @@ def run_dbscan(
         scale=labels.scale,
     )
     for x in range(-1, dbscan.labels_.max() + 1):
-        dbscan_labels.data[*points[dbscan.labels_ == x].T] = x + 1
+        dbscan_labels.data[tuple(points[dbscan.labels_ == x].T)] = x + 1
     return dbscan_labels
 
 
@@ -64,5 +64,5 @@ def run_hdbscan(
         scale=labels.scale,
     )
     for x in range(-1, dbscan.labels_.max() + 1):
-        dbscan_labels.data[*points[dbscan.labels_ == x].T] = x + 1
+        dbscan_labels.data[tuple(points[dbscan.labels_ == x].T)] = x + 1
     return dbscan_labels

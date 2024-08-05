@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -18,7 +20,7 @@ if TYPE_CHECKING:
 
 
 class AbInitioWidget(Container):
-    def __init__(self, viewer: "napari.viewer.Viewer"):
+    def __init__(self, viewer: napari.viewer.Viewer):
         super().__init__()
         self._viewer: Viewer = viewer
         self._particles_layer_combo: ComboBox = create_widget(
@@ -70,8 +72,8 @@ class AbInitioWidget(Container):
 
 
 def run_ab_initio(
-    particles: "napari.types.ImageData",
-    psf: "napari.types.ImageData",
+    particles: napari.types.ImageData,
+    psf: napari.types.ImageData,
     M_axes: int = 360**2,
     M_rot: int = 360,
     dec_prop: float = 1.2,
@@ -93,7 +95,7 @@ def run_ab_initio(
     batch_size: int = 1,
     beta_grad: float = 0,
     random_sampling: bool = False,
-) -> "napari.types.ImageData":
+) -> napari.types.ImageData:
     ab_initio = AbInitioReconstruction(
         M_axes=M_axes,
         M_rot=M_rot,
