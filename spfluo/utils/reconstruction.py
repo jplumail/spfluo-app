@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import tifffile
 
 from spfluo.ab_initio_reconstruction.common_image_processing_methods.others import (
