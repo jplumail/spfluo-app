@@ -32,7 +32,7 @@ dependencies = [
     "numpy",
     "qtpy",
     "scikit-image",
-    "spfluo[ab-initio-reconstruction] @ git+ssh://git@github.com/jplumail/spfluo",
+    "spfluo[ab-initio-reconstruction]",
 ]
 
 [project.optional-dependencies]
