@@ -82,6 +82,7 @@ jobs:
         --python-version ${{ env.python_version }}
         --python-platform ${{ matrix.platform }}
         --extra=gpu
+        --emit-index-url
         --index-url https://pypi.spfluo.ovh/jean/dev-pytorch-cu118/+simple/  # pytorch is in the deps of spfluo-app[gpu], so we need a custom index
 
     - name: Get spfluo-app version
