@@ -57,7 +57,7 @@ picking = [
 ]
 visualisation = [
   "napari>=0.4.18,<0.4.19",
-  "napari-bbox @ git+https://github.com/jplumail/napari-bbox.git@0b2fa2d7a04a3d2d8b13ea7b831fdd569d229ced",
+  "napari-bbox",
   "numpy<2"
 ]
 all = [
