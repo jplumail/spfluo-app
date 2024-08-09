@@ -34,19 +34,19 @@ jobs:
   compile-requirements:
     runs-on: ubuntu-latest
 
-    env:
-      python_version: "3.11"
-      python_version_strip: "311"
-
     strategy:
       matrix:
         platform: [x86_64-unknown-linux-gnu, x86_64-pc-windows-msvc]
         gpu: [false, true]
+        python_version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
     
     outputs:
       spfluo-app-version: ${{ steps.version.outputs.version }}
 
     steps:
+    - name: Set python_version_strip
+      run: echo "python_version_strip=${{ matrix.python_version | split:'.' | join }}" >> $GITHUB_ENV
+      
     - name: Checkout repository
       uses: actions/checkout@v4
     
@@ -70,7 +70,7 @@ jobs:
         uv pip compile pyproject.toml
         -o requirements-cp${{ env.python_version_strip }}-${{ matrix.platform }}.txt
         --upgrade
-        --python-version ${{ env.python_version }}
+        --python-version ${{ matrix.python_version }}
         --python-platform ${{ matrix.platform }}
     
     - name: Run pip-compile gpu
@@ -79,11 +79,11 @@ jobs:
         uv pip compile pyproject.toml
         -o requirements-cp${{ env.python_version_strip }}-${{ matrix.platform }}-gpu.txt
         --upgrade
-        --python-version ${{ env.python_version }}
+        --python-version ${{ matrix.python_version }}
         --python-platform ${{ matrix.platform }}
         --extra=gpu
         --emit-index-url
-        --index-url https://pypi.spfluo.ovh/jean/dev-pytorch-cu118/+simple/  # pytorch is in the deps of spfluo-app[gpu], so we need a custom index
+        --index-url https://pypi.spfluo.ovh/jean/dev-pytorch-cu124/+simple/  # pytorch is in the deps of spfluo-app[gpu], so we need a custom index
 
     - name: Get spfluo-app version
       id: version
@@ -100,7 +100,7 @@ jobs:
       if: ${{ !matrix.gpu }}
       uses: actions/upload-artifact@v4
       with:
-        name: requirements-${{ matrix.platform }}
+        name: requirements-py${{ env.python_version_strip }}-${{ matrix.platform }}
         path: requirements*.txt
         retention-days: 1
     
@@ -108,7 +108,7 @@ jobs:
       if: ${{ matrix.gpu }}
       uses: actions/upload-artifact@v4
       with:
-        name: requirements-${{ matrix.platform }}-gpu
+        name: requirements-py${{ env.python_version_strip }}-${{ matrix.platform }}-gpu
         path: requirements*-gpu.txt
         retention-days: 1
 
@@ -151,7 +151,7 @@ jobs:
     - name: Download requirements.txt
       uses: actions/download-artifact@v4
       with:
-        name: requirements-${{ matrix.platform }}${{ env.GPU_SUFFIX }}
+        name: requirements-py${{ env.python_version_strip }}-${{ matrix.platform }}${{ env.GPU_SUFFIX }}
 
     - name: Download pyapp Source
       run: |
