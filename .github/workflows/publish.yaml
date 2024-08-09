@@ -34,9 +34,6 @@ jobs:
   compile-requirements:
     runs-on: ubuntu-latest
 
-    env:
-      UV_CONCURRENT_DOWNLOADS: 25
-
     strategy:
       max-parallel: 1
       matrix:
