@@ -23,9 +23,12 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-
-import os
 import datetime as dt
+try:
+    from datetime import UTC  # python 3.11+
+except ImportError:
+    UTC = dt.timezone.utc
+import os
 from logging import DEBUG, lastResort
 from time import sleep
 
@@ -150,6 +153,9 @@ class TestObject(pwtests.BaseTest):
         s2.set("2x4, 4, 7")
         self.assertEqual(s2.getListFromValues(), [4, 4, 4, 7])
 
+        # Values ...
+        self.assertEqual(s2.getListFromValues(caster=str), ["2x4", "4", "7"])
+
         # Ranges
         s2.set("2-8, 1-2, 7")
         self.assertEqual(s2.getListFromRange(), [2, 3, 4, 5, 6, 7, 8, 1, 2, 7])
@@ -198,7 +204,7 @@ class TestObject(pwtests.BaseTest):
         o.pointer = pwobj.Pointer()
         o.pointer.set(imgSet)
 
-        # This is not true anymore ans is allowed unless we see is needed
+        # This is not true anymore and is allowed unless we see is needed
         # The main reason is a boost in performance.
         # o.refC = o.pointer.get()
         # attrNames = [k for k, a in o.getAttributes()]
@@ -217,7 +223,7 @@ class TestObject(pwtests.BaseTest):
 
         # Check that the Item 7 of the set is properly
         # retrieved by the pointer after setting the extended to 7
-        self.assertEqual(imgSet[7], o.pointer.get())
+        self.assertEqual(imgSet[7].getObjId(), o.pointer.get().getObjId())
 
         # Test the keyword arguments of Pointer constructor
         # repeat above tests with new pointer
@@ -268,7 +274,7 @@ class TestObject(pwtests.BaseTest):
             imgSet.append(img)
             if i == 4:
                 sleep(1)
-                halfTimeStamp = dt.datetime.utcnow().replace(microsecond=0)
+                halfTimeStamp = dt.datetime.now(UTC).replace(microsecond=0)
         imgSet.write()
 
         # Test size is 10
@@ -330,7 +336,7 @@ class TestObject(pwtests.BaseTest):
 
         # Use creation timestamp
         # Request id list
-        result = imgSet.getUniqueValues(ID, where="%s>=%s" % (CREATION , imgSet.fmtDate(halfTimeStamp)))
+        result = imgSet.getUniqueValues(ID, where="%s>=%s" % (CREATION, imgSet.fmtDate(halfTimeStamp)))
         self.assertEqual(len(result), 5, "Unique values after a time stamp does not work")
 
         # Test getIdSet
@@ -338,6 +344,14 @@ class TestObject(pwtests.BaseTest):
         self.assertIsInstance(ids, set, "getIdSet does not return a set")
         self.assertIsInstance(next(iter(ids)), int, "getIdSet items are not integer")
         self.assertEqual(len(ids), 10, "getIdSet does not return 10 items")
+
+        # Request item by id
+        item = imgSet[1]
+        self.assertEqual(item.getObjId(), 1, "Item accessed by [] and id does not work")
+
+        # Request item by field
+        item = imgSet.getItem("id", 2)
+        self.assertEqual(item.getObjId(), 2, "Item accessed field id does not work")
 
         # Test load properties queries
         from pyworkflow.mapper.sqlite_db import logger
@@ -452,20 +466,19 @@ class TestUtils(pwtests.BaseTest):
         from pyworkflow.utils import getListFromValues, getFloatListFromValues,\
             getBoolListFromValues
         
-        results = [('2x1 2x2 4 5', None, getListFromValues,
-                    ['1', '1', '2', '2', '4', '5']),
-                   ('2x1 2x2 4 5', None, getFloatListFromValues,
-                    [1., 1., 2., 2., 4., 5.]),
-                   ('1 2 3x3 0.5', 8, getFloatListFromValues,
-                    [1., 2., 3., 3., 3., 0.5, 0.5, 0.5]),
-                   ('3x1 3x0 1', 8, getBoolListFromValues,
-                    [True, True, True, False, False, False, True, True]),
+        results = [('2x1 2x2 4 5', getListFromValues, ['2x1', '2x2', '4', '5'], None),
+                   ('2x1 2x2 4 5', getFloatListFromValues, [1., 1., 2., 2., 4., 5.],None),
+                   ('1 2 3x3 0.5', getFloatListFromValues, [1., 2., 3., 3., 3., 0.5, 0.5, 0.5], 8),
+                   ('3x1 3x0 1', getBoolListFromValues, [True, True, True, False, False, False, True, True],8),
                    ]
-        for s, n, func, goldList in results:
-            l = func(s, length=n)
-            self.assertAlmostEqual(l, goldList)
-            if n:
-                self.assertEqual(n, len(l))
+
+        for s, func, goldList, length in results:
+
+            l = func(s, length=length)
+            for i in range(0,len(goldList)):
+                self.assertEqual(l[i], goldList[i])
+
+            self.assertEqual(len(goldList), len(l), )
                 
     def test_Environ(self):
         """ Test the Environ class with its utilities. """

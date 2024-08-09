@@ -28,10 +28,13 @@ import queue
 from functools import partial
 from tkinter.ttk import Style
 
+import pyworkflow
 import pyworkflow as pw
 from pyworkflow.object import Object
 from pyworkflow.utils import Message, Icon
 from PIL import Image, ImageTk
+
+from pyworkflow.utils import SpriteImage, Sprite
 from .widgets import Button
 import numpy as np
 
@@ -43,9 +46,6 @@ FONT_ITALIC = 'fontItalic'
 FONT_NORMAL = 'fontNormal'
 FONT_BOLD = 'fontBold'
 FONT_BIG = 'fontBig'
-cfgFontName = pw.Config.SCIPION_FONT_NAME
-cfgFontSize = pw.Config.SCIPION_FONT_SIZE
-cfgFontBigSize = cfgFontSize + 8
 # TextColor
 # cfgCitationTextColor = "dark olive green"
 # cfgLabelTextColor = "black"
@@ -54,10 +54,11 @@ cfgFontBigSize = cfgFontSize + 8
 # cfgBgColor = "light grey"
 # cfgLabelBgColor = "white"
 # cfgHighlightBgColor = cfgBgColor
+#This with trigger the validation of the color falling back the firebrick if fails
+cfgButtonActiveBgColor = pw.Config.getActiveColor()
 cfgButtonFgColor = pw.Config.SCIPION_BG_COLOR
 cfgButtonActiveFgColor = pw.Config.SCIPION_BG_COLOR
 cfgButtonBgColor = pw.Config.SCIPION_MAIN_COLOR
-cfgButtonActiveBgColor = pw.Config.getActiveColor()
 cfgEntryBgColor = "lemon chiffon"
 # cfgExpertLabelBgColor = "light salmon"
 # cfgSectionBgColor = cfgButtonBgColor
@@ -74,6 +75,7 @@ cfgWrapLenght = cfgMaxWidth - 50
 
 # Style of treeviews where row height is variable based on the font size
 LIST_TREEVIEW = 'List.Treeview'
+BORDERLESS_TREEVIEW = 'Borderless.Treeview'
 
 image_cache = dict()
 
@@ -134,25 +136,22 @@ def getBigFont():
 def setCommonFonts(windows=None):
     """Set some predefined common fonts.
     Same conditions of setFont applies here."""
-    f = setFont(FONT_NORMAL, family=cfgFontName, size=cfgFontSize)
+    f = setFont(FONT_NORMAL, family=pw.Config.SCIPION_FONT_NAME, size=pw.Config.SCIPION_FONT_SIZE)
     aliasFont('fontButton', FONT_NORMAL)
 
     # Set default font size
     default_font = getDefaultFont()
-    default_font.configure(size=cfgFontSize, family=cfgFontName)
+    default_font.configure(size=pw.Config.SCIPION_FONT_SIZE, family=pw.Config.SCIPION_FONT_NAME)
 
-    fb = setFont(FONT_BOLD, family=cfgFontName, size=cfgFontSize,
+    fb = setFont(FONT_BOLD, family=pw.Config.SCIPION_FONT_NAME, size=pw.Config.SCIPION_FONT_SIZE,
                  weight='bold')
-    fi = setFont(FONT_ITALIC, family=cfgFontName, size=cfgFontSize,
+    fi = setFont(FONT_ITALIC, family=pw.Config.SCIPION_FONT_NAME, size=pw.Config.SCIPION_FONT_SIZE,
                  slant='italic')
 
-    setFont(FONT_BIG, family=cfgFontName, size=cfgFontBigSize)
-
-    # not used?
-    # setFont('fontLabel', family=cfgFontName, size=cfgFontSize+1, weight='bold')
+    setFont(FONT_BIG, family=pw.Config.SCIPION_FONT_NAME, size=pw.Config.SCIPION_FONT_SIZE+8)
 
     if windows:
-        windows.fontBig = tkFont.Font(size=cfgFontSize + 2, family=cfgFontName,
+        windows.fontBig = tkFont.Font(size=pw.Config.SCIPION_FONT_SIZE + 2, family=pw.Config.SCIPION_FONT_NAME,
                                       weight='bold')
         windows.font = f
         windows.fontBold = fb
@@ -195,19 +194,30 @@ def getImage(imageName, imgDict=None, tkImage=True, percent=100,
     # NOTE: "convert  my-image.gif PNG32:my-image.png" has converted gifs to pngs RGBA (32 bits) it seems pillow
     # needs RGBA format to deal with transparencies.
 
-    if not os.path.isabs(imageName) and imageName not in [Icon.WAITING]:
-        imageName = imageName.replace(".gif", ".png")
+    # Most protocols.conf uses .gif extension. We need to use png!.
 
-    if imageName in image_cache:
-        return image_cache[imageName]
-
-    if not os.path.isabs(imageName):
-        imagePath = pw.findResource(imageName)
+    # ImageName could be either a file name (bookmark.gif) a full path image or a SpriteImage
+    if isinstance(imageName, SpriteImage):
+        fromSprite = True
+        imageStr = str(imageName)
     else:
-        imagePath = imageName
-    image = None
-    if imagePath:
-        image = Image.open(imagePath)
+        fromSprite=False
+        imageStr = imageName
+
+    if not os.path.isabs(imageStr) and imageStr not in [Icon.WAITING]:
+        imageStr = imageStr.replace(".gif", ".png")
+
+    if imageStr in image_cache:
+        return image_cache[imageStr]
+
+    # If it is a definition of a sprite image
+    if fromSprite:
+        image = Sprite.getImage(imageName)
+    else:
+        imagePath = pw.findResource(imageStr) if not os.path.isabs(imageStr) else imageStr
+        image = Image.open(imagePath) if imagePath else None
+
+    if image:
         # For a future dark mode we might need to invert the image but it requires some extra work to make it look nice:
         # image = invertImage(image)
         w, h = image.size
@@ -218,11 +228,11 @@ def getImage(imageName, imgDict=None, tkImage=True, percent=100,
         elif maxheight and h > maxheight:
             newSize = int(w * float(maxheight) / h), maxheight
         if newSize:
-            image.thumbnail(newSize, Image.ANTIALIAS)
+            image.thumbnail(newSize, Image.LANCZOS)
         if tkImage:
             image = ImageTk.PhotoImage(image)
 
-        image_cache[imageName] = image
+        image_cache[imageStr] = image
     return image
 
 def invertImage(img):
@@ -285,12 +295,20 @@ def defineStyle():
     # Should be centralized somewhere.
     style = Style()
     defaultFont = getDefaultFont()
-    rowheight = defaultFont.metrics()['linespace']
+
+    iconsSizePx = int((pyworkflow.Config.SCIPION_ICON_ZOOM/100 * 32))
+    fontHeight = defaultFont.metrics()['linespace']
+    rowheight = max(iconsSizePx, fontHeight)
 
     style.configure(LIST_TREEVIEW, rowheight=rowheight,
                     background=pw.Config.SCIPION_BG_COLOR,
                     fieldbackground=pw.Config.SCIPION_BG_COLOR)
     style.configure(LIST_TREEVIEW+".Heading", font=(defaultFont["family"],defaultFont["size"]))
+
+    style.configure(BORDERLESS_TREEVIEW, rowheight=rowheight,
+                    background=pw.Config.SCIPION_BG_COLOR,
+                    fieldbackground=pw.Config.SCIPION_BG_COLOR,
+                    borderwidth=0, font=(defaultFont["family"],defaultFont["size"]))
 
 
 class Window:
@@ -313,7 +331,7 @@ class Window:
         pw.Config.getDomain()._discoverGUIPlugins()
 
         if masterWindow is None:
-            Window._root = self
+            # Unused?? Window._root = self
             self._images = {}
             # If a window which isn't the main Scipion window is generated from another main window, e. g. with Scipion
             # template after the refactoring of the kickoff, in which a dialog is launched and then a form, being it
@@ -332,8 +350,8 @@ class Window:
             self.root = tk.Toplevel(class_=self._class)  # Toplevel of main window
         else:
             class_ = masterWindow._class if hasattr(masterWindow, "_class") else DEFAULT_WINDOW_CLASS
-            self.root = tk.Toplevel(masterWindow.root, class_=class_)
-            self.root.group(masterWindow.root)
+            self.root = tk.Toplevel(masterWindow.getRoot(), class_=class_)
+            self.root.group(masterWindow.getRoot())
             self._images = masterWindow._images
 
         self.root.withdraw()
@@ -418,20 +436,25 @@ class Window:
         """Override this method to respond to move events."""
         pass
 
-    def show(self, center=True):
+    def show(self, center=True, modal=False):
         """This function will enter in the Tk mainloop"""
         if center:
             if self.master is None:
                 refw = None
             else:
-                refw = self.master.root
+                refw = self.master.getRoot()
             centerWindows(self.root, dim=self.desiredDimensions(),
                           refWindows=refw)
+
         self.root.deiconify()
         self.root.focus_set()
         if self.queue is not None:
             self._queueTimer = self.root.after(1000, self.__processQueue)
-        self.root.mainloop()
+
+        if modal:
+            self.root.wait_window(self.root)
+        else:
+            self.root.mainloop()
 
     def close(self, e=None):
         self.root.destroy()
@@ -448,13 +471,13 @@ class Window:
         if self.master is None:
             pass
         else:
-            self.master.root.focus_set()
+            self.master.getRoot().focus_set()
         if self.queue is not None:
             self.root.after_cancel(self._queueTimer)
         self.close()
 
     def getImage(self, imgName, percent=100, maxheight=None):
-        return getImage(imgName, self._images, percent=percent,
+        return getImage(imgName, percent=percent,
                         maxheight=maxheight)
 
     def createMainMenu(self, menuConfig):

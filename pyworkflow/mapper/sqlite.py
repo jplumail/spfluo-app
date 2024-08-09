@@ -27,7 +27,8 @@ logger = logging.getLogger(__name__)
 import re
 from collections import OrderedDict
 
-from pyworkflow.utils import replaceExt, joinExt
+from pyworkflow import Config
+from pyworkflow.utils import replaceExt, joinExt, valueToList
 from .sqlite_db import SqliteDb, OperationalError
 from .mapper import Mapper
 
@@ -903,34 +904,70 @@ class SqliteFlatMapper(Mapper):
         return obj
 
     def __loadObjDict(self):
-        """ Load object properties and classes from db. """
+        """ Load object properties and classes from db.
+        Stores the _objTemplate for future reuse"""
         # Create a template object for retrieving stored ones
         columnList = []
         rows = self.db.getClassRows()
+
+        # Adds common fields to the mapping
+        # Schema definition in classes table
+        self.db.addCommonFieldsToMap()
+
         attrClasses = {}
         self._objBuildList = []
 
+        # For each row lin classes table (_samplinRate --> c01, Integer)
         for r in rows:
+
+            # Something like: _acquisition._doseInitial
             label = r['label_property']
 
+            # If the actual item class:  "Particle" in a SetOfParticles
+            # First loop.
             if label == SELF:
-                self._objClassName = r['class_name']
-                self._objTemplate = self._buildObjectFromClass(self._objClassName)
+                objClassName = r['class_name']
+
+                # Store the template to reuse it during iterations and avoid instantiation
+                self._objTemplate = self._buildObjectFromClass(objClassName)
+                self._objClass = self._objTemplate.__class__
             else:
-                # Lets update the database column mapping
+                # Update the database column mapping: c01 <-> _samplingRate
                 self.db._columnsMapping[label] = r['column_name']
+
+                # List for the latter _objColumns [(5,"_smplingRate"), ...]
+                # This latter will be used to take the value from the cursor's row using the index (row[5] => obj._samplingRate)
                 columnList.append(label)
+
+                # Annotate the class
                 attrClasses[label] = r['class_name']
+
+                # Split the label: _acquisition._doseInitial -> ["_acquisition", "_doseInitial"]
+                # For the loop
                 attrParts = label.split('.')
+
+                # Like a breadcrumb in websites... partial path to the attribute
                 attrJoin = ''
+
+                # Start from the template (root)
                 o = self._objTemplate
+
+                # for each part: ["_acquisition", "_doseInitial"]
                 for a in attrParts:
                     attrJoin += a
+
+                    # Try to get the attribute. Case of attributes defined in the model (init)
                     attr = getattr(o, a, None)
+
+                    # If the object does not have the attribute, then it might be an extra parameter or an optional like Transform.p+ç1
                     if attr is None:
                         className = attrClasses[attrJoin]
-                        self._objBuildList.append((className, attrJoin.split('.')))
+
+                        # Instantiate the class.
                         attr = self._buildObjectFromClass(className)
+
+                        # Get the class form the attr: it could come as a LegacyClass in case "className" is not found.
+                        self._objBuildList.append((attr.__class__, attrJoin.split('.')))
                         setattr(o, a, attr)
                     o = attr
                     attrJoin += '.'
@@ -939,23 +976,39 @@ class SqliteFlatMapper(Mapper):
         self._objColumns = list(zip(range(basicRows, n), columnList))
          
     def __buildAndFillObj(self):
-        obj = self._buildObjectFromClass(self._objClassName)
+        """ Instantiates the set item base on the _objBuildList.
+        _objBuildList has been populated when loading the classDictionary"""
+
+        obj = self._objClass()
         
-        for className, attrParts in self._objBuildList:
+        for clazz, attrParts in self._objBuildList:
             o = obj
             for a in attrParts:
                 attr = getattr(o, a, None)
                 if not attr:
-                    setattr(o, a, self._buildObjectFromClass(className))
+                    setattr(o, a, clazz())
                     break
                 o = attr
         return obj
-        
-    def __objFromRow(self, objRow):
+
+    def getInstance(self):
+
         if self._objTemplate is None:
             self.__loadObjDict()
+
+        # Difference in performance using scipion3 tests pwperformance.tests.test_set_performance.TestSetPerformanceSteps.testSuperExtendedCoordinatesSet
+        # A test that creates a 10**6 set of extended coordinates (coordinates with 20 extra attributes)
+        # With the template iteration takes 10 secs
+        # Building the object each time take 25 secs (15 seconds more)
+        if Config.SCIPION_MAPPER_USE_TEMPLATE:
+            return self._objTemplate
+        else:
+            return  self.__buildAndFillObj()
+
+    def __objFromRow(self, objRow):
+
             
-        obj = self._objTemplate  # self.__buildAndFillObj()
+        obj = self.getInstance()
         obj.setObjId(objRow[ID])
         obj.setObjLabel(self._getStrValue(objRow['label']))
         obj.setObjComment(self._getStrValue(objRow['comment']))
@@ -1005,9 +1058,10 @@ class SqliteFlatMapper(Mapper):
         # 'Properties' table
         if not self.db.hasTable('Properties'):
             return iter([]) if iterate else []
-            
-        if self._objTemplate is None:
-            self.__loadObjDict()
+
+        # Initialize the instance
+        self.getInstance()
+
         try:
             objRows = self.db.selectAll(orderBy=orderBy,
                                         direction=direction,
@@ -1047,15 +1101,18 @@ and restarting scipion. Export command:
             return result
 
     def aggregate(self, operations, operationLabel, groupByLabels=None):
+
+        operations = valueToList(operations)
+        groupByLabels = valueToList(groupByLabels)
+
         rows = self.db.aggregate(operations, operationLabel, groupByLabels)
+
+        # Transform the sql row into a disconnected list of dictionaries
         results = []
         for row in rows:
             values = {}
-            for label in operations:
-                values[label] = row[label]
-            if groupByLabels is not None:
-                for label in groupByLabels:
-                    values[label] = row[label]
+            for key in row.keys():
+                values[key] = row[key]
             results.append(values)
 
         return results
@@ -1291,8 +1348,16 @@ class SqliteFlatDb(SqliteDb):
                 self.INSERT_OBJECT += ',%s' % colName
                 self.UPDATE_OBJECT += ', %s=?' % colName
 
+        self.addCommonFieldsToMap()
+
         self.INSERT_OBJECT += ") VALUES (?,?,?,?, datetime('now')" + ',?' * (c-1) + ')'
         self.UPDATE_OBJECT += ' WHERE id=?'
+
+    def addCommonFieldsToMap(self):
+
+        # Add common fields to the mapping
+        self._columnsMapping["id"] = "id"
+        self._columnsMapping["_objId"] = "id"
 
     def getClassRows(self):
         """ Create a dictionary with names of the attributes
@@ -1393,7 +1458,7 @@ class SqliteFlatDb(SqliteDb):
 
         whereStr = where
         # Split by valid where operators: =, <, >
-        result = re.split('<=|<=|=|<|>|AND|OR', where)
+        result = re.split('<=|>=|=|<|>|AND|OR', where)
         # For each item
         for term in result:
             # trim it
@@ -1430,17 +1495,37 @@ class SqliteFlatDb(SqliteDb):
         return self._results(iterate=False)
 
     def aggregate(self, operations, operationLabel, groupByLabels=None):
+        """
+
+        :param operations: string or LIST of operations: MIN, MAX, AVG, COUNT, SUM, TOTAL, GROUP_CONCAT. Any single argument function
+        defined for sqlite at https://www.sqlite.org/lang_aggfunc.html
+        :param operationLabel: string or LIST of attributes to apply the functions on
+        :param groupByLabels: (Optional) attribute or list of attributes to group by the data
+        :return:
+        """
         # let us count for testing
         selectStr = 'SELECT '
         separator = ' '
+
+        operations = valueToList(operations)
+        operationLabel = valueToList(operationLabel)
+        groupByLabels = valueToList(groupByLabels)
+
         # This cannot be like the following line should be expressed in terms
         # of C1, C2 etc....
-        for operation in operations:
-            selectStr += "%s %s(%s) AS %s" % (separator, operation,
-                                              self._columnsMapping[operationLabel],
-                                              operation)
-            separator = ', '
-        if groupByLabels is not None:
+        for index,label in enumerate(operationLabel):
+            for operation in operations:
+
+                if index==0:
+                    alias = operation
+                else:
+                    alias = operation + label
+
+                selectStr += "%s %s(%s) AS %s" % (separator, operation,
+                                                  self._columnsMapping[label],
+                                                  alias)
+                separator = ', '
+        if groupByLabels:
             groupByStr = 'GROUP BY '
             separator = ' '
             for groupByLabel in groupByLabels:

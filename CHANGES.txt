@@ -1,3 +1,87 @@
+V3.7.0
+users:
+  - Add protocol is an icon.
+  - Right clik on canvas offers to add a protocol on the clicked location.
+  - Scipion log is a project.log (only for project events)
+  - Variables window saves non default variables changed (bug)
+  - Queue interoperability review:
+    - jobs cancelled in the queue are detected in scipion
+    - job and pids handling improved, pids = 0 when use queue for protocol rely on jobid
+    - Change Protocols Lock to Rlocks objects to avoid concurrency when updating the protocols jobid
+  - add information in the protocol log regarding execution type (pid or jobid)f
+  - Streaming protocols based on new streaming (generation steps) are resumable
+  - Avoiding a double process when launching a workflow using the protocol form
+  - pyworkflowtest tests fixed
+  - GUI will detect when protocols processes have been killed(cancelled) in all cases?
+  - fix outdated pyworkflow scripts
+  - scipion3 template (template manager) lists workflows at workflowhub.eu from "Scipion CNB" organization
+  - Join heterogeneous sets are possible for tomography objects TS and tomograms.
+developers:
+  - Canvas has a testing method: _drawGrid to draw a grid on the canvas (unused now)
+  - String.toSeconds:converts to seconds any "duration" string like "1h 4m 34s" -> 3600 + 240 + 34.
+  - ListDialog has a refresh method to refresh the content taking into account the filter
+  - Improve the DDBB lock in the method "_store". If Protocol._lock is locked, a nullcontext is used instead of another
+    Protocol._lock context, which causes a permanent lock.
+  - XmlMapper removed.
+  - FlatMapper instanatiation centralized:
+     New variable: SCIPION_MAPPER_USE_TEMPLATE. By default uses the template as it was now. If deacivated, instantiation happens on each iteration (less performant) but dev friendly
+  - Adding a parameter to launch jobs (e.g: bash)
+  - Handling item-click event in the treeview dialog
+
+V3.6.0
+users:
+  - Window to see/edit config variables. Launched from Project menu in project window.
+  - Fix installation error: matplotlib imported at installation time
+  - Fixing an error drawing the graph
+developers:
+  - FileBrowser window tweaks: Can be called from a dialog.
+  - Windows can be called as dialogs with show(modal=True)
+  - askPath: Method to ask for a path (PATH, FOLDER or BASENAME)
+  - backup: Method in pyworkflow.utils.path to backup files
+  - All variables are centralized and Plugin._defineVar or _defineEmVar accept variable description, and type (VarTypes enum) to better describe the variable.
+  - ProgressBar handles the step in combination with increase method call
+  - Set.aggregate more flexible and versatile.
+        Accepts strings or lists in operations, labels or groupby args.
+        Accepts id or _objId ar fields
+  - String.getListFromValues: works now with strings with an x inside (e.g.: _x _y)
+  - New utils method: valueToList (converts the argument into a list if is not a list): Useful for "dual type arguments) that can be a list or not
+
+V3.5.0
+------
+users:
+  - New Icons.
+  - Icons based on sprites, easier to resize or customized
+  - New variable: SCIPION_SPRITES_FILE to point to a custom sprite. It should be compatible with sprites.png at pyworkflow/resources.
+  - Scipion GUI log moved to the log tabs and removed from menu
+  - New variable: SCIPION_SHOW_TEXT_IN_TOOLBAR, set it to anything to show the text of the icons below
+  - New variable: SCIPION_ICON_ZOOM, defaults to 50 (percent) to show icons at 16x16. 100 will set them to 32 or 75 to 24.
+  - Icons in toolbar grouped. Better row height adjustment in trees.
+  - Improved handling of the case where protocols steps are send to the queue, fix stop protocol functionality
+developers:
+  - ProjectConfig class removed
+  - New methods in path: hasChangedSince and isFileFinished
+  - New method in utils: strToDuration (useful to translate "1h 35m" to seconds). For duration parameters.
+  - New class Variable to be tested in Config class. A step towards a Config editing GUI.
+  - SCIPION_DEBUG_SQLITE rescued to activate SQL clauses in debug.
+  - Active jobs are stored in the 'jobIds' protocol variable. Iteration through these job IDs allows for canceling each active job sent to the queue.
+  - Implemented cleaning of old protocol job IDs and PIDs.
+  - Extending the ToolbarDialog buttons. Now is possible to define a tooltip and a shortcut
+  - Viewers has getName class method.
+  - Object.getClassName is now a class method
+  - Validating the Close method in the Dialog class. Now we can to reimplement de validateClose method.
+  - Better case-specific implementation of pID and jobID. Three scenarios: normal execution, sending the entire protocol to the queue, or sending individual steps.
+  - Object.clone a copy optionally clones the enable flag
+  - Set.getItem: returns the first item with a value in the fields passed. Useful for querying by TsId in tomo.
+  - Correctly update the protocols in streaming workflows when the input pointer points to a protocol, the protocol points to a set (i.e., classes), and this set points to another set (i.e., particles).
+
+V3.4.0
+------
+users:
+  - Prevent cyclic loops in protocols. Cannot chose as input, as output that is derived or will be derived from the current protocol.
+  - Tolerate cyclic loops saved projects projects, disconnecting the "problematic" protocol.
+developers:
+  - Dialog class: add lockGui input to allow the viewers to prevent getting the screen focus if desired.
+
 V3.3.1
 ------
 users:

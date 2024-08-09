@@ -25,10 +25,12 @@
 This modules contains classes required for the workflow
 execution and tracking like: Step and Protocol
 """
+import contextlib
 import sys, os
 import json
 import threading
 import time
+from datetime import datetime
 
 import pyworkflow as pw
 from pyworkflow.exceptions import ValidationException, PyworkflowException
@@ -420,7 +422,7 @@ class Protocol(Step):
         # and queue parameters (only meaningful if _useQueue=True)
         self._queueParams = String()
         self.queueShown = False
-        self._jobId = String()  # Store queue job id
+        self._jobId = CsvList()  # Store queue job ids
         self._pid = Integer()
         self._stepsExecutor = None
         self._stepsDone = Integer(0)
@@ -438,7 +440,8 @@ class Protocol(Step):
         # Store warnings here
         self.summaryWarnings = []
         # Get a lock for threading execution
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()  # Recursive locks allows a thread to acquire lock on same object more
+        # than one time, thus avoiding deadlock situation. This fixed the concurrency problems we had before.
         self.forceSchedule = Boolean(False)
 
     def _storeAttributes(self, attrList, attrDict):
@@ -713,9 +716,12 @@ class Protocol(Step):
         protocolIds = []
         protocol = None
         for key, attrInput in self.iterInputAttributes():
+            outputs = []
             output = attrInput.get()
             if isinstance(output, Protocol):  # case A
                 protocol = output
+                for _, protOutput in protocol.iterOutputAttributes():
+                    outputs.append(protOutput)  # for case A store all the protocols outputs
             else:
                 if attrInput.hasExtended():  # case B
                     protocol = attrInput.getObjValue()
@@ -736,8 +742,13 @@ class Protocol(Step):
                               "scheduling protocols. Value: %s" % (key, self, attrInput))
                         continue
 
-                # If there is output
                 if output is not None:
+                    outputs.append(output)
+
+            # If there is output
+            if outputs:
+                # Iter over all the outputs
+                for output in outputs:
                     # For each output attribute: Looking for pointers like SetOfCoordinates.micrographs
                     for k, attr in output.getAttributes():
                         # If it's a pointer
@@ -751,6 +762,7 @@ class Protocol(Step):
                                     logger.warning(f"We have found that {output}.{key} points to {attr} "
                                                    f"and is a direct pointer. Direct pointers are less reliable "
                                                    f"in streaming scenarios. Developers should avoid them.")
+
             protocolIds.append(protocol.getObjId())
 
         return protocolIds
@@ -947,7 +959,7 @@ class Protocol(Step):
         If not objects are passed, the whole protocol is stored.
         """
         if self.mapper is not None:
-            with self._lock:
+            with self._lock:  # _lock is now a Rlock object (recursive locks)
                 if len(objs) == 0:
                     self.mapper.store(self)
                 else:
@@ -1515,16 +1527,22 @@ class Protocol(Step):
                                                                project_name=self.getProject().getName(),
                                                                prot_id=self.getObjId(),
                                                                prot_name=self.getClassName()))
+
+            self.setHostFullName(pwutils.getHostFullName())
+            self.info('Hostname: %s' % self.getHostFullName())
+
             # Store the full machine name where the protocol is running
             # and also its PID
-            self.setPid(os.getpid())
-            self.setHostFullName(pwutils.getHostFullName())
+            if not self.useQueueForProtocol():  # Take as reference the pID
+                self.setPid(os.getpid())
+                self.info('PID: %s' % self.getPid())
+            else:  # Take as reference the jobID
+                self.info('Executing through the queue system')
+                self.info('JOBID: %s' % self.getJobIds())
 
-            self.info('Hostname: %s' % self.getHostFullName())
-            self.info('PID: %s' % self.getPid())
             self.info('pyworkflow: %s' % pw.__version__)
             plugin = self.getPlugin()
-            self.info('plugin: %s' %  plugin.getName())
+            self.info('plugin: %s - %s' % (plugin.getName(), plugin.getUrl()))
             package = self.getClassPackage()
             if hasattr(package, "__version__"):
                 self.info('plugin v: %s%s' %(package.__version__, ' (devel)' if plugin.inDevelMode() else '(production)'))
@@ -1693,6 +1711,7 @@ class Protocol(Step):
             executor = StepExecutor(self.getHostConfig())
 
         self._stepsExecutor = executor
+        self._stepsExecutor.setProtocol(self) # executor needs the protocol to store the jobs Ids submitted to a queue
 
     def getFiles(self):
         resultFiles = set()
@@ -1731,12 +1750,25 @@ class Protocol(Step):
         # in the configuration information, the hostname is enough
         self.hostConfig.setStore(False)
 
-    def getJobId(self):
-        """ Return the jobId associated to a running protocol. """
-        return self._jobId.get()
+    def getJobIds(self):
+        """ Return an iterable list of jobs Ids associated to a running protocol. """
+        return self._jobId
 
     def setJobId(self, jobId):
-        self._jobId.set(jobId)
+        " Reset this list to have the first active job "
+        self._jobId.clear()
+        self.appendJobId(jobId)
+
+    def setJobIds(self, jobIds):
+        " Reset this list to have a list of active jobs "
+        self._jobId = jobIds
+
+    def appendJobId(self, jobId):
+        " Append active jobs to the list "
+        self._jobId.append(jobId)
+    def removeJobId(self, jobId):
+        " Remove inactive jobs from the list "
+        self._jobId.remove(jobId)
 
     def getPid(self):
         return self._pid.get()
@@ -1885,6 +1917,11 @@ class Protocol(Step):
         """ This function will return True if the protocol has been set
         to be launched through a queue by steps """
         return self.useQueue() and (self.getSubmitDict()["QUEUE_FOR_JOBS"] == "Y")
+
+    def useQueueForProtocol(self):
+        """ This function will return True if the protocol has been set
+        to be launched through a queue """
+        return self.useQueue() and (self.getSubmitDict()["QUEUE_FOR_JOBS"] == "N")
 
     def getQueueParams(self):
         if self._queueParams.hasValue():
@@ -2331,6 +2368,12 @@ class Protocol(Step):
 
         return self._size
 
+    def cleanExecutionAttributes(self):
+        """ Clean all the executions attributes """
+        self.setPid(0)
+        self._jobId.clear()
+        self._stepsDone.set(0)
+
 class LegacyProtocol(Protocol):
     """ Special subclass of Protocol to be used when a protocol class
     is not found. It means that have been removed or it is in another
@@ -2475,7 +2518,12 @@ class ProtStreamingBase(Protocol):
         self.stepsExecutionMode = STEPS_PARALLEL
     def _insertAllSteps(self):
         # Insert the step that generates the steps
-        self._insertFunctionStep(self.stepsGeneratorStep)
+        self._insertFunctionStep(self.resumableStepGeneratorStep, str(datetime.now()))
+
+    def resumableStepGeneratorStep(self, ts):
+        """ This allow to resume protocols. ts is the time stamp so this stap is alway different form previous exceution"""
+        self.stepsGeneratorStep()
+
 
     def _stepsCheck(self):
 
@@ -2495,9 +2543,9 @@ class ProtStreamingBase(Protocol):
 
     def _validateThreads(self, messages:list):
 
-        if self.numberOfThreads.get() < 3:
-            messages.append("At least 3 threads are needed for running this protocol. 1 for the core process, "
-                            "1 for the 'step-generator step' and one more for the actual processing" )
+        if self.numberOfThreads.get() < 2:
+            messages.append("At least 2 threads are needed for running this protocol. "
+                            "1 for the 'stepsGenerator step' and one more for the actual processing" )
     def _validate(self):
         """ If you want to implement a validate method do it but call _validateThreads or validate threads value."""
         errors = []

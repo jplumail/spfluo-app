@@ -35,7 +35,7 @@ from collections import OrderedDict
 import datetime as dt
 from os.path import getmtime
 
-from pyworkflow.utils import getListFromValues, getListFromRangeString
+from pyworkflow.utils import getListFromValues, getListFromRangeString, strToDuration
 from pyworkflow.utils.reflection import getSubclasses
 
 
@@ -86,8 +86,9 @@ class Object(object):
         self._objEnabled = True
         self.set(value)
 
-    def getClassName(self):
-        return self.__class__.__name__
+    @classmethod
+    def getClassName(cls):
+        return cls.__name__
     
     def getClass(self):
         return type(self)
@@ -471,18 +472,19 @@ class Object(object):
     def getValuesFromMappedDict(self, mappedDict):
         return [v.getObjValue() for v in mappedDict.values()]
     
-    def copy(self, other, copyId=True, ignoreAttrs=[]):
+    def copy(self, other, copyId=True, ignoreAttrs=[], copyEnable=False):
         """
         Copy all attributes values from one object to the other.
         The attributes will be created if needed with the corresponding type.
 
         :param other: the other object from which to make the copy.
         :param copyId: if true, the _objId will be also copied.
-            ignoreAttrs: pass a list with attributes names to ignore.
+        :param ignoreAttrs: pass a list with attributes names to ignore.
+        :param copyEnable: Pass true if you want enabled flag to be copied
 
         """
         copyDict = {'internalPointers': []} 
-        self._copy(other, copyDict, copyId, ignoreAttrs=ignoreAttrs)
+        self._copy(other, copyDict, copyId, ignoreAttrs=ignoreAttrs, copyEnable=copyEnable)
         self._updatePointers(copyDict)
         return copyDict
         
@@ -496,14 +498,19 @@ class Object(object):
             if pointedId in copyDict:
                 ptr.set(copyDict[pointedId])
         
-    def _copy(self, other, copyDict, copyId, level=1, ignoreAttrs=[]):
+    def _copy(self, other, copyDict, copyId, level=1, ignoreAttrs=[], copyEnable=False):
         """ Recursively clone all attributes from one object to the other.
         (Currently, we are not deleting attributes missing in the 'other' object.)
         Params:
-        copyDict: this dict is used to store the ids map between 'other' and
+
+        :param copyDict: this dict is used to store the ids map between 'other' and
             'self' attributes. It is used for update pointers and relations
             later on. This will only work if the ids of 'other' attributes
             has been properly set.
+        :param copyId: Pass true to copy the id
+        :param level: (1), depth to the copy
+        :param ignoreAttrs: List with attributes to ignore
+        :param copyEnable: (False) pass true to copy the enable flag
         """
         # Copy basic object data
         # self._objName = other._objName
@@ -512,6 +519,10 @@ class Object(object):
         self._objValue = other._objValue
         self._objLabel = other._objLabel
         self._objComment = other._objComment
+
+        if copyEnable:
+            self._objEnabled = other._objEnabled
+
         # Copy attributes recursively
         for name, attr in other.getAttributes():
             if name not in ignoreAttrs:
@@ -531,9 +542,16 @@ class Object(object):
                 if myAttr.isPointer() and myAttr.hasValue():
                     copyDict['internalPointers'].append(myAttr)
     
-    def clone(self):
+    def clone(self, copyEnable=False):
+        """ Clones the object
+
+        :param copyEnable (False): clone also the enable flag"""
+
+        #NOTE: Maybe be, as default, we should be cloning the enable, but we found it is not doing so.
+        # So for now it is not cloned, probably to void carying out the enable which may be a decision by one method that should not be
+        # tranferred to the next method. Only Subsetting protocols should respect this.
         clone = self.getClass()()
-        clone.copy(self)        
+        clone.copy(self, copyEnable=copyEnable)
         return clone    
     
     def evalCondition(self, condition):
@@ -553,7 +571,7 @@ class Object(object):
         """
         # Split in possible tokens
         import re
-        tokens = re.split('\W+', condition)
+        tokens = re.split(r'\W+', condition)
         condStr = condition
         
         for t in tokens:
@@ -567,14 +585,14 @@ class Object(object):
         tab = ' ' * (level*3)
         idStr = ''  # ' (id = %s, pid = %s)' % (self.getObjId(), self._objParentId)
         if name is None:
-            logger.info("%s %s %s" % (tab, self.getClassName(), idStr))
+            logger.info(f"{tab} {self.getClassName()} {idStr}")
         else:
             if name == 'submitTemplate':  # Skip this because very large value
                 value = '...'
             else:
                 value = self.getObjValue()
                 
-            logger.info(tab, '%s = %s' % (name, value), idStr)
+            logger.info(f"{tab} {name} = {value} {idStr}")
         for k, v in self.getAttributes():
             v.printAll(k, level + 1)
             
@@ -762,6 +780,10 @@ class String(Scalar):
         """ Returns a list from a string with values as described at getListFromRangeString.
          Useful for NumericRangeParam params"""
         return getListFromRangeString(self._objValue)
+
+    def toSeconds(self):
+
+        return strToDuration(self.get())
 
 
 class Float(Scalar):
@@ -1091,6 +1113,9 @@ class Set(Object):
     STREAM_CLOSED = 2
 
     indexes = ['_index']
+    # Dict that contains the attributes to be checked for compatibility in operations involving multiple sets,
+    # such us the union of sets. Example: {'sampling rates': 'getSamplingRate', 'dimensions': 'getDimensions'}
+    _compatibilityDict = {}
     
     def __init__(self, filename=None, prefix='', 
                  mapperClass=None, classesDict=None, **kwargs):
@@ -1107,13 +1132,16 @@ class Set(Object):
         self._representative = None
         self._classesDict = classesDict
         self._indexes = kwargs.get('indexes', [])
-
         # If filename is passed in the constructor, it means that
         # we want to create a new object, so we need to delete it if
         # the file exists
         if filename:
             self._mapperPath.set('%s, %s' % (filename, prefix))
             self.load()
+
+    @classmethod
+    def getCompatibilityDict(cls):
+        return cls._compatibilityDict
 
     def copy(self, other, copyId=True, ignoreAttrs=['_mapperPath', '_size', '_streamState']):
         """ Copies the attributes of the set
@@ -1145,7 +1173,7 @@ class Set(Object):
          GROUP BY clause to group values into subsets
         :param operations: list of aggregate function such as COUNT, MAX, MIN,...
         :param operationLabel: label to use by the aggregate function
-        :param groupByLabels: list of labels to group
+        :param groupByLabels: list of labels to group by
         :return: the aggregated value of each group
         """
         return self._getMapper().aggregate(operations, operationLabel, groupByLabels)
@@ -1157,6 +1185,14 @@ class Set(Object):
             MapperClass = SqliteFlatMapper
         Object.__setattr__(self, '_MapperClass', MapperClass)
         
+    def getItem(self, field, value):
+        """ Alternative to [] to get a single item form the set.
+
+        :param field: attribute of the item to look up for. Should be a unique identifier
+        :param value: value to look for"""
+
+        return self.__getitem__({field:value})
+
     def __getitem__(self, itemId):
         """ Get the image with the given id.
 
@@ -1400,8 +1436,8 @@ class Set(Object):
 
     # ******* Streaming helpers to deal with sets **********
     def hasChangedSince(self, time):
-        """ Returns if the set has changed since the timestamp passed as parameter. It will check the
-        the last modified time of the file this set uses to persists.
+        """ Returns if the set has changed since the timestamp passed as parameter. It will check
+                the last modified time of the file this set uses to persists.
 
         :parameter time: timestamp to compare to the last modification time  """
 

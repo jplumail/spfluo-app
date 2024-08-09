@@ -32,23 +32,20 @@ It is composed by three panels:
 
 import logging
 logger = logging.getLogger(__name__)
+
 import os
 import threading
 import shlex
 import subprocess
 import socketserver
-import tempfile
 
 import pyworkflow as pw
 import pyworkflow.utils as pwutils
 from pyworkflow.gui.project.utils import OS
-from pyworkflow.project import MenuConfig, ProjectSettings
+from pyworkflow.project import MenuConfig
 from pyworkflow.gui import Message, Icon
 from pyworkflow.gui.browser import FileBrowserWindow
-# Usage commented.
-# from pyworkflow.em.viewers import EmPlotter
-# Moved to Scipion-app
-# from pyworkflow.gui.plugin_manager import PluginManager
+
 from pyworkflow.gui.plotter import Plotter
 from pyworkflow.gui.text import _open_cmd, openTextFileEditor
 from pyworkflow.webservices import ProjectWorkflowNotifier, WorkflowRepository
@@ -87,8 +84,6 @@ class ProjectWindow(ProjectBaseWindow):
                             shortCut="Ctrl+t", icon=Icon.ACTION_VISUALIZE)
         projMenu.addSubMenu('Select all protocols', 'select all',
                             shortCut="Ctrl+a", icon=Icon.SELECT_ALL)
-        projMenu.addSubMenu('Add a protocol', 'find protocol',
-                            shortCut="Ctrl+f", icon=Icon.FIND)
         projMenu.addSubMenu('Locate a protocol', 'locate protocol',
                             shortCut="Ctrl+l")
         projMenu.addSubMenu('', '')  # add separator
@@ -96,15 +91,15 @@ class ProjectWindow(ProjectBaseWindow):
                             icon=Icon.DOWNLOAD)
         projMenu.addSubMenu('Search workflow', 'search_workflow',
                             icon=Icon.ACTION_SEARCH)
-        if pw.Config.debugOn():
-            projMenu.addSubMenu('Export tree graph', 'export_tree')
+
+        projMenu.addSubMenu('Configuration', 'configuration',
+                            icon=Icon.SETTINGS)
+
         projMenu.addSubMenu('', '')  # add separator
         projMenu.addSubMenu('Debug Mode', 'debug mode',
                             shortCut="Ctrl+D", icon=Icon.DEBUG)
         projMenu.addSubMenu('', '')  # add separator
         projMenu.addSubMenu('Notes', 'notes', icon=Icon.ACTION_EDIT)
-        projMenu.addSubMenu('Scipion log', 'scipion log',
-                            icon=Icon.FILE_BW)
         projMenu.addSubMenu('', '')  # add separator
         projMenu.addSubMenu('Exit', 'exit', icon=Icon.ACTION_OUT)
 
@@ -160,6 +155,7 @@ class ProjectWindow(ProjectBaseWindow):
      
     def loadProject(self):
         proj = pw.project.Project(pw.Config.getDomain(), self.projPath)
+        proj.configureLogging()
         proj.load()
 
         # Check if we have settings.sqlite, generate if not
@@ -170,8 +166,6 @@ class ProjectWindow(ProjectBaseWindow):
             logger.info('Warning: settings.sqlite not found! '
                   'Creating default settings..')
             self.settings = proj.createSettings()
-
-        self.generalCfg = self.settings.getConfig()
 
         return proj
 
@@ -251,34 +245,14 @@ class ProjectWindow(ProjectBaseWindow):
     def onSearchWorkflow(self):
         WorkflowRepository().search()
 
-    def onExportTreeGraph(self):
-        runsGraph = self.project.getRunsGraph()
-        useId = not pwutils.envVarOn('SCIPION_TREE_NAME')
-        dotStr = runsGraph.printDot(useId=useId)
-        with tempfile.NamedTemporaryFile(suffix='.gv', mode="w") as dotFile:
-            dotFile.write(dotStr)
-            dotFile.flush()
-            openTextFileEditor(dotFile.name)
-
-        if useId:
-            logger.info("\nexport SCIPION_TREE_NAME=1 # to use names instead of ids")
-        else:
-            logger.info("\nexport SCIPION_TREE_NAME=0 # to use ids instead of names")
-
     def onToggleColorMode(self):
         self.getViewWidget()._toggleColorScheme(None)
 
     def onSelectAllProtocols(self):
         self.getViewWidget()._selectAllProtocols(None)
 
-    def onAddAProtocol(self):
-        self.getViewWidget()._findProtocol(None)
-
     def onLocateAProtocol(self):
         self.getViewWidget()._locateProtocol(None)
-
-    def onScipionLog(self):
-        self.getViewWidget()._scipionLog(None)
 
     def manageLabels(self):
 
@@ -391,8 +365,6 @@ class ProjectManagerWindow(ProjectBaseWindow):
     _pluginMenus = dict()
 
     def __init__(self, **kwargs):
-        # Load global configuration
-        settings = ProjectSettings()
 
         # TODO: put the menu part more nicely. From here:
         menu = MenuConfig()
@@ -415,7 +387,6 @@ class ProjectManagerWindow(ProjectBaseWindow):
         helpMenu.addSubMenu('About', 'about', icon=Icon.ACTION_HELP)
 
         self.menuCfg = menu
-        self.generalCfg = settings.getConfig()
 
         try:
             title = '%s (%s on %s)' % (Message.LABEL_PROJECTS, 

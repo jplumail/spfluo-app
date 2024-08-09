@@ -144,7 +144,7 @@ class RunIOTreeProvider(pwgui.tree.TreeProvider):
             return lambda: self._visualizeObject(viewer, obj)
 
         for v in viewers:
-            actions.append(('Open with %s' % v.__name__ if v._name is None else v._name,
+            actions.append((v.getName(),
                             viewerCallback(v),
                             Icon.ACTION_VISUALIZE))
         # EDIT
@@ -504,8 +504,7 @@ class ProtocolTreeConfig:
 
             except Exception as e:
                 print('Failed to read settings. The reported error was:\n  %s\n'
-                      'To solve it, fix %s and run again.' % (
-                          e, os.path.abspath(protocolsConfPath)))
+                      'To solve it, fix %s and run again.' % e)
 
         # Clean empty sections
         cls._hideEmptySections(protocols)

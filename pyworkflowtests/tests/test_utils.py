@@ -6,15 +6,15 @@ Created on Mar 25, 2014
 @author: airen
 @author: roberto.marabini
 """
-
-
+import datetime
+import os
 from subprocess import Popen
 from io import StringIO
 
-from pyworkflow import APPS
+from pyworkflow import APPS, Variable
 from pyworkflow.utils.process import killWithChilds
 from pyworkflow.tests import *
-from pyworkflow.utils import utils, prettyDict, getListFromValues
+from pyworkflow.utils import utils, prettyDict, getListFromValues, strToDuration
 from pyworkflow.utils import ProgressBar
 
 
@@ -105,8 +105,8 @@ class TestListFromValues(unittest.TestCase):
             '2x3, 3x4, 1' -> ['3', '3', '4', '4', '4', '1']"
         """
 
-        self._callAndAssert('1 1 2x2 4 4', ['1', '1', '2', '2', '4', '4'])
-        self._callAndAssert('2x3, 3x4, 1',['3', '3', '4', '4', '4', '1'])
+        self._callAndAssert('1 1 2x2 4 4', ['1', '1', '2x2', '4', '4'])
+        self._callAndAssert('1 1 2x2 4 4', [1, 1, 2, 2, 4, 4], caster=int)
         self._callAndAssert('2,3,4,1', [2, 3, 4, 1], caster=int)
         self._callAndAssert('2 , 3 , 4 , 1', [2, 3, 4, 1], caster=int)
         self._callAndAssert('2,3.3,4', [2.0, 3.3, 4.0], caster=float)
@@ -173,4 +173,38 @@ class TestProgressBar(unittest.TestCase):
                       '(objectId=33)')
         self.caller(total=total, step=step,
                     fmt=ProgressBar.OBJID, resultGold=resultGold)
+
+
+
+class TestPathTools(unittest.TestCase):
+
+    def test_filemodificationtime(self):
+
+        # Test is file closed
+
+        import tempfile
+        import time
+
+        since = datetime.datetime.now()
+        time.sleep(1)
+
+        tmpFile = tempfile.NamedTemporaryFile()
+        self.assertFalse(pwutils.isFileFinished(tmpFile.name), "File is NOT finished")
+        time.sleep(1)
+
+        self.assertTrue(pwutils.isFileFinished(tmpFile.name, duration=0.5), "File is finished after 2 seconds")
+
+
+        self.assertTrue(pwutils.hasChangedSince(tmpFile.name, since ), "hasChanged should have returned true. False negative.")
+        since = datetime.datetime.now()
+        self.assertFalse(pwutils.hasChangedSince(tmpFile.name, since ), "hasChanged should have returned false. False positive.")
+
+
+
+    def test_durationstrings(self):
+
+        self.assertEqual(70, strToDuration("1m 10s"), "String duration wrongly converted")
+
+
+
 

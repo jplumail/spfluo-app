@@ -48,7 +48,7 @@ class Tree(ttk.Treeview, Scrollable):
         Scrollable.__init__(self, master, ttk.Treeview, frame, **opts)
 
     def getImage(self, img):
-        return gui.getImage(img, Tree._images)
+        return gui.getImage(img)
 
     def getFirst(self):
         """ Return first selected item or None if selection empty"""
@@ -269,7 +269,7 @@ class BoundTree(Tree):
 
     def __init__(self, master, provider, frame=True, **opts):
         """Create a new Tree, if frame=True, a container
-        frame will be created and an scrollbar will be added"""
+        frame will be created and a scrollbar will be added"""
         # Get columns to display and width
         cols = provider.getColumns()
         colsTuple = tuple([c[0] for c in cols[1:]])
@@ -304,6 +304,8 @@ class BoundTree(Tree):
 
     def _onClick(self, e=None):
         self._unpostMenu()
+        if hasattr(self, 'itemOnClick'):
+            self.itemOnClick(e)
 
     def _onKeyPress(self, e=None):
         self._unpostMenu()
@@ -648,7 +650,7 @@ class ListTreeProviderTemplate(ListTreeProviderString):
         return info
 
     def getText(self, obj):
-        return obj.pluginName + '-' + obj.templateName
+        return obj.source + '-' + obj.name
 
     def getValues(self, obj):
         return (obj.description,)

@@ -29,6 +29,7 @@
 import logging
 import sys
 
+from pyworkflow import Variable, VariablesRegistry, VarTypes
 from .protocol import Protocol
 from .viewer import Viewer
 from .wizard import Wizard
@@ -40,15 +41,13 @@ import importlib
 import inspect
 import traceback
 import types
-import importlib.metadata
-from email import message_from_string
-from collections import OrderedDict
 from abc import ABCMeta, abstractmethod
+import importlib_metadata
 
 import pyworkflow as pw
 import pyworkflow.utils as pwutils
 import pyworkflow.object as pwobj
-from pyworkflow.template import Template
+from pyworkflow.template import LocalTemplate
 from pyworkflow.utils import sortListByList
 
 from .constants import *
@@ -84,8 +83,13 @@ class Domain:
             m = importlib.import_module(name)
 
             # Define variables
-            m.Plugin._defineVariables()
             m._pluginInstance = m.Plugin()
+            # This needs an explanation. _defineVariables() are classmethods, therfore we need a class variable and thus .name can't be used.
+            # Ideally, since Plugin class is instantiated we could transform _defineVariables methods into instance methods and only then we
+            # could use .name.
+            Plugin._tmpName = name
+            m._pluginInstance.name = name
+            m._pluginInstance._defineVariables()
 
             m.Domain = cls  # Register the domain class for this module
             # TODO avoid loading bibtex here and make a lazy load like the rest.
@@ -125,32 +129,33 @@ class Domain:
     @classmethod
     def _discoverPlugins(cls):
         # Get the list of plugins registered
-        plugin_modules = []
-        for entry_point in importlib.metadata.entry_points().select(group='pyworkflow.plugin'):
-            plugin_modules.append(entry_point.name)
+        plugin_modules = importlib_metadata.entry_points(group='pyworkflow.plugin')
 
         # Sort the list taking into account the priority
-        plugin_modules = sortListByList(plugin_modules, pw.Config.getPriorityPackageList())
+        plugin_modules = sortListByList(plugin_modules.names, pw.Config.getPriorityPackageList())
 
         for module in plugin_modules:
             cls.registerPlugin(module)
 
-
     @classmethod
     def _discoverGUIPlugins(cls):
-        for entry_point in importlib.metadata.entry_points().select(group='pyworkflow.guiplugin'):
-            entry_point.load()
+        for entry_point in importlib_metadata.entry_points(group='pyworkflow.guiplugin'):
+            try:
+                entry_point.load()
+            except Exception as e:
+                logger.warning("Can't import %s GUI plugin: %s" % (entry_point, e))
+
+    @classmethod
+    def getPluginModule(cls, name):
+        """ Return the root of a plugin module initialized properly """
+        cls.registerPlugin(name)
+
+        return cls._plugins[name]
 
     @classmethod
     def getPlugin(cls, name):
-        """ Load a given plugin name. """
-        m = importlib.import_module(name)
-
-        # if not cls.__isPlugin(m):
-        #     raise Exception("Invalid plugin '%s'. "
-        #                     "Class Plugin with __metaclass__=PluginMeta "
-        #                     "not found" % name)
-        return m
+        logger.warning("This method will return the plugin class in the future. Please use getPluginModule instead")
+        return cls.getPluginModule(name)
 
     @classmethod
     def refreshPlugin(cls, name):
@@ -539,6 +544,7 @@ class Plugin:
     _supportedVersions = []
     _url = ""  # For the plugin
     _condaActivationCmd = None
+    _tmpName = None # This would be temporary. It will hold the plugin name during the call to defineVariables
 
     def __init__(self):
         self._path = None
@@ -546,13 +552,16 @@ class Plugin:
         self._name = None
 
     @classmethod
-    def _defineVar(cls, varName, defaultValue):
+    def _defineVar(cls, varName, defaultValue, description="Missing", var_type:VarTypes=None):
         """ Internal method to define variables trying to get it from the environment first. """
-        cls._addVar(varName, os.environ.get(varName, defaultValue))
+        cls._addVar(varName, os.environ.get(varName, defaultValue), default=defaultValue, description=description, var_type=var_type)
 
     @classmethod
-    def _addVar(cls, varName, value):
+    def _addVar(cls, varName, value, default=None, description="Missing", var_type:VarTypes=None):
         """ Adds a variable to the local variable dictionary directly. Avoiding the environment"""
+
+        var = Variable(varName, description, cls._tmpName, value, default, var_type=var_type)
+        VariablesRegistry.register(var)
         cls._vars[varName] = value
 
     @classmethod
@@ -576,7 +585,6 @@ class Plugin:
 
         return cls._condaActivationCmd
 
-    @classmethod
     @abstractmethod
     def _defineVariables(cls):
         """ Method to define variables and their default values.
@@ -620,7 +628,7 @@ class Plugin:
     def getActiveVersion(cls, home=None, versions=None):
         """
         Returns the version of the binaries that are currently active.
-        In the current implementation it will be inferred from the \*_HOME
+        In the current implementation it will be inferred from the *_HOME
         variable, so it should contain the version number in it. """
 
         # FIXME: (JMRT) Use the basename might alleviate the issue with matching
@@ -682,7 +690,7 @@ class Plugin:
         tDir = self.getPluginTemplateDir()
         if os.path.exists(tDir):
             for file in glob.glob1(tDir, "*" + SCIPION_JSON_TEMPLATES):
-                t = Template(pluginName, os.path.join(tDir, file))
+                t = LocalTemplate(pluginName, os.path.join(tDir, file))
                 tempList.append(t)
 
         return tempList
@@ -697,38 +705,3 @@ class Plugin:
         if self._inDevelMode is None:
             self._inDevelMode = pwutils.getPythonPackagesFolder() not in self.getPath()
         return self._inDevelMode
-
-
-class PluginInfo:
-    """
-    Information related to a given plugin when it is installed via PIP
-    """
-    def __init__(self, name):
-        try:
-            dist = importlib.metadata.distribution(name)
-            tuples = {k: dist.metadata[k] for k in dist.metadata}
-
-        except Exception:
-            logger.info("Plugin %s seems is not a pip module yet. "
-                  "No metadata found" % name)
-            tuples = message_from_string('Author: plugin in development mode?')
-
-        self._name = name
-        self._metadata = OrderedDict()
-
-        for v in tuples.items():
-            if v[0] == 'Keywords':
-                break
-            self._metadata[v[0]] = v[1]
-
-    def getAuthor(self):
-        return self._metadata.get('Author', "")
-
-    def getAuthorEmail(self):
-        return self._metadata.get('Author-email', '')
-
-    def getHomePage(self):
-        return self._metadata.get('Home-page', '')
-
-    def getKeywords(self):
-        return self._metadata.get('Keywords', '')

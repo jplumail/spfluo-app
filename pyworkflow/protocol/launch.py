@@ -40,8 +40,7 @@ import pyworkflow as pw
 from pyworkflow.exceptions import PyworkflowException
 from pyworkflow.utils import (redStr, greenStr, makeFilePath, join, process,
                               getHostFullName)
-from pyworkflow.protocol.constants import UNKNOWN_JOBID
-
+from pyworkflow.protocol.constants import UNKNOWN_JOBID, STATUS_FAILED, STATUS_FINISHED, STATUS_RUNNING
 
 
 # ******************************************************************
@@ -50,20 +49,28 @@ from pyworkflow.protocol.constants import UNKNOWN_JOBID
 
 def launch(protocol, wait=False, stdin=None, stdout=None, stderr=None):
     """ This function should be used to launch a protocol. """
-    jobId = _launchLocal(protocol, wait, stdin, stdout, stderr)
-    protocol.setJobId(jobId)
-
-    return jobId
+    _launchLocal(protocol, wait, stdin, stdout, stderr)
 
 
 def stop(protocol):
-    """ 
+    """
+    Stop function for three scenarios:
+    - If the queue is not used, kill the main protocol process and its child processes.
+    - If the queue is used and the entire protocol is sent to the queue, cancel the job running the protocol using
+    scancel.
+    - If the queue is used and individual steps are sent to the queue, cancel all active jobs and kill the main protocol
+    process and its child processes.
     """
     if protocol.useQueue() and not protocol.isScheduled():
-        jobId = protocol.getJobId()
-        host = protocol.getHostConfig()
-        cancelCmd = host.getCancelCommand() % {'JOB_ID': jobId}
-        _run(cancelCmd, wait=True)
+        jobIds = protocol.getJobIds()
+        for jobId in jobIds: # Iter even though it contains only one jobId
+            host = protocol.getHostConfig()
+            cancelCmd = host.getCancelCommand() % {'JOB_ID': jobId}
+            logger.info(cancelCmd)
+            _run(cancelCmd, wait=True)
+
+        if protocol.useQueueForSteps():
+            process.killWithChilds(protocol.getPid())
     else:
         process.killWithChilds(protocol.getPid())
 
@@ -78,10 +85,8 @@ def schedule(protocol, initialSleepTime=0, wait=False):
                               protocol.strId(),
                               protocol.getScheduleLog(),
                               initialSleepTime)
-    jobId = _run(cmd, wait)
-    protocol.setJobId(jobId)
-
-    return jobId
+    pid = _run(cmd, wait)
+    protocol.setPid(pid)  # Set correctly the pid
 
 
 # ******************************************************************
@@ -111,7 +116,6 @@ def _launchLocal(protocol, wait, stdin=None, stdout=None, stderr=None):
     :param stdin: stdin object to direct stdin to
     :param stdout: stdout object to send process stdout
     :param stderr: stderr object to send process stderr
-    :return: PID of queue's JOBID
     """
 
     command = '{python} {prot_run} "{project_path}" "{db_path}" {prot_id} "{stdout_log}" "{stderr_log}"'.format(
@@ -130,21 +134,25 @@ def _launchLocal(protocol, wait, stdin=None, stdout=None, stderr=None):
     )
 
     hostConfig = protocol.getHostConfig()
-    useQueue = protocol.useQueue()
 
-    # Empty PID: 0
-    protocol.setPid(0)
+    # Clean Pid and JobIds
+    protocol.cleanExecutionAttributes()
+    protocol._store(protocol._jobId)
 
-    # Check if need to submit to queue    
-    if useQueue and (protocol.getSubmitDict()["QUEUE_FOR_JOBS"] == "N"):
+    # Handle three use cases: one will use the job ID, and the other two will use the process ID.
+    if protocol.useQueueForProtocol():  # Retrieve the job ID and set it; this will be used to control the protocol.
         submitDict = dict(hostConfig.getQueuesDefault())
         submitDict.update(protocol.getSubmitDict())
         submitDict['JOB_COMMAND'] = command
         jobId = _submit(hostConfig, submitDict)
-    else:
-        jobId = _run(command, wait, stdin, stdout, stderr)
-
-    return jobId
+        if jobId is None or jobId == UNKNOWN_JOBID:
+            protocol.setStatus(STATUS_FAILED)
+        else:
+            protocol.setJobId(jobId)
+            protocol.setPid(0)  # we go through the queue, so we rely on the jobId
+    else:  # If not, retrieve and set the process ID (both for normal execution or when using the queue for steps)
+        pId = _run(command, wait, stdin, stdout, stderr)
+        protocol.setPid(pId)
 
 
 def analyzeFormattingTypeError(string, dictionary):
@@ -209,7 +217,7 @@ def _submit(hostConfig, submitDict, cwd=None, env=None):
     out = p.communicate()[0]
     # Try to parse the result of qsub, searching for a number (jobId)
     # Review this, seems to exclusive to torque batch system
-    s = re.search('(\d+)', str(out))
+    s = re.search(r'(\d+)', str(out))
     if p.returncode == 0 and s:
         job = int(s.group(0))
         logger.info("Launched job with id %s" % job)
@@ -218,14 +226,45 @@ def _submit(hostConfig, submitDict, cwd=None, env=None):
         logger.info("Couldn't submit to queue for reason: %s " % redStr(out.decode()))
         return UNKNOWN_JOBID
 
+def _checkJobStatus(hostConfig, jobid):
+    """
+    General method to verify the job status in the queue based on the jobId and host.conf CHECK_COMMAND
+    returns: STATUS_FINISHED (finished) or STATUS_RUNNING (running)
+    """
+    command = hostConfig.getCheckCommand() % {"JOB_ID": jobid}
+    logger.debug("checking job status for %s: %s" % (jobid, command))
+
+    p = Popen(command, shell=True, stdout=PIPE, preexec_fn=os.setsid)
+
+    out = p.communicate()[0].decode(errors='backslashreplace')
+
+    jobDoneRegex = hostConfig.getJobDoneRegex()
+    logger.debug("Queue engine replied %s, variable JOB_DONE_REGEX has %s" % (out, jobDoneRegex))
+    # If nothing is returned we assume job is no longer in queue and thus finished
+    if out == "":
+        logger.warning("Empty response from queue system to job (%s)" % jobid)
+        return STATUS_FINISHED
+
+    # If some string is returned we use the JOB_DONE_REGEX variable (if present) to infer the status
+    elif jobDoneRegex is not None:
+        s = re.search(jobDoneRegex, out)
+        if s:
+            logger.debug("Job (%s) finished" % jobid)
+            return STATUS_FINISHED
+        else:
+            logger.debug("Job (%s) still running" % jobid)
+            return STATUS_RUNNING
+    # If JOB_DONE_REGEX is not defined and queue has returned something we assume that job is still running
+    else:
+        return STATUS_RUNNING
 
 def _run(command, wait, stdin=None, stdout=None, stderr=None):
     """ Execute a command in a subprocess and return the pid. """
     gcmd = greenStr(command)
     logger.info("** Running command: '%s'" % gcmd)
     p = Popen(command, shell=True, stdout=stdout, stderr=stderr)
-    jobId = p.pid
+    pid = p.pid
     if wait:
         p.wait()
 
-    return jobId
+    return pid

@@ -1,7 +1,10 @@
 bibtexparser
 psutil
+configparser
 matplotlib
 numpy
+requests
 pillow
-#git+https://github.com/scipion-em/tkColorPicker@master#egg=tkcolorpicker
 tkcolorpicker
+distro
+importlib-metadata
