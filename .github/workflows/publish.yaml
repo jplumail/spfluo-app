@@ -38,15 +38,12 @@ jobs:
       matrix:
         platform: [x86_64-unknown-linux-gnu, x86_64-pc-windows-msvc]
         gpu: [false, true]
-        python_version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        python_version: ["8", "9", "10", "11", "12"]
     
     outputs:
       spfluo-app-version: ${{ steps.version.outputs.version }}
 
     steps:
-    - name: Set python_version_strip
-      run: echo "python_version_strip=${{ matrix.python_version | split:'.' | join }}" >> $GITHUB_ENV
-      
     - name: Checkout repository
       uses: actions/checkout@v4
     
@@ -68,9 +65,9 @@ jobs:
       if: ${{ !matrix.gpu }}
       run: >
         uv pip compile pyproject.toml
-        -o requirements-cp${{ env.python_version_strip }}-${{ matrix.platform }}.txt
+        -o requirements-cp3${{ env.python_version }}-${{ matrix.platform }}.txt
         --upgrade
-        --python-version ${{ matrix.python_version }}
+        --python-version 3.${{ matrix.python_version }}
         --python-platform ${{ matrix.platform }}
         -c constraints.txt
     
@@ -78,9 +75,9 @@ jobs:
       if: ${{ matrix.gpu }}
       run: >
         uv pip compile pyproject.toml
-        -o requirements-cp${{ env.python_version_strip }}-${{ matrix.platform }}-gpu.txt
+        -o requirements-cp3${{ env.python_version }}-${{ matrix.platform }}-gpu.txt
         --upgrade
-        --python-version ${{ matrix.python_version }}
+        --python-version 3.${{ matrix.python_version }}
         --python-platform ${{ matrix.platform }}
         -c constraints.txt
         --extra=gpu
@@ -102,7 +99,7 @@ jobs:
       if: ${{ !matrix.gpu }}
       uses: actions/upload-artifact@v4
       with:
-        name: requirements-py${{ env.python_version_strip }}-${{ matrix.platform }}
+        name: requirements-py3${{ env.python_version}}-${{ matrix.platform }}
         path: requirements*.txt
         retention-days: 1
     
@@ -110,7 +107,7 @@ jobs:
       if: ${{ matrix.gpu }}
       uses: actions/upload-artifact@v4
       with:
-        name: requirements-py${{ env.python_version_strip }}-${{ matrix.platform }}-gpu
+        name: requirements-py3${{ env.python_version }}-${{ matrix.platform }}-gpu
         path: requirements*-gpu.txt
         retention-days: 1
 
@@ -153,7 +150,7 @@ jobs:
     - name: Download requirements.txt
       uses: actions/download-artifact@v4
       with:
-        name: requirements-py${{ env.python_version_strip }}-${{ matrix.platform }}${{ env.GPU_SUFFIX }}
+        name: requirements-py3${{ env.python_version }}-${{ matrix.platform }}${{ env.GPU_SUFFIX }}
 
     - name: Download pyapp Source
       run: |
