@@ -66,6 +66,12 @@ jobs:
       with:
         path: ~/.cache/uv
         key: uv-cache
+    
+    - name: Cache pip
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: pip-cache
 
     - name: Install pip-tools
       run: pip install uv
