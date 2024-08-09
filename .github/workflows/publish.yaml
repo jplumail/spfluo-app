@@ -39,6 +39,7 @@ jobs:
         platform: [x86_64-unknown-linux-gnu, x86_64-pc-windows-msvc]
         gpu: [false, true]
         python_version: ["8", "9", "10", "11", "12"]
+        max-parallel: 2
     
     outputs:
       spfluo-app-version: ${{ steps.version.outputs.version }}
