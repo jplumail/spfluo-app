@@ -72,6 +72,7 @@ jobs:
         --upgrade
         --python-version ${{ matrix.python_version }}
         --python-platform ${{ matrix.platform }}
+        -c constraints.txt
     
     - name: Run pip-compile gpu
       if: ${{ matrix.gpu }}
@@ -81,6 +82,7 @@ jobs:
         --upgrade
         --python-version ${{ matrix.python_version }}
         --python-platform ${{ matrix.platform }}
+        -c constraints.txt
         --extra=gpu
         --emit-index-url
         --index-url https://pypi.spfluo.ovh/jean/dev-pytorch-cu124/+simple/  # pytorch is in the deps of spfluo-app[gpu], so we need a custom index
