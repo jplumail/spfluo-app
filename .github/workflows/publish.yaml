@@ -47,16 +47,16 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
     
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ '3.' + matrix.python_version }}
+    
     - name: Cache uv
       uses: actions/cache@v4
       with:
         path: ~/.cache/uv
-        key: uv-cache
-    
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'  # Specify the Python version you need
+        key: uv-cache-${{ matrix.python_version }}
 
     - name: Install pip-tools
       run: pip install uv
