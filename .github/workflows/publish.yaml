@@ -9,6 +9,9 @@ jobs:
   publish:
     runs-on: ubuntu-latest
 
+    outputs:
+      spfluo-app-version: ${{ steps.version.outputs.version }}
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -20,7 +23,8 @@ jobs:
 
     - name: Install dependencies
       run: |
-        pip install devpi-client  # Install devpi-client
+        pip install devpi-client
+        pip install hatch
 
     - name: Authenticate and upload to devpi
       run: |
@@ -30,9 +34,16 @@ jobs:
         devpi upload
       env:
         DEVPI_PASSWORD: ${{ secrets.DEVPI_PASSWORD }}
+    
+    - name: Get spfluo-app version
+      id: version
+      run: |
+        pip install hatch
+        echo "version=$(hatch version)" >> "$GITHUB_OUTPUT"
   
   compile-requirements:
     runs-on: ubuntu-latest
+    needs: publish
 
     strategy:
       max-parallel: 1
@@ -41,9 +52,6 @@ jobs:
         gpu: [false, true]
         python_version: ["8", "9", "10", "11", "12"]
     
-    outputs:
-      spfluo-app-version: ${{ steps.version.outputs.version }}
-
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -95,17 +103,11 @@ jobs:
         --extra=gpu
         --emit-index-url
         --index-url https://pypi.spfluo.ovh/jean/dev-pytorch-cu124/+simple/  # pytorch is in the deps of spfluo-app[gpu], so we need a custom index
-
-    - name: Get spfluo-app version
-      id: version
-      run: |
-        pip install hatch
-        echo "version=$(hatch version)" >> "$GITHUB_OUTPUT"
     
     - name: Append to requirements spfluo-app
       run: |
         REQUIREMENT_FILE=$(ls requirements*.txt | head -n 1)
-        echo "spfluo-app==${{ steps.version.outputs.version }}" >> $REQUIREMENT_FILE
+        echo "spfluo-app==${{ needs.publish.outputs.spfluo-app-version }}" >> $REQUIREMENT_FILE
 
     - name: Upload requirements files
       if: ${{ !matrix.gpu }}
@@ -124,7 +126,9 @@ jobs:
         retention-days: 1
 
   build-executable:
-    needs: compile-requirements
+    needs: |
+      publish
+      compile-requirements
     runs-on: windows-latest
     strategy:
       matrix:
@@ -134,7 +138,7 @@ jobs:
     env:
       PYAPP_VERSION: "0.22.0"
       PYAPP_PROJECT_NAME: "spfluo-app"
-      PYAPP_PROJECT_VERSION: ${{ needs.compile-requirements.outputs.spfluo-app-version }}
+      PYAPP_PROJECT_VERSION: ${{ needs.publish.outputs.spfluo-app-version }}
       PYAPP_PROJECT_DEPENDENCY_FILE: "${{ github.workspace }}/requirements-cp311-${{ matrix.platform }}.txt"
       PYAPP_IS_GUI: 1
       PYAPP_EXEC_SCRIPT: "${{ github.workspace }}/src/spfluo_app/__main__.py"
