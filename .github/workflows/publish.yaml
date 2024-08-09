@@ -35,7 +35,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      UV_CONCURRENT_DOWNLOADS: 1
+      UV_CONCURRENT_DOWNLOADS: 25
 
     strategy:
       max-parallel: 1
