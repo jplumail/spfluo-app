@@ -65,7 +65,7 @@ jobs:
       if: ${{ !matrix.gpu }}
       run: >
         uv pip compile pyproject.toml
-        -o requirements-cp3${{ env.python_version }}-${{ matrix.platform }}.txt
+        -o requirements-cp3${{ matrix.python_version }}-${{ matrix.platform }}.txt
         --upgrade
         --python-version 3.${{ matrix.python_version }}
         --python-platform ${{ matrix.platform }}
@@ -75,7 +75,7 @@ jobs:
       if: ${{ matrix.gpu }}
       run: >
         uv pip compile pyproject.toml
-        -o requirements-cp3${{ env.python_version }}-${{ matrix.platform }}-gpu.txt
+        -o requirements-cp3${{ matrix.python_version }}-${{ matrix.platform }}-gpu.txt
         --upgrade
         --python-version 3.${{ matrix.python_version }}
         --python-platform ${{ matrix.platform }}
@@ -99,7 +99,7 @@ jobs:
       if: ${{ !matrix.gpu }}
       uses: actions/upload-artifact@v4
       with:
-        name: requirements-py3${{ env.python_version}}-${{ matrix.platform }}
+        name: requirements-py3${{ matrix.python_version}}-${{ matrix.platform }}
         path: requirements*.txt
         retention-days: 1
     
@@ -107,7 +107,7 @@ jobs:
       if: ${{ matrix.gpu }}
       uses: actions/upload-artifact@v4
       with:
-        name: requirements-py3${{ env.python_version }}-${{ matrix.platform }}-gpu
+        name: requirements-py3${{ matrix.python_version }}-${{ matrix.platform }}-gpu
         path: requirements*-gpu.txt
         retention-days: 1
 
@@ -127,6 +127,7 @@ jobs:
       PYAPP_IS_GUI: 1
       PYAPP_EXEC_SCRIPT: "${{ github.workspace }}/src/spfluo_app/__main__.py"
       PYAPP_PYTHON_VERSION: "3.11"
+      python_version: "11"
       PYAPP_UV_ENABLED: 1 
       TARGET_DIR: "${{ github.workspace }}/target"
 
