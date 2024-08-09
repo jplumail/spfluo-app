@@ -54,7 +54,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ~/.cache/uv
-        key: uv-cache-${{ matrix.platform }}-${{ matrix.gpu }}
+        key: uv-cache
     
     - name: Set up Python
       uses: actions/setup-python@v5
