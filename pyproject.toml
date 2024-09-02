@@ -13,6 +13,7 @@ dependencies = [
   "napari[pyqt5]",
 ]
 dynamic = ["version"]
+requires-python = ">=3.10"
 
 [project.urls]
 Repository = "https://github.com/jplumail/spfluo-app.git"
@@ -25,9 +26,6 @@ source = "vcs"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/spfluo_app"]
-
-[tool.uv.pip]
-index-url = "https://pypi.spfluo.ovh/jean/dev/+simple"
 
 [tool.uv.sources]
 scipion-fluo-singleparticle = { path = "packages/scipion-fluo-singleparticle" }
