@@ -8,8 +8,8 @@ authors = [
   { name="Jean Plumail", email="jplumail@unistra.fr" },
 ]
 dependencies = [
-  "scipion-fluo-singleparticle>=0.1",
-  "scipion-app>=3.3.0.1",
+  "scipion-fluo-singleparticle",
+  "scipion-app",
   "napari[pyqt5]",
 ]
 dynamic = ["version"]
