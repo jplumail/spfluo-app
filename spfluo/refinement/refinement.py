@@ -12,7 +12,11 @@ from tqdm import tqdm
 import spfluo.utils.debug as debug
 from spfluo.utils.array import array_namespace, get_device, to_device, to_numpy
 from spfluo.utils.memory import split_batch
-from spfluo.utils.transform import get_transform_matrix, symmetrize_poses
+from spfluo.utils.transform import (
+    get_transform_matrix,
+    get_transform_matrix_from_pose,
+    symmetrize_poses,
+)
 from spfluo.utils.volume import (
     affine_transform,
     discretize_sphere_uniformly,
@@ -280,6 +284,7 @@ def reconstruction_L2(
             reconstruction_L2,
             "reconstruction",
             sequence=batch,
+            multichannel=True,
         )
         refinement_logger.debug("Saving reconstruction(s) at " + str(p))
 
@@ -637,7 +642,11 @@ def refine(
     if refinement_logger.isEnabledFor(logging.DEBUG):
         im = to_numpy(current_reconstruction)
         p = debug.save_image(
-            im, debug.DEBUG_DIR_REFINEMENT, refine, "initial-reconstruction"
+            im,
+            debug.DEBUG_DIR_REFINEMENT,
+            refine,
+            "initial-reconstruction",
+            multichannel=True,
         )
         refinement_logger.debug("Saving current reconstruction at " + str(p))
         all_recons = [im]
@@ -727,8 +736,29 @@ def refine(
                     )
                     + "]",
                 )
+                patch_j_trans = to_numpy(
+                    affine_transform(
+                        patches[j],
+                        xp.astype(
+                            get_transform_matrix_from_pose((D, D, D), current_poses[j]),
+                            patches.dtype,
+                        ),
+                        multichannel=True,
+                        order=1,
+                    )
+                )
+                debug.save_image(
+                    patch_j_trans,
+                    debug.DEBUG_DIR_REFINEMENT,
+                    refine,
+                    f"step{i+1}-patch{j}-pose",
+                    multichannel=True,
+                )
+
             im = to_numpy(current_reconstruction)
-            p = debug.save_image(im, debug.DEBUG_DIR_REFINEMENT, refine, f"step{i+1}")
+            p = debug.save_image(
+                im, debug.DEBUG_DIR_REFINEMENT, refine, f"step{i+1}", multichannel=True
+            )
             refinement_logger.debug("Saving current reconstruction at " + str(p))
             all_recons.append(im)
 
@@ -743,6 +773,7 @@ def refine(
             refine,
             "all-steps",
             sequence=True,
+            multichannel=True,
         )
         refinement_logger.debug("Saving all reconstructions at " + str(p))
 

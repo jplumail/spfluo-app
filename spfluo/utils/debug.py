@@ -30,14 +30,22 @@ def create_debug_directories():
 
 
 def save_image(
-    image: np.ndarray, directory: pathlib.Path, func: Any, *args: str, sequence=False
+    image: np.ndarray,
+    directory: pathlib.Path,
+    func: Any,
+    *args: str,
+    sequence=False,
+    multichannel=False,
 ) -> str:
     create_debug_directories()
     ts = f"{datetime.now().timestamp():.3f}"
     names = "_".join(args)
     path = str(directory / (ts + "_" + func.__name__ + "_" + names)) + ".tiff"
+    axes = "ZYX"
+    if multichannel:
+        axes = "CZYX"
     if sequence:
-        metadata = {"axes": "TZYX"}
-        tifffile.imwrite(path, image, metadata=metadata, imagej=True)
-    tifffile.imwrite(path, image)
+        axes = "T" + axes
+    assert image.ndim == len(axes), f"len({image.shape=} doesnt match {axes=}"
+    tifffile.imwrite(path, image, metadata={"axes": axes})
     return path
