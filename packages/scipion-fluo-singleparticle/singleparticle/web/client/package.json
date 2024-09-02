@@ -1,0 +1,18 @@
+{
+  "name": "scipion-fluo-singleparticle-webclient",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "start": "parcel",
+    "build": "parcel build"
+  },
+  "author": "Jean Plumail",
+  "license": "ISC",
+  "dependencies": {
+    "chart.js": "^4.4.2"
+  },
+  "devDependencies": {
+    "parcel": "^2.12.0",
+    "process": "^0.11.10"
+  }
+}

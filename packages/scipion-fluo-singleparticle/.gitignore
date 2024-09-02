@@ -1,0 +1,22 @@
+# Python compilation files
+*.pyc
+build/
+dist/
+
+# Ignore temporary packaging folder
+*.egg-info
+
+# IDE files
+.idea
+.vscode
+
+stubs/
+typings/
+
+# java
+singleparticle/_vendored/TiPi/target
+singleparticle/_vendored/TiPi/dependency-reduced-pom.xml
+
+# web
+.parcel-cache
+node_modules

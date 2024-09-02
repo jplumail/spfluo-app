@@ -1,0 +1,33 @@
+[version]
+source = "vcs"
+
+[build.targets.sdist]
+exclude = [
+    "/.github",
+]
+
+[build.targets.wheel]
+artifacts = [
+  "/singleparticle/_vendored/TiPi/target/TiPi-for-spfluo-*.jar",
+  "/singleparticle/web/client/dist/*"
+]
+packages = ["singleparticle"]
+
+[build.targets.wheel.hooks.custom]
+
+[envs.default]
+installer = "pip"
+dependencies = [
+  "scipion-app",
+  "napari[pyqt5]"
+]
+
+[envs.default.env-vars]
+SCIPION_DOMAIN = "pwfluo"
+PIP_INDEX_URL = "https://pypi.spfluo.ovh/jean/dev/+simple"
+
+[[envs.default.matrix]]
+python = ["3.8", "3.9", "3.10", "3.11", "3.12"]
+
+[envs.default.scripts]
+test = "python -m scipion tests singleparticle.tests.test_protocols_classic_workflow --run"
