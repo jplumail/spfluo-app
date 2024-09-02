@@ -1,0 +1,59 @@
+V3.3.0
+developers:
+ - Exist code is not masked when running xmipp, relion etc commands
+ - CommandDef and CondaCommandDef assist in the definition of commands for the binaries
+V3.2.0
+ - Update message is green now
+ - SCIPION_DONT_INSTALL_BINARIES is used in the plugin manager to initialize "Skip binaries" check box
+ - Do not raise error when one of the CUDA env vars is not set
+v3.1.0
+users:
+ - Fixing an error related with the Plugin Manager when clicking the plugin treeview
+ - Fix workflow tutorial intro.
+ - New variable (flag) to define if binaries are installed by default or not --> SCIPION_DONT_INSTALL_BINARIES (any value will deactivate installation of binaries
+ - scipion3 config -p <relion> (or any other): shows plugin url too
+ - SetOfVolumes and SetOfParticles have DataViewer as the default one.
+
+developers:
+    Update the methods checkLib and addPackage to improve the installation of plugins with libraries dependencies.
+
+v3.0.12
+users:
+  old config file is now backed up (at backup/scipion.conf.YYmmDDHHMMSS) always after any scipion config command that updates the config files.
+
+developers:
+  protocol.conf is not handled anymore in the config.
+  tar files are allowed.
+  compressed file without a "folder inside" should also work.
+
+v3.0.11
+users:
+   Variables in the environment take priority than those same ones in the config file
+   Plugin manager: Installed plugins and its variables are initialized before loading (fixes some installation issues)
+   2 mode alias added: install => installp and uninstall => uninstallp
+   1 mode added: pip => to run any pip command. Shortcut to "scipion3 run pip ..." => Now "scipion3 pip ..."
+
+v3.0.10
+users:
+    Added the option to import a tamplate from the project window
+
+v3.0.9
+developers:
+    use its own logger intstead of ScipionLogger for the plugin manager
+    Added the variable SCIPION_PRIORITY_PACKAGE_LIST that is used in the view
+    protocols in order to load first the plugins that contains the main
+    protocols.conf sections. This variable is defined as string with the packages names separated by a space.
+    e.g: SCIPION_PRIORITY_PACKAGE_LIST = "pwfluo tomo cistem"
+
+v3.0.8
+
+users:
+  Skip binaries when installing or uninstalling plugins using the Plugin Manager
+  Plugin manager properly locks context menu when installation is active
+
+developers:
+
+  Remove dataset initialization
+  Plugin manager loads in the same main process (useful for straight debug)
+
+
