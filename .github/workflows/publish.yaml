@@ -72,7 +72,7 @@ jobs:
   
   compile-requirements:
     runs-on: ubuntu-latest
-    needs: publish
+    needs: [publish, publish-packages]
 
     strategy:
       max-parallel: 1
