@@ -2,7 +2,67 @@
 requires = ["setuptools>=42.0.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
+[project]
+name = "napari-bbox"
+version = "0.0.7.post1"
+description = "A new layer for bounding boxes in 2+ dimensions"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { file = "LICENSE" }
+authors = [
+    { name = "David Bauer", email = "dbauer@brc.hu" },
+]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Framework :: napari",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: BSD License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Image Processing",
+]
+dependencies = [
+    "numpy",
+    "magicgui",
+    "qtpy",
+    "napari>=0.4.15",
+]
 
+[project.urls]
+"Bug Tracker" = "https://github.com/bauerdavid/napari-bbox/issues"
+"Documentation" = "https://github.com/bauerdavid/napari-bbox#README.md"
+"Source Code" = "https://github.com/bauerdavid/napari-bbox"
+"User Support" = "https://github.com/bauerdavid/napari-bbox/issues"
+
+[project.optional-dependencies]
+testing = [
+    "tox",
+    "pytest",
+    "pytest-cov",
+    "pytest-qt",
+    "napari",
+    "pyqt5",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.napari.manifest]
+napari-bbox = "napari_bbox:napari.yaml"
+
+[tool.setuptools.package-data]
+"*" = ["*.yaml", "*.svg", "*.qss"]
 
 [tool.black]
 line-length = 79

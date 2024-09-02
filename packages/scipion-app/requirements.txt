@@ -1,4 +1,0 @@
-scipion-fluo
-outdated==0.2.2
-typing_extensions
-pip

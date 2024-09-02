@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scipion-app"
+version = "0.0.1"  # version is wrong
+description = "Scipion application. For processing cryo electron microscopy images and hybrid modelling"
+readme = "README.rst"
+requires-python = ">=3.6"
+keywords = ["scipion", "imageprocessing", "scipion-3.0"]
+authors = [
+    {name = "Scipion team", email = "scipion@cnb.csic.es"},
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+]
+
+dependencies = [
+    "scipion-fluo",
+    "outdated==0.2.2",
+    "typing_extensions",
+    "pip"
+]
+
+[project.urls]
+"Homepage" = "https://github.com/scipion-em/scipion-app"
+
+[project.scripts]
+scipion = "scipion.__main__:main"
+
+[project.entry-points."pyworkflow.guiplugin"]
+guiplugin = "scipion.guiplugin"
+
+[tool.setuptools.package-data]
+"scipion" = ["templates/*.template", "templates/*.json"]
+
+[tool.uv.sources]
+scipion-fluo = {workspace = true}
