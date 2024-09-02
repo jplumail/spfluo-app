@@ -1,5 +1,6 @@
 [version]
 source = "vcs"
+raw-options = { root = "../.." }
 
 [build.hooks.vcs]
 version-file = "src/napari_spfluo/_version.py"

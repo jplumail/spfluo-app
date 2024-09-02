@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "napari-spfluo"
-version = "0.0.1"
+dynamic = ["version"]
 description = "A plugin to use spfluo within napari"
 readme = "README.md"
 license = "MIT"
@@ -59,4 +59,4 @@ line-length = 79
 target-version = ['py39', 'py310', 'py311']
 
 [tool.uv.sources]
-spfluo = {workspace = true}
+spfluo = {path = "../spfluo"}

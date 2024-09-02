@@ -1,9 +1,12 @@
 [version]
 source = "vcs"
+raw-options = { root = "../.." }
 
 [build.targets.sdist]
 exclude = [
     "/.github",
+    "/.gitignore",
+    "/.pre-commit-config.yaml",
 ]
 
 [build.targets.wheel]

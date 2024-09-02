@@ -18,7 +18,7 @@ dependencies = [
   "typing-extensions ; python_version < '3.10'",
   "ome_types",
 ]
-version = "0.0.1"
+dynamic = ["version"]
 authors = [
   { name="Jean Plumail", email="jplumail@unistra.fr" },
 ]
@@ -32,9 +32,6 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-gpu = [
-  "torch",
-]
 dev = [
   "pytest",
   "pytest-mock",
@@ -51,7 +48,7 @@ ab-initio-reconstruction = [
   "SimpleITK",
 ]
 picking = [
-  "spfluo[gpu]",
+  "torch",
   "tensorboard",
   "albumentations",
 ]
@@ -76,4 +73,4 @@ markers = [
 ]
 
 [tool.uv.sources]
-napari-bbox = {workspace = true}
+napari-bbox = {path = "../napari-bbox"}

@@ -1,5 +1,6 @@
 [version]
 source = "vcs"
+raw-options = { root = "../.." }
 
 [build.targets.wheel]
 packages = ["spfluo"]

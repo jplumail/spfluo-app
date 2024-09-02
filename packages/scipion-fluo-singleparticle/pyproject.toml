@@ -8,7 +8,7 @@ description = "Scipion plugin for single particle reconstruction."
 readme = "README.rst"
 authors = [{name = "Jean Plumail", email = "jplumail@unistra.fr"}]
 keywords = ["scipion", "fluorescence", "imageprocessing", "scipion-3.0"]
-version = "0.0.1"
+dynamic = ["version"]
 dependencies = [
     "scipion-pyworkflow",
     "scipion-fluo",
@@ -27,7 +27,7 @@ Repository = "https://github.com/jplumail/scipion-fluo-singleparticle"
 singleparticle = "singleparticle"
 
 [tool.uv.sources]
-scipion-pyworkflow = {workspace=true}
-scipion-fluo = {workspace=true}
-spfluo = {workspace=true}
-napari-spfluo = {workspace=true}
+scipion-pyworkflow = {path="../scipion-pyworkflow"}
+scipion-fluo = {path="../scipion-fluo"}
+spfluo = {path="../spfluo"}
+napari-spfluo = {path="../napari-spfluo"}

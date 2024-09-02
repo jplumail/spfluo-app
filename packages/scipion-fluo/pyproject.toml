@@ -7,7 +7,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "scipion-fluo"
-version = "0.0.1"
+dynamic = ["version"]
 requires-python = ">=3.8"
 description = "Base pyworkflow plugin for Fluorescence image processing"
 readme = "README.rst"
@@ -35,4 +35,4 @@ scipion-fluo = "pwfluo.__main__:main"
 pwfluo = "pwfluo"
 
 [tool.uv.sources]
-scipion-pyworkflow = {workspace = true}
+scipion-pyworkflow = {path = "../scipion-pyworkflow"}

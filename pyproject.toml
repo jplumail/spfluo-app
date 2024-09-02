@@ -20,9 +20,6 @@ Repository = "https://github.com/jplumail/spfluo-app.git"
 [project.gui-scripts]
 spfluo-app = "spfluo_app:main"
 
-[project.optional-dependencies]
-gpu = ["spfluo[gpu]"]
-
 [tool.hatch.version]
 source = "vcs"
 
@@ -33,9 +30,6 @@ packages = ["src/spfluo_app"]
 index-url = "https://pypi.spfluo.ovh/jean/dev/+simple"
 
 [tool.uv.sources]
-scipion-fluo-singleparticle = { workspace = true }
-scipion-app = { workspace = true }
-spfluo = { workspace = true }
-
-[tool.uv.workspace]
-members = ["packages/*"]
+scipion-fluo-singleparticle = { path = "packages/scipion-fluo-singleparticle" }
+scipion-app = { path = "packages/scipion-app" }
+spfluo = { path = "packages/spfluo" }
