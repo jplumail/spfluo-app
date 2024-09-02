@@ -1,0 +1,6 @@
+prune examples/data
+prune spfluo/data/generated
+exclude spfluo/data/sample_centriole_point_cloud.csv
+
+prune spfluo/picking/notebooks
+prune spfluo/refinement/test/data

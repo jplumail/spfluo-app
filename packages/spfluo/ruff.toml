@@ -1,0 +1,16 @@
+exclude = ["examples", "spfluo/_vendored/*"]
+
+[lint]
+select = [
+    "E", "F", # default
+    "I", # isort
+    "TID251",
+]
+
+[lint.isort]
+known-first-party = ["spfluo"]
+
+[lint.per-file-ignores]
+"spfluo/picking/*" = ["E501"]
+"spfluo/segmentation/unet_3d.py" = ["E501"]
+"spfluo/segmentation/losses.py" = ["E501"]

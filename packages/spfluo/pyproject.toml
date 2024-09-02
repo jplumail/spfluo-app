@@ -1,0 +1,76 @@
+[build-system]
+requires = [
+    "hatchling",
+    "hatch-vcs"
+]
+build-backend = "hatchling.build"
+
+[project]
+name = "spfluo"
+dependencies = [
+  "numpy",
+  "array_api_compat>=1.6",
+  "scipy",
+  "scikit-image>=0.21",
+  "scikit-learn",
+  "tqdm",
+  "matplotlib",
+  "typing-extensions ; python_version < '3.10'",
+  "ome_types",
+]
+dynamic = ["version"]
+authors = [
+  { name="Jean Plumail", email="jplumail@unistra.fr" },
+]
+description = "SPFluo package"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.optional-dependencies]
+gpu = [
+  "torch",
+]
+dev = [
+  "pytest",
+  "pytest-mock",
+  "hypothesis",
+  "pyfigtree",
+  "scikit-image[data]",
+  "pytest-qt",
+]
+array-api-strict = ["array-api-strict"]
+manual-picking = [
+  "spfluo[visualisation]"
+]
+ab-initio-reconstruction = [
+  "SimpleITK",
+]
+picking = [
+  "spfluo[gpu]",
+  "tensorboard",
+  "albumentations",
+]
+visualisation = [
+  "napari>=0.4.18,<0.4.19",
+  "napari-bbox",
+  "numpy<2"
+]
+all = [
+  "spfluo[manual-picking]",
+  "spfluo[ab-initio-reconstruction]",
+  "spfluo[picking]",
+  "spfluo[visualisation]"
+]
+
+[project.urls]
+Repository = "https://github.com/jplumail/spfluo.git"
+
+[tool.pytest.ini_options]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]
