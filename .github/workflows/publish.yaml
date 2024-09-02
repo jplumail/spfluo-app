@@ -103,7 +103,7 @@ jobs:
         uv pip compile pyproject.toml
         -o requirements.txt
         --universal
-        -i https://pypi.spfluo.ovh/jean/dev/+simple
+        -i https://pypi.spfluo.ovh/jean/dev-pytorch-cpu/+simple
         --emit-index-url
         --no-sources
     
@@ -112,7 +112,7 @@ jobs:
         uv pip compile pyproject.toml
         -o requirements-gpu.txt
         --universal
-        -i https://pypi.spfluo.ovh/jean/dev-pytorch-cu124/+simple/  # torch is in the deps we need a custom index to enable CUDA
+        -i https://pypi.spfluo.ovh/jean/dev-pytorch-cu124/+simple/
         --emit-index-url
         --no-sources
     
