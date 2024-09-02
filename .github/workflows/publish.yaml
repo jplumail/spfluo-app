@@ -80,7 +80,8 @@ jobs:
     
     - name: Set up Python
       uses: actions/setup-python@v5
-      with: '3.11'
+      with:
+        python-version: '3.11'
     
     - name: Cache uv
       uses: actions/cache@v4
