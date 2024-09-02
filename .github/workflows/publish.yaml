@@ -73,12 +73,6 @@ jobs:
   compile-requirements:
     runs-on: ubuntu-latest
     needs: [publish, publish-packages]
-
-    strategy:
-      matrix:
-        platform: [x86_64-unknown-linux-gnu, x86_64-pc-windows-msvc]
-        gpu: [false, true]
-        python_version: ["9", "10", "11", "12"]
     
     steps:
     - name: Checkout repository
@@ -86,12 +80,7 @@ jobs:
     
     - name: Set up Python
       uses: actions/setup-python@v5
-      with:
-        python-version: |
-          3.9
-          3.10
-          3.11
-          3.12
+      with: '3.11'
     
     - name: Cache uv
       uses: actions/cache@v4
@@ -109,26 +98,22 @@ jobs:
       run: pip install uv
 
     - name: Run pip-compile
-      if: ${{ !matrix.gpu }}
       run: >
         uv pip compile pyproject.toml
-        -o requirements-cp3${{ matrix.python_version }}-${{ matrix.platform }}.txt
-        --upgrade
-        --python-version 3.${{ matrix.python_version }}
-        --python-platform ${{ matrix.platform }}
-        -c constraints.txt
+        -o requirements.txt
+        --universal
+        -i https://pypi.spfluo.ovh/jean/dev/+simple
+        --emit-index-url
+        --no-sources
     
     - name: Run pip-compile gpu
-      if: ${{ matrix.gpu }}
       run: >
         uv pip compile pyproject.toml
-        -o requirements-cp3${{ matrix.python_version }}-${{ matrix.platform }}-gpu.txt
-        --upgrade
-        --python-version 3.${{ matrix.python_version }}
-        --python-platform ${{ matrix.platform }}
-        -c constraints.txt
+        -o requirements-gpu.txt
+        --universal
+        -i https://pypi.spfluo.ovh/jean/dev-pytorch-cu124/+simple/  # torch is in the deps we need a custom index to enable CUDA
         --emit-index-url
-        --index-url https://pypi.spfluo.ovh/jean/dev-pytorch-cu124/+simple/  # torch is in the deps we need a custom index to enable CUDA
+        --no-sources
     
     - name: Append to requirements spfluo-app
       run: |
@@ -136,19 +121,17 @@ jobs:
         echo "spfluo-app==${{ needs.publish.outputs.spfluo-app-version }}" >> $REQUIREMENT_FILE
 
     - name: Upload requirements files
-      if: ${{ !matrix.gpu }}
       uses: actions/upload-artifact@v4
       with:
-        name: requirements-py3${{ matrix.python_version}}-${{ matrix.platform }}
-        path: requirements*.txt
+        name: requirements
+        path: requirements.txt
         retention-days: 1
     
     - name: Upload requirements files gpu
-      if: ${{ matrix.gpu }}
       uses: actions/upload-artifact@v4
       with:
-        name: requirements-py3${{ matrix.python_version }}-${{ matrix.platform }}-gpu
-        path: requirements*-gpu.txt
+        name: requirements-gpu
+        path: requirements-gpu.txt
         retention-days: 1
 
   build-executable:
@@ -163,7 +146,7 @@ jobs:
       PYAPP_VERSION: "0.22.0"
       PYAPP_PROJECT_NAME: "spfluo-app"
       PYAPP_PROJECT_VERSION: ${{ needs.publish.outputs.spfluo-app-version }}
-      PYAPP_PROJECT_DEPENDENCY_FILE: "${{ github.workspace }}/requirements-cp311-${{ matrix.platform }}.txt"
+      PYAPP_PROJECT_DEPENDENCY_FILE: "${{ github.workspace }}/requirements.txt"
       PYAPP_IS_GUI: 1
       PYAPP_EXEC_SCRIPT: "${{ github.workspace }}/src/spfluo_app/__main__.py"
       PYAPP_PYTHON_VERSION: "3.11"
@@ -180,18 +163,18 @@ jobs:
       run: |
         if ($${{ matrix.gpu }}) {
             echo "PYAPP_PIP_EXTRA_ARGS=--index-url=https://pypi.spfluo.ovh/jean/dev-pytorch-cu124/+simple" >> $env:GITHUB_ENV
-            echo "PYAPP_PROJECT_DEPENDENCY_FILE=${{ github.workspace }}/requirements-cp311-${{ matrix.platform }}-gpu.txt" >> $env:GITHUB_ENV
+            echo "PYAPP_PROJECT_DEPENDENCY_FILE=${{ github.workspace }}/requirements-gpu.txt" >> $env:GITHUB_ENV
             echo "GPU_SUFFIX=-gpu" >> $env:GITHUB_ENV
         } else {
             echo "PYAPP_PIP_EXTRA_ARGS=--index-url=https://pypi.spfluo.ovh/jean/dev/+simple" >> $env:GITHUB_ENV
-            echo "PYAPP_PROJECT_DEPENDENCY_FILE=${{ github.workspace }}/requirements-cp311-${{ matrix.platform }}.txt" >> $env:GITHUB_ENV
+            echo "PYAPP_PROJECT_DEPENDENCY_FILE=${{ github.workspace }}/requirements.txt" >> $env:GITHUB_ENV
             echo "GPU_SUFFIX=" >> $env:GITHUB_ENV
         }
         
     - name: Download requirements.txt
       uses: actions/download-artifact@v4
       with:
-        name: requirements-py3${{ env.python_version }}-${{ matrix.platform }}${{ env.GPU_SUFFIX }}
+        name: requirements${{ env.GPU_SUFFIX }}
 
     - name: Download pyapp Source
       run: |
