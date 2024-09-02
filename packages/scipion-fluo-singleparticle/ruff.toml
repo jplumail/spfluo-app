@@ -1,0 +1,4 @@
+select = [
+    "E", "F", # default
+    "I", # isort
+]

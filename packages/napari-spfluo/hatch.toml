@@ -1,0 +1,21 @@
+[version]
+source = "vcs"
+
+[build.hooks.vcs]
+version-file = "src/napari_spfluo/_version.py"
+
+
+[build.targets.sdist]
+include = [
+    "/src",
+]
+
+[envs.hatch-test]
+installer = "uv"
+features = ["testing"]
+
+[envs.hatch-test.env-vars]
+UV_INDEX_URL = "https://pypi.spfluo.ovh/jean/dev/+simple"  # need custom index because spfluo is private
+
+[[envs.hatch-test.matrix]]
+python = ["3.8", "3.9", "3.10", "3.11"]

@@ -1,0 +1,5 @@
+extend = "../../ruff.toml"
+
+[lint.flake8-tidy-imports.banned-api]
+"torch".msg = "Use the array api instead."
+"cupy".msg = "Use the array api instead."

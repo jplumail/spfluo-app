@@ -1,0 +1,10 @@
+bibtexparser
+psutil
+configparser
+matplotlib
+numpy
+requests
+pillow
+tkcolorpicker
+distro
+importlib-metadata

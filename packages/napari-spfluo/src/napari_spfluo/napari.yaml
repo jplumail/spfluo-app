@@ -1,0 +1,66 @@
+name: napari-spfluo
+display_name: single particle
+# use 'hidden' to remove plugin from napari hub search results
+visibility: hidden
+# see https://napari.org/stable/plugins/manifest.html for valid categories
+categories: ["Annotation", "Segmentation", "Acquisition"]
+contributions:
+  commands:
+    - id: napari-spfluo.make_generated_anisotropic
+      python_name: napari_spfluo._sample_data:make_generated_anisotropic
+      title: Load sample data from single particle
+    - id: napari-spfluo.make_ab_initio_widget
+      python_name: napari_spfluo:AbInitioWidget
+      title: Make ab initio Container widget
+    - id: napari-spfluo.make_manual_ab_initio_widget
+      python_name: napari_spfluo:ManualAbInitioWidget
+      title: Make manual ab initio Container widget
+    - id: napari-spfluo.make_symmetrize_widget
+      python_name: napari_spfluo:SymmetrizeWidget
+      title: Make symmetrize widget
+    - id: napari-spfluo.make_rotate_widget
+      python_name: napari_spfluo:RotateWidget
+      title: Make rotate widget
+    - id: napari-spfluo.make_separate_widget
+      python_name: napari_spfluo:run_separate
+      title: Make separate widget
+    - id: napari-spfluo.make_dbscan_widget
+      python_name: napari_spfluo:run_dbscan
+      title: Make DBSCAN widget
+    - id: napari-spfluo.make_hdbscan_widget
+      python_name: napari_spfluo:run_hdbscan
+      title: Make HDBSCAN widget
+    - id: napari-spfluo.make_threshold_widget
+      python_name: napari_spfluo:threshold_widget
+      title: Make Threshold widget
+    - id: napari-spfluo.make_merge_labels_widget
+      python_name: napari_spfluo:MergeLabelsWidget
+      title: Make MergeLabels widget
+    - id: napari-spfluo.make_filter_widget
+      python_name: napari_spfluo:FilterLayerWidget
+      title: Make FilterSet widget
+  sample_data:
+    - command: napari-spfluo.make_generated_anisotropic
+      display_name: generate anisotropic data
+      key: anisotropic
+  widgets:
+    - command: napari-spfluo.make_ab_initio_widget
+      display_name: Ab initio reconstruction
+    - command: napari-spfluo.make_manual_ab_initio_widget
+      display_name: Manual ab initio reconstruction
+    - command: napari-spfluo.make_symmetrize_widget
+      display_name: Symmetrize
+    - command: napari-spfluo.make_rotate_widget
+      display_name: Rotate
+    - command: napari-spfluo.make_separate_widget
+      display_name: Separate
+    - command: napari-spfluo.make_dbscan_widget
+      display_name: DBSCAN
+    - command: napari-spfluo.make_hdbscan_widget
+      display_name: HDBSCAN
+    - command: napari-spfluo.make_threshold_widget
+      display_name: Threshold
+    - command: napari-spfluo.make_merge_labels_widget
+      display_name: Merge labels
+    - command: napari-spfluo.make_filter_widget
+      display_name: Filter set

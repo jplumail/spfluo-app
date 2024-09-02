@@ -1,0 +1,6 @@
+ include *.rst
+ include *.txt
+
+# Include image files under resources
+ include pyworkflow/resources/*
+ include pyworkflow/resources/showj/*
