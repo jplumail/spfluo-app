@@ -136,7 +136,7 @@ jobs:
         retention-days: 1
 
   build-executable:
-    needs: [compile-requirements]
+    needs: [publish, compile-requirements]
     runs-on: windows-latest
     strategy:
       matrix:
