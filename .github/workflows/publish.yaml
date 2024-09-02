@@ -140,7 +140,6 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        platform: [x86_64-pc-windows-msvc]
         gpu: [false, true]
     
     env:
