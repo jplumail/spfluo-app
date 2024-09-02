@@ -256,7 +256,7 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
 
         # Output 2 : particles rotated
         output_particles = self._createSetOfParticles()
-        transforms = {i: t for i, t in read_poses(self.final_poses)}
+        transforms = {name: t for name, t in read_poses(self.final_poses)}
         for particle in self.inputParticles.get():
             particle: Particle
             rotated_transform = transforms[

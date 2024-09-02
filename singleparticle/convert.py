@@ -117,7 +117,7 @@ def read_poses(poses_csv: str):
     with open(poses_csv, "r") as f:
         data = csv.reader(f)
         next(data)
-        for i, row in enumerate(data):
+        for row in data:
             t = Transform()
             matrix = np.eye(4)
             matrix[:3, :3] = Rotation.from_euler(
@@ -125,7 +125,7 @@ def read_poses(poses_csv: str):
             ).as_matrix()
             t.setMatrix(matrix)
             t.setShifts(float(row[4]), float(row[5]), float(row[6]))
-            yield i, t
+            yield row[0], t
 
 
 def save_boundingboxes(coords: SetOfCoordinates3D, csv_file: str):
@@ -178,7 +178,7 @@ def _save_poses(
     particles_paths: list[str],
     prefix: str = "",
 ):
-    mapping_particles_to_poses: dict[int, int] = {}
+    mapping_particles_to_poses: dict[int, str] = {}
     with open(poses_path, "w") as f:
         csvwriter = csv.writer(f)
         csvwriter.writerow(["index", "axis-1", "axis-2", "axis-3", "size"])
@@ -192,7 +192,9 @@ def _save_poses(
                 )
             )
             trans = list(map(str, p.getTransform().getShifts().tolist()))
-            mapping_particles_to_poses[p.getObjId()] = i
+            mapping_particles_to_poses[p.getObjId()] = os.path.join(
+                prefix, os.path.basename(path)
+            )
             csvwriter.writerow(
                 [os.path.join(prefix, os.path.basename(path))] + euler_angles + trans
             )

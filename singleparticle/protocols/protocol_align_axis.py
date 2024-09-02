@@ -74,7 +74,7 @@ class ProtSingleParticleAlignAxis(Protocol, ProtFluoBase):
         self.mapping_particles_poses = save_poses(
             self.poses_csv,
             self.input_particles,
-            ["" for i in range(len(list(self.input_particles)))],
+            [p.getImgId() for p in self.input_particles],
         )
 
     def alignStep(self):
@@ -111,7 +111,7 @@ class ProtSingleParticleAlignAxis(Protocol, ProtFluoBase):
         # Rotated particles
         output_particles = self._createSetOfParticles()
 
-        transforms = {i: t for i, t in read_poses(self.rotated_poses_csv)}
+        transforms = {name: t for name, t in read_poses(self.rotated_poses_csv)}
         for particle in self.input_particles:
             particle: Particle
 
