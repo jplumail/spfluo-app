@@ -170,6 +170,15 @@ class ProtSingleParticleAbInitio(Protocol, ProtFluoBase):
             help="Increase to get faster results. "
             "However, a value too high can break the algorithm.",
         )
+        form.addParam(
+            "dec_prop",
+            params.FloatParam,
+            default=1.2,
+            label="alpha r",
+            expertLevel=params.LEVEL_ADVANCED,
+            help="Decline rate of uniform distribution of importance sampling. "
+            "A higher value means a faster convergence of the angles.",
+        )
 
     # --------------------------- STEPS functions ------------------------------
     def _insertAllSteps(self):
@@ -233,6 +242,7 @@ class ProtSingleParticleAbInitio(Protocol, ProtFluoBase):
         args += ["--N_axes", f"{self.N_axes.get()}"]
         args += ["--N_rot", f"{self.N_rot.get()}"]
         args += ["--eps", "-100"]
+        args += ["--dec_prop", self.dec_prop.get()]
         if self.gpu.get():
             args += ["--gpu"]
             args += ["--interp_order", str(1)]
