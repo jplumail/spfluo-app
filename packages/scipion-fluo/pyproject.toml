@@ -35,4 +35,4 @@ scipion-fluo = "pwfluo.__main__:main"
 pwfluo = "pwfluo"
 
 [tool.uv.sources]
-scipion-pyworkflow = {path = "../scipion-pyworkflow"}
+scipion-pyworkflow = {workspace = true}

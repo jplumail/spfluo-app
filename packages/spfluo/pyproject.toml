@@ -32,15 +32,6 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-dev = [
-  "pytest",
-  "pytest-mock",
-  "hypothesis",
-  "pyfigtree",
-  "scikit-image[data]",
-  "pytest-qt",
-]
-array-api-strict = ["array-api-strict"]
 manual-picking = [
   "spfluo[visualisation]"
 ]
@@ -72,5 +63,18 @@ markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
 ]
 
+[tool.uv]
+dev-dependencies = [
+  "pytest",
+  "pytest-mock",
+  "hypothesis",
+  "pyfigtree",
+  "scikit-image[data]",
+  "pytest-qt",
+  "pyqt5",
+  "array-api-strict",
+  "spfluo[all]",
+]
+
 [tool.uv.sources]
-napari-bbox = {path = "../napari-bbox"}
+napari-bbox = {workspace = true}

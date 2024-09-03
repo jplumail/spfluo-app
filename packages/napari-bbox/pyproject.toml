@@ -41,16 +41,6 @@ dependencies = [
 "Source Code" = "https://github.com/bauerdavid/napari-bbox"
 "User Support" = "https://github.com/bauerdavid/napari-bbox/issues"
 
-[project.optional-dependencies]
-testing = [
-    "tox",
-    "pytest",
-    "pytest-cov",
-    "pytest-qt",
-    "napari",
-    "pyqt5",
-]
-
 [tool.setuptools]
 package-dir = {"" = "src"}
 include-package-data = true
@@ -70,3 +60,13 @@ line-length = 79
 [tool.isort]
 profile = "black"
 line_length = 79
+
+[tool.uv]
+dev-dependencies = [
+    "tox",
+    "pytest",
+    "pytest-cov",
+    "pytest-qt",
+    "napari",
+    "pyqt5",
+]

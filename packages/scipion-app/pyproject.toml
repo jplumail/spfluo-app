@@ -40,4 +40,4 @@ guiplugin = "scipion.guiplugin"
 "scipion" = ["templates/*.template", "templates/*.json"]
 
 [tool.uv.sources]
-scipion-fluo = {path = "../scipion-fluo"}
+scipion-fluo = {workspace = true}

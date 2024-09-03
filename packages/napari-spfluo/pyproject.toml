@@ -35,15 +35,6 @@ dependencies = [
     "spfluo[ab-initio-reconstruction]",
 ]
 
-[project.optional-dependencies]
-testing = [
-    "napari",
-    "pyqt5",
-    "pytest",
-    "pytest-cov",
-    "pytest-qt",
-]
-
 [project.entry-points."napari.manifest"]
 napari-spfluo = "napari_spfluo:napari.yaml"
 
@@ -58,5 +49,14 @@ Homepage = "https://github.com/jplumail/napari-spfluo"
 line-length = 79
 target-version = ['py39', 'py310', 'py311']
 
+[tool.uv]
+dev-dependencies = [
+    "napari",
+    "pyqt5",
+    "pytest",
+    "pytest-cov",
+    "pytest-qt",
+]
+
 [tool.uv.sources]
-spfluo = {path = "../spfluo"}
+spfluo = {workspace = true}

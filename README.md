@@ -6,9 +6,11 @@ This is the main repository of the `spfluo-app`.
 
 `spfluo-app` is built on top of a fork [Scipion](https://scipion.i2pc.es/), so that it runs on Windows.
 
-nvidia gpu compatibility: https://docs.nvidia.com/deploy/cuda-compatibility/#cuda-11-and-later-defaults-to-minor-version-compatibility
+## Install
 
-## Run
+Go to `spfluo-app` [installation page](https://spfluo.icube.unistra.fr/en/usage/installation.html) and follow the instructions. 
+
+## Install for developement
 
 Run with uv:
 ```sh

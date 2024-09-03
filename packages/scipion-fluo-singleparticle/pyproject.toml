@@ -27,7 +27,7 @@ Repository = "https://github.com/jplumail/scipion-fluo-singleparticle"
 singleparticle = "singleparticle"
 
 [tool.uv.sources]
-scipion-pyworkflow = {path="../scipion-pyworkflow"}
-scipion-fluo = {path="../scipion-fluo"}
-spfluo = {path="../spfluo"}
-napari-spfluo = {path="../napari-spfluo"}
+scipion-pyworkflow = {workspace=true}
+scipion-fluo = {workspace=true}
+spfluo = {workspace=true}
+napari-spfluo = {workspace=true}
