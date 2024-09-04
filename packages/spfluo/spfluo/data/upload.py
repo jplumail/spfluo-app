@@ -48,21 +48,20 @@ def get_token():
 
 def upload_archive():
     # Step 0: Create a zip archive from registry.txt
-    with zipfile.ZipFile(ARCHIVE_NAME, "w"), _get_registry_file() as (
-        zipf,
-        registry_path,
-    ):
-        with open(registry_path, "r") as registry:
-            for line in registry:
-                # Assuming space separates the path and the hash
-                file, hash = line.strip().split(" ")
-                file_path = registry_path.parent / file
-                if file_path.exists() and _file_hash(file_path) == hash:
-                    zipf.write(file_path, file_path.relative_to(registry_path.parent))
-                else:
-                    raise FileNotFoundError(
-                        f"{file_path} was not found or hash was wrong"
-                    )
+    with zipfile.ZipFile(ARCHIVE_NAME, "w") as zipf:
+        with _get_registry_file() as registry_path:
+            with open(registry_path, "r") as registry:
+                for line in registry:
+                    # Assuming space separates the path and the hash
+                    file, hash = line.strip().split(" ")
+                    file_path = registry_path.parent / file
+                    print(f"Adding {file_path} to zip")
+                    if file_path.exists() and _file_hash(file_path) == hash:
+                        zipf.write(file_path, file_path.relative_to(registry_path.parent))
+                    else:
+                        raise FileNotFoundError(
+                            f"{file_path} was not found or hash was wrong"
+                        )
 
     # Step 2: Get upload link
     headers = {"Authorization": f"Token {get_token()}"}
@@ -76,6 +75,7 @@ def upload_archive():
     # Step 3: Upload file
     with open(ARCHIVE_NAME, "rb") as file:
         f = {"file": file, "parent_dir": ("", "/"), "replace": (None, "1")}
+        print("Uploading file to seafile...")
         upload_response = requests.post(upload_link, headers=headers, files=f)
         upload_response.raise_for_status()
 
