@@ -4,9 +4,7 @@ raw-options = { root = "../.." }
 
 [build.targets.sdist]
 exclude = [
-    "/.github",
-    "/.gitignore",
-    "/.pre-commit-config.yaml",
+  "/singleparticle/web/client/node_modules/*"
 ]
 
 [build.targets.wheel]
