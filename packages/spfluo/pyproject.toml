@@ -74,6 +74,7 @@ dev-dependencies = [
   "pyqt5",
   "array-api-strict",
   "spfluo[all]",
+  "ipywidgets>=8.1.5",
 ]
 
 [tool.uv.sources]
