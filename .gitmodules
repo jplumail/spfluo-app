@@ -1,0 +1,4 @@
+[submodule "packages/scipion-pyworkflow"]
+	path = packages/scipion-pyworkflow
+	url = git@github.com:jplumail/scipion-pyworkflow.git
+	branch = windows
