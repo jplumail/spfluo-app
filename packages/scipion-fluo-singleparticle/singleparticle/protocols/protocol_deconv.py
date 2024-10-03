@@ -19,8 +19,8 @@ from singleparticle import Plugin
 class ProtSingleParticleDeconvBase:
     """Base methods for deconv protocols"""
 
-    def createGroupWidefieldParams(self, form: Form):
-        group = form.addGroup("Widefields params", condition="usePSF is False")
+    def createGroupWidefieldParams(self, form: Form, condition: str|None=None):
+        group = form.addGroup("Widefields params", condition=condition)
         group.addParam(
             "NA", params.FloatParam, label="NA", help="Numerical aperture", default=1.4
         )
@@ -183,7 +183,7 @@ class ProtSingleParticleDeconv(Protocol, ProtSingleParticleDeconvBase):
             condition="usePSF is True",
         )
 
-        self.createGroupWidefieldParams(form)
+        self.createGroupWidefieldParams(form, condition="usePSF is False")
 
         form.addParam(
             "normalizePSF",
@@ -425,8 +425,8 @@ class ProtSingleParticleBlindDeconv(Protocol, ProtSingleParticleDeconvBase):
                 [self.input_float.getFileName(), self.out_path, self.out_psf_path],
             )
         )
-        args += ["-dxy", f"{self.input_fluoimage.getVoxelSize()[0]*1000}"]
-        args += ["-dz", f"{self.input_fluoimage.getVoxelSize()[1]*1000}"]
+        args += ["-dxy", f"{self.input_float.getVoxelSize()[0]*1000}"]
+        args += ["-dz", f"{self.input_float.getVoxelSize()[1]*1000}"]
         # Widefield params
         args += ["-NA", f"{self.NA.get()}"]
         args += ["-lambda", f"{self.lbda.get()}"]
@@ -444,10 +444,6 @@ class ProtSingleParticleBlindDeconv(Protocol, ProtSingleParticleDeconvBase):
             args += ["-crop"]
 
         # Parameters
-        args += [
-            "-weighting",
-            f"{self.WEIGHTINGS[self.weighting.get()][1]}",
-        ]
         if self.gamma.get():
             args += ["-gain", f"{self.gamma.get()}"]
         if self.sigma.get():
@@ -466,14 +462,14 @@ class ProtSingleParticleBlindDeconv(Protocol, ProtSingleParticleDeconvBase):
 
     def createOutputStep(self):
         deconv_im = FluoImage.from_filename(
-            self.out_path, voxel_size=self.input_fluoimage.getVoxelSize()
+            self.out_path, voxel_size=self.input_float.getVoxelSize()
         )
-        deconv_im.setImgId(self.input_fluoimage.getImgId())
+        deconv_im.setImgId(self.input_float.getImgId())
         deconv_im.cleanObjId()
         self._defineOutputs(**{outputs.deconvolution.name: deconv_im})
 
         psf = PSFModel.from_filename(
-            self.out_psf_path, voxel_size=self.input_fluoimage.getVoxelSize()
+            self.out_psf_path, voxel_size=self.input_float.getVoxelSize()
         )
         self._defineOutputs(**{outputs.psf.name: psf})
 
@@ -518,7 +514,7 @@ class ProtSingleParticleDeconvSet(
             condition="usePSF is True",
         )
 
-        self.createGroupWidefieldParams(form)
+        self.createGroupWidefieldParams(form, condition="usePSF is False")
 
         form.addParam(
             "normalizePSF",
