@@ -1,22 +1,22 @@
 [build-system]
-requires = ["setuptools>=42.0.0", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
 
 [project]
-name = "napari-bbox"
-version = "0.0.7.post1"
-description = "A new layer for bounding boxes in 2+ dimensions"
+name = "napari-spfluo"
+dynamic = ["version"]
+description = "A plugin to use spfluo within napari"
 readme = "README.md"
+license = "MIT"
 requires-python = ">=3.8"
-license = { file = "LICENSE" }
 authors = [
-    { name = "David Bauer", email = "dbauer@brc.hu" },
+    { name = "Jean Plumail", email = "jplumail@unistra.fr" },
 ]
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
     "Framework :: napari",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: BSD License",
+    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
@@ -25,48 +25,38 @@ classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Image Processing",
 ]
 dependencies = [
-    "numpy",
     "magicgui",
+    "numpy",
     "qtpy",
-    "napari>=0.4.15",
+    "scikit-image",
+    "spfluo[ab-initio-reconstruction]",
 ]
 
+[project.entry-points."napari.manifest"]
+napari-spfluo = "napari_spfluo:napari.yaml"
+
 [project.urls]
-"Bug Tracker" = "https://github.com/bauerdavid/napari-bbox/issues"
-"Documentation" = "https://github.com/bauerdavid/napari-bbox#README.md"
-"Source Code" = "https://github.com/bauerdavid/napari-bbox"
-"User Support" = "https://github.com/bauerdavid/napari-bbox/issues"
-
-[tool.setuptools]
-package-dir = {"" = "src"}
-include-package-data = true
-
-[tool.setuptools.packages.find]
-where = ["src"]
-
-[tool.napari.manifest]
-napari-bbox = "napari_bbox:napari.yaml"
-
-[tool.setuptools.package-data]
-"*" = ["*.yaml", "*.svg", "*.qss"]
+"Bug Tracker" = "https://github.com/jplumail/napari-spfluo/issues"
+Documentation = "https://github.com/jplumail/napari-spfluo#README.md"
+Homepage = "https://github.com/jplumail/napari-spfluo"
+"Source Code" = "https://github.com/jplumail/napari-spfluo"
+"User Support" = "https://github.com/jplumail/napari-spfluo/issues"
 
 [tool.black]
 line-length = 79
-
-[tool.isort]
-profile = "black"
-line_length = 79
+target-version = ['py39', 'py310', 'py311']
 
 [tool.uv]
 dev-dependencies = [
-    "tox",
+    "napari",
+    "pyqt5",
     "pytest",
     "pytest-cov",
     "pytest-qt",
-    "napari",
-    "pyqt5",
 ]
+
+[tool.uv.sources]
+spfluo = {workspace = true}

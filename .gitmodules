@@ -6,3 +6,7 @@
 	path = packages/scipion-app
 	url = git@github.com:jplumail/scipion-app.git
 	branch = fluo
+[submodule "packages/napari-bbox"]
+	path = packages/napari-bbox
+	url = git@github.com:jplumail/napari-bbox.git
+	branch = publish-fluo
