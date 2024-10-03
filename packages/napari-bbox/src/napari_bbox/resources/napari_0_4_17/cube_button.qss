@@ -1,3 +1,0 @@
-QtModeRadioButton[mode="bounding box"]::indicator {
-  image: url("theme_{{ name }}:/cube.svg");
-}
