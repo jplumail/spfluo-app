@@ -46,7 +46,7 @@ jobs:
     needs: [build-packages]
     runs-on: ubuntu-latest
     permissions:
-      id-token: write  # IMPORTANT: mandatory for trusted publishing
+      id-token: write
     
     steps:
     - name: Download all the dists
@@ -61,10 +61,7 @@ jobs:
         version: "0.4.18"
     
     - name: Publish packages
-      run: |
-        ls -al
-        ls -al dist/
-        uv publish -v dist/*
+      run: uv publish dist/*
 
   
   compile-requirements:
