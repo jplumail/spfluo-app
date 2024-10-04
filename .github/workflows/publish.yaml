@@ -64,7 +64,7 @@ jobs:
       run: |
         ls -al
         ls -al dist/
-        uv publish -v --token {{ secrets.PYPI_TOKEN }} dist/*
+        uv publish -v dist/*
 
   
   compile-requirements:
