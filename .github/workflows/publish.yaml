@@ -16,7 +16,7 @@ jobs:
         id: get_version
         run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
   
-  publish-packages:
+  build-packages:
     runs-on: ubuntu-latest
 
     steps:
@@ -34,12 +34,34 @@ jobs:
     - name: Build packages
       run: uv build --all
     
+    - name: Store the distribution packages
+      uses: actions/upload-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
+  
+  publish-to-pypi:
+    name: >-
+      Publish Python 🐍 distribution 📦 to PyPI
+    needs: [build-packages]
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write  # IMPORTANT: mandatory for trusted publishing
+    
+    step:
+    - name: Download all the dists
+      uses: actions/download-artifact@v4
+      with:
+        name: python-package-distributions
+        path: dist/
+    
     - name: Publish packages
       run: uv publish --token {{ secrets.PYPI_TOKEN }}
+
   
   compile-requirements:
     runs-on: ubuntu-latest
-    needs: [get-version, publish-packages]
+    needs: [get-version, publish-to-pypi]
     
     steps:
     - name: Checkout repository
@@ -83,7 +105,7 @@ jobs:
         retention-days: 1
 
   build-executable:
-    needs: [get-version, publish-packages, compile-requirements]
+    needs: [get-version, publish-to-pypi, compile-requirements]
     runs-on: windows-latest
     strategy:
       matrix:
