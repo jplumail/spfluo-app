@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "scipion-fluo-singleparticle"
 description = "Scipion plugin for single particle reconstruction."
-readme = "README.rst"
+readme = "README.md"
 authors = [{name = "Jean Plumail", email = "jplumail@unistra.fr"}]
 keywords = ["scipion", "fluorescence", "imageprocessing", "scipion-3.0"]
 dynamic = ["version"]
