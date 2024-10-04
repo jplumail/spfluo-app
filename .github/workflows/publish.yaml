@@ -62,6 +62,9 @@ jobs:
     
     - name: Publish packages
       run: uv publish dist/*
+    
+    - name: Sleep to allow PyPI to process
+      run: sleep 10  # Pause de 60 secondes, laisse le temps à PyPI de process
 
   
   compile-requirements:
