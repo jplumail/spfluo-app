@@ -60,12 +60,11 @@ jobs:
       with:
         version: "0.4.18"
     
-    - name: List files in dist/
-      run: ls -al dist/
-
-    
     - name: Publish packages
-      run: uv publish --token {{ secrets.PYPI_TOKEN }} dist/*
+      run: |
+        ls -al
+        ls -al dist/
+        uv publish -v --token {{ secrets.PYPI_TOKEN }} dist/*
 
   
   compile-requirements:
