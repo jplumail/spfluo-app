@@ -10,7 +10,7 @@ authors = [{name = "Jean Plumail", email = "jplumail@unistra.fr"}]
 keywords = ["scipion", "fluorescence", "imageprocessing", "scipion-3.0"]
 dynamic = ["version"]
 dependencies = [
-    "scipion-pyworkflow",
+    "scipion-pyworkflow-windows",
     "scipion-fluo",
     "numpy",
     "scipy",
@@ -27,7 +27,7 @@ Repository = "https://github.com/jplumail/scipion-fluo-singleparticle"
 singleparticle = "singleparticle"
 
 [tool.uv.sources]
-scipion-pyworkflow = {workspace=true}
+scipion-pyworkflow-windows = {workspace=true}
 scipion-fluo = {workspace=true}
 spfluo = {workspace=true}
 napari-spfluo = {workspace=true}

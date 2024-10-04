@@ -9,7 +9,7 @@ authors = [
 ]
 dependencies = [
   "scipion-fluo-singleparticle",
-  "scipion-app",
+  "scipion-app-spfluo",
   "napari[pyqt5]",
 ]
 dynamic = ["version"]
@@ -32,8 +32,7 @@ exclude = ["packages/*"]
 
 [tool.uv.sources]
 scipion-fluo-singleparticle = { workspace = true }
-scipion-app = { workspace = true }
-spfluo = { workspace = true }
+scipion-app-spfluo = { workspace = true }
 
 [tool.uv.workspace]
 members = ["packages/*"]

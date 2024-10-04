@@ -45,7 +45,7 @@ picking = [
 ]
 visualisation = [
   "napari>=0.4.18,<0.4.19",
-  "napari-bbox",
+  "napari-bbox-spfluo",
   "numpy<2"
 ]
 all = [
@@ -78,4 +78,4 @@ dev-dependencies = [
 ]
 
 [tool.uv.sources]
-napari-bbox = {workspace = true}
+napari-bbox-spfluo = {workspace = true}

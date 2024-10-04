@@ -14,7 +14,7 @@ readme = "README.rst"
 authors = [{name = "Jean Plumail", email = "jplumail@unistra.fr"}]
 keywords = ["scipion", "fluorescence", "imageprocessing", "scipion-3.0"]
 dependencies = [
-    "scipion-pyworkflow",
+    "scipion-pyworkflow-windows",
     "scipy",
     "numpy",
     "tifffile",
@@ -35,4 +35,4 @@ scipion-fluo = "pwfluo.__main__:main"
 pwfluo = "pwfluo"
 
 [tool.uv.sources]
-scipion-pyworkflow = {workspace = true}
+scipion-pyworkflow-windows = {workspace = true}
