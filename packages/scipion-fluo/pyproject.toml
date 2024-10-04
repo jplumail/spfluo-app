@@ -10,7 +10,7 @@ name = "scipion-fluo"
 dynamic = ["version"]
 requires-python = ">=3.8"
 description = "Base pyworkflow plugin for Fluorescence image processing"
-readme = "README.rst"
+readme = "README.md"
 authors = [{name = "Jean Plumail", email = "jplumail@unistra.fr"}]
 keywords = ["scipion", "fluorescence", "imageprocessing", "scipion-3.0"]
 dependencies = [
