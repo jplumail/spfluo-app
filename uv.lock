@@ -2798,7 +2798,7 @@ wheels = [
 
 [[package]]
 name = "spfluo"
-version = "0.0.7.dev14+g5ef2188b3.d20241004"
+version = "0.0.7.dev15+gb961d164c.d20241004"
 source = { editable = "packages/spfluo" }
 dependencies = [
     { name = "array-api-compat" },
