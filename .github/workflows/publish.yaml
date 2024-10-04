@@ -48,7 +48,7 @@ jobs:
     permissions:
       id-token: write  # IMPORTANT: mandatory for trusted publishing
     
-    step:
+    steps:
     - name: Download all the dists
       uses: actions/download-artifact@v4
       with:
