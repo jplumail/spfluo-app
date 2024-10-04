@@ -1,12 +1,12 @@
 [submodule "packages/scipion-pyworkflow"]
 	path = packages/scipion-pyworkflow
-	url = git@github.com:jplumail/scipion-pyworkflow.git
+	url = https://github.com/jplumail/scipion-pyworkflow.git
 	branch = windows
 [submodule "packages/scipion-app"]
 	path = packages/scipion-app
-	url = git@github.com:jplumail/scipion-app.git
+	url = https://github.com/jplumail/scipion-app.git
 	branch = fluo
 [submodule "packages/napari-bbox"]
 	path = packages/napari-bbox
-	url = git@github.com:jplumail/napari-bbox.git
+	url = https://github.com/jplumail/napari-bbox.git
 	branch = publish-fluo
