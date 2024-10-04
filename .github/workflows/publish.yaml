@@ -6,121 +6,62 @@ on:
       - 'v*'
 
 jobs:
-  publish:
+
+  set-version:
     runs-on: ubuntu-latest
-
-    outputs:
-      spfluo-app-version: ${{ steps.version.outputs.version }}
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-
-    - name: Install dependencies
-      run: |
-        pip install devpi-client
-
-    - name: Authenticate and upload to devpi
-      run: |
-        devpi use https://pypi.spfluo.ovh
-        devpi login jean --password=${{ secrets.DEVPI_PASSWORD }}
-        devpi use jean/dev
-        devpi upload
-      env:
-        DEVPI_PASSWORD: ${{ secrets.DEVPI_PASSWORD }}
-    
-    - name: Get spfluo-app version
-      id: version
-      run: |
-        pip install hatch
-        echo "version=$(hatch version)" >> "$GITHUB_OUTPUT"
+      - name: Set version from tag
+        run: echo "SPFLUO_APP_VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_ENV
   
   publish-packages:
     runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        package: [napari-bbox, napari-spfluo, scipion-app, scipion-fluo, scipion-fluo-singleparticle, scipion-pyworkflow, spfluo]
-
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
       with:
-        python-version: '3.11'
+        version: "0.4.18"
 
-    - name: Install dependencies
-      run: |
-        pip install devpi-client
-
-    - name: Authenticate and upload to devpi
-      run: |
-        cd packages/${{ matrix.package }}
-        devpi use https://pypi.spfluo.ovh
-        devpi login jean --password=${{ secrets.DEVPI_PASSWORD }}
-        devpi use jean/dev
-        devpi upload
-      env:
-        DEVPI_PASSWORD: ${{ secrets.DEVPI_PASSWORD }}
+    - name: Build packages
+      run: uv build --all
+    
+    - name: Publish packages
+      run: uv publish --token {{ secrets.PYPI_TOKEN }}
   
   compile-requirements:
     runs-on: ubuntu-latest
-    needs: [publish, publish-packages]
+    needs: [publish-packages]
     
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
     
-    - name: Set up Python
-      uses: actions/setup-python@v5
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
       with:
-        python-version: '3.11'
+        version: "0.4.18"
     
-    - name: Cache uv
-      uses: actions/cache@v4
-      with:
-        path: ~/.cache/uv
-        key: uv-cache
-    
-    - name: Cache pip
-      uses: actions/cache@v4
-      with:
-        path: ~/.cache/pip
-        key: pip-cache
-
-    - name: Install pip-tools
-      run: pip install uv
-
     - name: Run pip-compile
-      run: >
-        uv pip compile pyproject.toml
+      run: > 
+        echo "spfluo-app==${{ env.SPFLUO_APP_VERSION }}" | uv pip compile
         -o requirements.txt
         --universal
-        -i https://pypi.spfluo.ovh/jean/dev-pytorch-cpu/+simple
+        --index-url https://download.pytorch.org/whl/cpu
+        --extra-index-url https://pypi.org/simple
         --emit-index-url
-        --no-sources
     
-    - name: Run pip-compile gpu
-      run: >
-        uv pip compile pyproject.toml
+    - name: Run pip-compile
+      run: > 
+        echo "spfluo-app==${{ env.SPFLUO_APP_VERSION }}" | uv pip compile
         -o requirements-gpu.txt
         --universal
-        -i https://pypi.spfluo.ovh/jean/dev-pytorch-cu124/+simple/
+        --index-url https://download.pytorch.org/whl/cu124
+        --extra-index-url https://pypi.org/simple
         --emit-index-url
-        --no-sources
     
-    - name: Append to requirements spfluo-app
-      run: |
-        REQUIREMENT_FILE=$(ls requirements*.txt | head -n 1)
-        echo "spfluo-app==${{ needs.publish.outputs.spfluo-app-version }}" >> $REQUIREMENT_FILE
-
     - name: Upload requirements files
       uses: actions/upload-artifact@v4
       with:
@@ -136,7 +77,7 @@ jobs:
         retention-days: 1
 
   build-executable:
-    needs: [publish, compile-requirements]
+    needs: [publish-packages, compile-requirements]
     runs-on: windows-latest
     strategy:
       matrix:
@@ -145,7 +86,7 @@ jobs:
     env:
       PYAPP_VERSION: "0.22.0"
       PYAPP_PROJECT_NAME: "spfluo-app"
-      PYAPP_PROJECT_VERSION: ${{ needs.publish.outputs.spfluo-app-version }}
+      PYAPP_PROJECT_VERSION: ${{ env.SPFLUO_APP_VERSION }}
       PYAPP_PROJECT_DEPENDENCY_FILE: "${{ github.workspace }}/requirements.txt"
       PYAPP_IS_GUI: 1
       PYAPP_EXEC_SCRIPT: "${{ github.workspace }}/src/spfluo_app/__main__.py"
@@ -162,11 +103,9 @@ jobs:
       shell: pwsh
       run: |
         if ($${{ matrix.gpu }}) {
-            echo "PYAPP_PIP_EXTRA_ARGS=--index-url=https://pypi.spfluo.ovh/jean/dev-pytorch-cu124/+simple" >> $env:GITHUB_ENV
             echo "PYAPP_PROJECT_DEPENDENCY_FILE=${{ github.workspace }}/requirements-gpu.txt" >> $env:GITHUB_ENV
             echo "GPU_SUFFIX=-gpu" >> $env:GITHUB_ENV
         } else {
-            echo "PYAPP_PIP_EXTRA_ARGS=--index-url=https://pypi.spfluo.ovh/jean/dev/+simple" >> $env:GITHUB_ENV
             echo "PYAPP_PROJECT_DEPENDENCY_FILE=${{ github.workspace }}/requirements.txt" >> $env:GITHUB_ENV
             echo "GPU_SUFFIX=" >> $env:GITHUB_ENV
         }
