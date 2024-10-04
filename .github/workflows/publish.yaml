@@ -79,7 +79,7 @@ jobs:
     
     - name: Run pip-compile
       run: > 
-        echo "spfluo-app==${{ needs.get-version.outputs.spfluo-app-version }}" | uv pip compile
+        echo "spfluo-app==${{ needs.get-version.outputs.spfluo-app-version }}" | uv pip compile -
         -o requirements.txt
         --universal
         --index-url https://download.pytorch.org/whl/cpu
@@ -88,7 +88,7 @@ jobs:
     
     - name: Run pip-compile
       run: > 
-        echo "spfluo-app==${{ needs.get-version.outputs.spfluo-app-version }}" | uv pip compile
+        echo "spfluo-app==${{ needs.get-version.outputs.spfluo-app-version }}" | uv pip compile -
         -o requirements-gpu.txt
         --universal
         --index-url https://download.pytorch.org/whl/cu124
