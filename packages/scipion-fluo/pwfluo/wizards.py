@@ -31,9 +31,9 @@ class ImportAcquisitionWizard(FluoWizard):
             elif len(vs) == 1:
                 v = vs.pop()
                 if v[0]:
-                    form.setVar("vs_xy", f"{v[0]*1e6:.3f}")
+                    form.setVar("vs_xy", f"{v[0]:.3f}")
                 if v[1]:
-                    form.setVar("vs_z", f"{v[1]*1e6:.3f}")
+                    form.setVar("vs_z", f"{v[1]:.3f}")
             else:
                 msg = "Found multiple values:\n"
                 for vs_ in vs:
