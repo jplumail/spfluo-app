@@ -45,12 +45,6 @@ class ProtSingleParticlePickingPredict(ProtFluoPicking):
             help="Select the train run that contains the trained PyTorch model.",
         )
         form.addParam(
-            "patchSize",
-            params.StringParam,
-            label="Patch size",
-            help="Patch size in the form 'pz py px'",
-        )
-        form.addParam(
             "stride",
             params.IntParam,
             label="Stride",
