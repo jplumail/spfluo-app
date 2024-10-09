@@ -24,4 +24,4 @@ def make_registry(directory: Path, output: Path, extensions: list[str] = ["*"]):
 
 if __name__ == "__main__":
     data_dir = Path(__file__).parent
-    make_registry(data_dir, data_dir / "registry.txt", extensions=[".csv", ".tiff"])
+    make_registry(data_dir, data_dir / "registry.txt", extensions=[".csv", ".tiff", ".tif"])
