@@ -34,7 +34,7 @@ from singleparticle.constants import (
 from singleparticle.web.server import app
 
 _logo = "icon.png"
-_references = ["Fortun2017"]
+_references = ["7389457", "10105860"]
 
 
 class Config(pw.Config):
