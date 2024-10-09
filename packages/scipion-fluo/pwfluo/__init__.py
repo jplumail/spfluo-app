@@ -41,6 +41,7 @@ from pwfluo.objects import FluoObject
 # Epoch indicates compatible main Scipion version
 # major.minor.micro versioning starting with 1.0.0 in the new epoch
 __version__ = "3!0.1dev0"
+_logo = "icon.png"
 
 
 class Domain(pwplugin.Domain):
