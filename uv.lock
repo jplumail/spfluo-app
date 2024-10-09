@@ -1332,7 +1332,7 @@ pyqt5 = [
 
 [[package]]
 name = "napari-bbox-spfluo"
-version = "0.0.7.post1"
+version = "0.0.8.dev1+g508243f9e"
 source = { editable = "packages/napari-bbox" }
 dependencies = [
     { name = "magicgui" },
@@ -1860,6 +1860,19 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f5/52/0763d1d976d5c262df53ddda8d8d4719eedf9594d046f117c25a27261a19/platformdirs-4.2.2.tar.gz", hash = "sha256:38b7b51f512eed9e84a22788b4bce1de17c0adb134d6becb09836e37d8654cd3", size = 20916 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/68/13/2aa1f0e1364feb2c9ef45302f387ac0bd81484e9c9a4c5688a322fbdfd08/platformdirs-4.2.2-py3-none-any.whl", hash = "sha256:2d7a1657e36a80ea911db832a8a6ece5ee53d8de21edd5cc5879af6530b1bfee", size = 18146 },
+]
+
+[[package]]
+name = "plotly"
+version = "5.24.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "packaging" },
+    { name = "tenacity" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/79/4f/428f6d959818d7425a94c190a6b26fbc58035cbef40bf249be0b62a9aedd/plotly-5.24.1.tar.gz", hash = "sha256:dbc8ac8339d248a4bcc36e08a5659bacfe1b079390b8953533f4eb22169b4bae", size = 9479398 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e5/ae/580600f441f6fc05218bd6c9d5794f4aef072a7d9093b291f1c50a9db8bc/plotly-5.24.1-py3-none-any.whl", hash = "sha256:f67073a1e637eb0dc3e46324d9d51e2fe76e9727c892dde64ddf1e1b51f29089", size = 19054220 },
 ]
 
 [[package]]
@@ -2618,7 +2631,7 @@ requires-dist = [
 
 [[package]]
 name = "scipion-fluo"
-version = "0.0.7.dev14+g5ef2188b3.d20241004"
+version = "0.0.8.dev1+g508243f9e"
 source = { editable = "packages/scipion-fluo" }
 dependencies = [
     { name = "numpy" },
@@ -2649,7 +2662,7 @@ requires-dist = [
 
 [[package]]
 name = "scipion-fluo-singleparticle"
-version = "0.0.7.dev14+g5ef2188b3.d20241004"
+version = "0.0.8.dev1+g508243f9e"
 source = { editable = "packages/scipion-fluo-singleparticle" }
 dependencies = [
     { name = "flask" },
@@ -2798,7 +2811,7 @@ wheels = [
 
 [[package]]
 name = "spfluo"
-version = "0.0.7.dev15+gb961d164c.d20241004"
+version = "0.0.8.dev1+g508243f9e.d20241007"
 source = { editable = "packages/spfluo" }
 dependencies = [
     { name = "array-api-compat" },
@@ -2849,6 +2862,7 @@ dev = [
     { name = "napari" },
     { name = "napari-bbox-spfluo" },
     { name = "numpy" },
+    { name = "plotly" },
     { name = "pyfigtree" },
     { name = "pyqt5" },
     { name = "pytest" },
@@ -2895,6 +2909,7 @@ dev = [
     { name = "array-api-strict" },
     { name = "hypothesis" },
     { name = "ipywidgets", specifier = ">=8.1.5" },
+    { name = "plotly", specifier = ">=5.24.1" },
     { name = "pyfigtree" },
     { name = "pyqt5" },
     { name = "pytest" },
@@ -3045,6 +3060,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/94/15/4a041424c7187f41cce678f5a02189b244e9aac61a18b45cd415a3a470f3/sympy-1.13.2.tar.gz", hash = "sha256:401449d84d07be9d0c7a46a64bd54fe097667d5e7181bfe67ec777be9e01cb13", size = 7532926 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c1/f9/6845bf8fca0eaf847da21c5d5bc6cd92797364662824a11d3f836423a1a5/sympy-1.13.2-py3-none-any.whl", hash = "sha256:c51d75517712f1aed280d4ce58506a4a88d635d6b5dd48b39102a7ae1f3fcfe9", size = 6189289 },
+]
+
+[[package]]
+name = "tenacity"
+version = "9.0.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/cd/94/91fccdb4b8110642462e653d5dcb27e7b674742ad68efd146367da7bdb10/tenacity-9.0.0.tar.gz", hash = "sha256:807f37ca97d62aa361264d497b0e31e92b8027044942bfa756160d908320d73b", size = 47421 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b6/cb/b86984bed139586d01532a587464b5805f12e397594f19f931c4c2fbfa61/tenacity-9.0.0-py3-none-any.whl", hash = "sha256:93de0c98785b27fcf659856aa9f54bfbd399e29969b0621bc7f762bd441b4539", size = 28169 },
 ]
 
 [[package]]
