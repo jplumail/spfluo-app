@@ -280,3 +280,6 @@ class ProtSingleParticleAbInitio(Protocol, ProtFluoBase):
     def _methods(self):
         methods = []
         return methods
+
+    def _citations(self):
+        return ["10105860"]

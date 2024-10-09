@@ -285,3 +285,6 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
                 outputs.particles.name: output_particles,
             }
         )
+
+    def _citations(self):
+        return ["7389457"]

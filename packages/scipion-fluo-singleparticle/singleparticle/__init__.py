@@ -34,7 +34,7 @@ from singleparticle.constants import (
 from singleparticle.web.server import app
 
 _logo = "icon.png"
-_references = ["7389457", "10105860"]
+_references = []  # TODO: add reference to future BMC paper
 
 
 class Config(pw.Config):
