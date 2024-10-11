@@ -464,30 +464,6 @@ def create_poses_refined(
     return potential_poses
 
 
-def refine_poses(
-    reconstruction: "Array",
-    patches: "Array",
-    psf: "Array",
-    guessed_poses: "Array",
-    range: float,
-    steps: int,
-    device: "Device" = None,
-    batch_size: int = 1,
-):
-    potential_poses = create_poses_refined(guessed_poses, [range] * 3, [steps] * 3)
-
-    best_poses, best_errors = convolution_matching_poses(
-        reconstruction,
-        patches,
-        psf,
-        potential_poses,
-        device=device,
-        batch_size=batch_size,
-    )
-
-    return best_poses, best_errors
-
-
 def refine(
     patches: "Array",
     psf: "Array",
@@ -602,47 +578,39 @@ def refine(
             potential_poses, (precision_axes, precision_rot) = create_poses_grid(
                 xp, M_axes, M_rot, symmetry=symmetry, **array_kwargs
             )
+            potential_poses = xp.broadcast_to(potential_poses, (N, M_axes*M_rot, 6))
             refinement_logger.debug(
                 "[convolution_matching_poses] Searching the whole grid. "
                 f"N_axes={M_axes}, N_rot={M_rot}. "
                 f"precision_axes={precision_axes:.2f}°, "
                 f"precision_rot={precision_rot:.2f}°"
             )
-            potential_poses = xp.broadcast_to(potential_poses, (N, M_axes*M_rot, 6))
-            t0 = time.time()
-            current_poses, _ = convolution_matching_poses(
-                current_reconstruction,
-                patches,
-                psf,
-                potential_poses,
-                device=compute_device,
-                batch_size=batch_size,
-            )
-            refinement_logger.debug(
-                f"[convolution_matching_poses] Done in {time.time()-t0:.3f}s"
-            )
+            
         elif isinstance(s, int):  # Refinement around the current poses
             refinement_logger.debug(
-                f"[refine_poses] Refining the poses. range={ranges[i]}, steps={s}"
+                f"[convolution_matching_poses] Refining the poses. range={ranges[i]}, steps={s}"
             )
             t0 = time.time()
-            current_poses, _ = refine_poses(
-                current_reconstruction,
-                patches,
-                psf,
-                current_poses,
-                ranges[i],
-                s,
-                device=compute_device,
-                batch_size=batch_size,
-            )
-            refinement_logger.debug(f"[refine_poses] Done in {time.time()-t0:.3f}s")
+            potential_poses = create_poses_refined(current_poses, [ranges[i]] * 3, [s] * 3)
         else:
             raise ValueError(
                 "When range==0, steps should be a tuple. "
                 "When range>0, steps should be an int. "
                 f"Found range={ranges[i]} and steps={s}"
             )
+
+        t0 = time.time()
+        current_poses, _ = convolution_matching_poses(
+            current_reconstruction,
+            patches,
+            psf,
+            potential_poses,
+            device=compute_device,
+            batch_size=batch_size,
+        )
+        refinement_logger.debug(
+            f"[convolution_matching_poses] Done in {time.time()-t0:.3f}s"
+        )
 
         # Reconstruction
         refinement_logger.debug("[reconstruction_L2] Reconstruction")
