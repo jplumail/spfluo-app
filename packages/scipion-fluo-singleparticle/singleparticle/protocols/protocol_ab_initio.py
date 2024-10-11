@@ -275,10 +275,32 @@ class ProtSingleParticleAbInitio(Protocol, ProtFluoBase):
 
         if self.isFinished():
             summary.append("Protocol is finished")
+        
+
         return summary
 
     def _methods(self):
         methods = []
+        if self.isFinished():
+            methods.append(
+                f"- Rescaled particles and PSF to an isotropic scale of {self.pixel_size}μm/px."
+            )
+            methods.append(
+                f"- Used ab initio reconstruction with {self.numIterMax.get()} epochs and a learning rate of {self.lr.get()}. "
+                "The number of orientations sampled at each iteration is {}"
+            )
+            args += ["--N_iter_max", f"{self.numIterMax.get()}"]
+            args += ["--lr", f"{self.lr.get()}"]
+            args += ["--N_axes", f"{self.N_axes.get()}"]
+            args += ["--N_rot", f"{self.N_rot.get()}"]
+            args += ["--eps", "-100"]
+            args += ["--dec_prop", self.dec_prop.get()]
+            if self.gpu.get():
+                args += ["--gpu"]
+                args += ["--interp_order", str(1)]
+                if self.minibatch.get() > 0:
+                    args += ["--minibatch", self.minibatch.get()]
+
         return methods
 
     def _citations(self):
