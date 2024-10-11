@@ -375,7 +375,7 @@ class DataGenerator:
             self.add_poisson_noise()
 
     @staticmethod
-    def make_psf(anisotropic_blur_sigma: Tuple[int], dtype: np.dtype) -> np.ndarray:
+    def make_psf(anisotropic_blur_sigma: Tuple[int | float], dtype: np.dtype) -> np.ndarray:
         # commented out because GT is in the image space not int the pointcloud space
         # step = float(self.step)
         # B = self.config.voxelisation.bandwidth # bandwidth in the pointcloud coordinate system
@@ -386,8 +386,8 @@ class DataGenerator:
         # psf[k*B,k*B,k*B] = 1 # dirac
         # psf = gaussian_filter(psf, sigma=B, mode='constant') # gaussian of std B
 
-        sigma = np.array(anisotropic_blur_sigma, dtype=int)
-        k = 3  # +/- 3 sigmas is sufficient
+        sigma = np.array(anisotropic_blur_sigma, dtype=float)
+        k = 5  # +/- 5 sigmas is sufficient
         shape = np.ceil(2 * k * sigma + 1).astype(int)
         size = max(shape)
         grid = make_grid(size, 3)
