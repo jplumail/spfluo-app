@@ -292,96 +292,7 @@ def reconstruction_L2(
     return recon
 
 
-def convolution_matching_poses_grid(
-    reference: "Array",
-    volumes: "Array",
-    psf: "Array",
-    poses_grid: "Array",
-    device: Optional["Device"] = None,
-    batch_size: int = 1,
-):
-    """Find the best pose from a list of poses for each volume
-    Params:
-        reference (Array) : reference 3D image of shape (C, D, H, W)
-        volumes (Array) : volumes to match of shape (N, C, D, H, W)
-        psf (Array): 3D PSF of shape (C, d, h, w)
-        poses_grid (Array): poses to test of shape (M, 6)
-        device (Device): the device to do the computation on.
-        batch_size (int)
-    Returns:
-        best_poses (Array): best poses for each volume of shape (N, 6)
-        best_errors (Array): dftRegistration error associated to each pose (N,)
-    """
-    xp = array_namespace(reference, volumes, psf, poses_grid)
-    host_device = get_device(poses_grid)
-    compute_device = device
-
-    # Shapes
-    M, d = poses_grid.shape
-    N, C, D, H, W = volumes.shape
-
-    # PSF
-    h = xp.asarray(
-        xp.fft.fftn(
-            xp.fft.fftshift(interpolate_to_size(psf, (D, H, W), multichannel=True)),
-            axes=(1, 2, 3),
-        ),
-        device=compute_device,
-    )
-
-    shifts = xp.empty((N, M, 3), dtype=reference.dtype, device=host_device)
-    errors = xp.empty((N, M), dtype=reference.dtype, device=host_device)
-    number_batches = N * M if batch_size is None else N * M // batch_size
-    pbar = tqdm(
-        split_batch(max_batch=batch_size, shape=(N, M)),
-        leave=False,
-        total=number_batches,
-        desc="convolution_matching_poses_grid",
-    )
-    for (start1, end1), (start2, end2) in pbar:
-        number_poses = end2 - start2
-        volumes_minibatch = xp.asarray(volumes[start1:end1], device=compute_device)
-        potential_poses_minibatch = xp.asarray(
-            poses_grid[start2:end2], device=compute_device
-        )
-
-        # Volumes to frequency space
-        volumes_freq = xp.fft.fftn(volumes_minibatch, axes=(2, 3, 4))
-
-        # Rotate the reference
-        reference_minibatch = xp.stack(
-            (xp.asarray(reference, device=compute_device),) * number_poses
-        )
-        reference_minibatch = rotate(
-            reference_minibatch, potential_poses_minibatch, multichannel=True
-        )
-        reference_minibatch = h * xp.fft.fftn(reference_minibatch, axes=(2, 3, 4))
-
-        # Registration
-        sh, err, _ = phase_cross_correlation(
-            reference_minibatch[None],
-            volumes_freq[:, None],
-            nb_spatial_dims=3,
-            normalization=None,
-            upsample_factor=10,
-            space="fourier",
-            multichannel=True,
-        )
-        sh = xp.stack(list(sh), axis=-1)
-
-        errors[start1:end1, start2:end2] = xp.asarray(err, device=host_device)
-        shifts[start1:end1, start2:end2] = xp.asarray(sh, device=host_device)
-
-        del volumes_freq, reference_minibatch, err, sh
-
-    best_errors, best_indices = xp.min(errors, axis=1), xp.argmin(errors, axis=1)
-    best_poses = poses_grid[best_indices]
-    best_poses[:, 3:] = -shifts[xp.arange(N), best_indices]
-
-    return best_poses, best_errors
-
-
-def convolution_matching_poses_refined(
+def convolution_matching_poses(
     reference: "Array",
     volumes: "Array",
     psf: "Array",
@@ -504,7 +415,8 @@ def find_angles_grid(
         dtype=reconstruction.dtype,
         device=get_device(reconstruction),
     )
-    best_poses, best_errors = convolution_matching_poses_grid(
+    potential_poses = xp.broadcast_to(potential_poses, (patches.shape[0],)+potential_poses.shape)
+    best_poses, best_errors = convolution_matching_poses(
         reconstruction, patches, psf, potential_poses
     )
 
@@ -564,7 +476,7 @@ def refine_poses(
 ):
     potential_poses = create_poses_refined(guessed_poses, [range] * 3, [steps] * 3)
 
-    best_poses, best_errors = convolution_matching_poses_refined(
+    best_poses, best_errors = convolution_matching_poses(
         reconstruction,
         patches,
         psf,
@@ -663,13 +575,14 @@ def refine(
                 xp, M_axes, M_rot, symmetry=symmetry, **array_kwargs
             )
             refinement_logger.debug(
-                "[convolution_matching_poses_grid] Searching the whole grid. "
+                "[convolution_matching_poses] Searching the whole grid. "
                 f"N_axes={M_axes}, N_rot={M_rot}. "
                 f"precision_axes={precision_axes:.2f}°, "
                 f"precision_rot={precision_rot:.2f}°"
             )
+            potential_poses = xp.broadcast_to(potential_poses, (N, M_axes*M_rot, 6))
             t0 = time.time()
-            current_poses, _ = convolution_matching_poses_grid(
+            current_poses, _ = convolution_matching_poses(
                 current_reconstruction,
                 patches,
                 psf,
@@ -678,7 +591,7 @@ def refine(
                 batch_size=batch_size,
             )
             refinement_logger.debug(
-                f"[convolution_matching_poses_grid] Done in {time.time()-t0:.3f}s"
+                f"[convolution_matching_poses] Done in {time.time()-t0:.3f}s"
             )
         elif isinstance(s, int):  # Refinement around the current poses
             refinement_logger.debug(
