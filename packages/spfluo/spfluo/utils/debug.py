@@ -40,7 +40,7 @@ def save_image(
     create_debug_directories()
     ts = f"{datetime.now().timestamp():.3f}"
     names = "_".join(args)
-    path = str(directory / (ts + "_" + func.__name__ + "_" + names)) + ".tiff"
+    path = str(directory / (ts + "_" + func.__name__ + "_" + names)) + ".ome.tiff"
     axes = "ZYX"
     if multichannel:
         axes = "CZYX"

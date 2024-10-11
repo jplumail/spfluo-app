@@ -551,6 +551,8 @@ def refine(
 
         current_reconstruction = initial_reconstruction
 
+    current_poses = guessed_poses
+
     if refinement_logger.isEnabledFor(logging.DEBUG):
         im = to_numpy(current_reconstruction)
         p = debug.save_image(
@@ -562,8 +564,34 @@ def refine(
         )
         refinement_logger.debug("Saving current reconstruction at " + str(p))
         all_recons = [im]
-
-    current_poses = guessed_poses
+        debug.save_image(to_numpy(psf), debug.DEBUG_DIR_REFINEMENT, refine, "psf", multichannel=True)
+    
+        for j in range(len(current_poses)):
+            refinement_logger.debug(
+                f"pose[{j}], found: ["
+                + ", ".join(
+                    [f"{x:.1f}" for x in to_numpy(current_poses[j]).tolist()]
+                )
+                + "]",
+            )
+            patch_j_trans = to_numpy(
+                affine_transform(
+                    patches[j],
+                    xp.astype(
+                        get_transform_matrix_from_pose((D, D, D), current_poses[j]),
+                        patches.dtype,
+                    ),
+                    multichannel=True,
+                    order=1,
+                )
+            )
+            debug.save_image(
+                patch_j_trans,
+                debug.DEBUG_DIR_REFINEMENT,
+                refine,
+                f"step0-patch{j}-pose",
+                multichannel=True,
+            )
     for i in tqdm(range(len(steps)), desc="refine"):
         refinement_logger.debug(f"STEP {i+1}/{len(steps)}")
         t1 = time.time()
