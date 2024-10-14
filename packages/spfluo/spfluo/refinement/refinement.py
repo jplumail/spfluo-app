@@ -336,7 +336,7 @@ def convolution_matching_poses(
     # Move data to compute device
     h = to_device(h, compute_device)
     reference = to_device(reference, compute_device)
-    for (start1, end1), (start2, end2) in split_batch((N, M), batch_size):
+    for (start1, end1), (start2, end2) in tqdm(split_batch((N, M), batch_size), total=(N*M)//batch_size, leave=False, desc="convolution matching"):
         minibatch_size = (end1 - start1) * (end2 - start2)
         potential_poses_minibatch = to_device(
             potential_poses[start1:end1, start2:end2], compute_device
