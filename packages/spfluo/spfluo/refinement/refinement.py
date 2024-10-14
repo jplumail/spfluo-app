@@ -456,6 +456,7 @@ def create_poses_refined(
     for x in M:
         n_poses *= x
     potential_poses = xp.stack((xp.asarray(poses, copy=True),) * n_poses, axis=1)
+    potential_poses[..., 3:] = 0
     for i in range(poses.shape[0]):
         potential_poses[i, :, :3] = get_refined_valuesND(
             xp, poses[i, :3], M, ranges, dtype=poses.dtype, device=get_device(poses)
