@@ -66,7 +66,7 @@ def reconstruction_L2(
 
     Args:
         volumes (Array): stack of N 3D images of shape (N, (C), D, D, D)
-        psf (Array) : 3D image of shape ((C), d, h, w)
+        psf (Array): 3D image of shape ((C), d, h, w)
         poses (Array):
             stack(s) of N poses of shape ((M), (k), N, 6)
             A 'pose' is represented by 6 numbers
@@ -80,7 +80,7 @@ def reconstruction_L2(
             M is the number of reconstructions you want to do. Optional
                 Usefull for computing several reconstructions from the same
                 set of volumes
-        lambda_ (Array): regularization parameters of shape ((M),)
+        lambda (Array): regularization parameters of shape ((M),)
         batch (bool): do M reconstructions at once
             poses must be of shape (M, (k), N, 6), the k dim is optional
         symmetry (bool): use a k-degree symmetry
@@ -302,16 +302,19 @@ def convolution_matching_poses(
 ):
     """Find the best pose from a list of poses for each volume.
     There can be a different list of pose for each volume.
-    Params:
-        reference (Array) : reference 3D image of shape (C, D, D, D)
-        volumes (Array) : volumes to match of shape (N, C, D, D, D)
+
+    Args:
+        reference (Array): reference 3D image of shape (C, D, D, D)
+        volumes (Array): volumes to match of shape (N, C, D, D, D)
         psf (Array): 3D PSF of shape (C, d, h, w)
         potential_poses (Array): poses to test of shape (N, M, 6)
         device (Device): the device to do the computation on.
-        batch_size (int)
+        batch_size (int): the batch size
+    
     Returns:
-        best_poses (Array): best poses for each volume of shape (N, 6)
-        best_errors (Array): dftRegistration error associated to each pose (N,)
+        A tuple of 2 arrays representing the best poses for each volume 
+        of shape (N, 6) and the dftRegistration error associated
+        to each pose (N,).
     """
     xp = array_namespace(volumes, psf, potential_poses)
     host_device = get_device(volumes)
