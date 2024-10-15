@@ -1110,6 +1110,7 @@ def disp3D(*ims: np.ndarray, fig=None, axis_off=False):
         ax_x.imshow(ndii.rotate(views[2], 90)[::-1], cmap="gray", vmin=vmin, vmax=vmax)
         axes[i].set_xlim(0, ims[i].shape[2] - 1)
         axes[i].set_ylim(0, ims[i].shape[1] - 1)
+        axes[i].yaxis.set_inverted(True)
 
     if axis_off:
         for ax in axes:
