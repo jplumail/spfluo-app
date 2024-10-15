@@ -303,8 +303,8 @@ def convolution_matching_poses(
     """Find the best pose from a list of poses for each volume.
     There can be a different list of pose for each volume.
     Params:
-        reference (Array) : reference 3D image of shape (C, D, H, W)
-        volumes (Array) : volumes to match of shape (N, C, D, H, W)
+        reference (Array) : reference 3D image of shape (C, D, D, D)
+        volumes (Array) : volumes to match of shape (N, C, D, D, D)
         psf (Array): 3D PSF of shape (C, d, h, w)
         potential_poses (Array): poses to test of shape (N, M, 6)
         device (Device): the device to do the computation on.
@@ -318,14 +318,26 @@ def convolution_matching_poses(
     compute_device = device
 
     # Shapes
-    N1, M, _ = potential_poses.shape
+    N1, M, x = potential_poses.shape
+    assert x == 6
     N, C, D, H, W = volumes.shape
+    assert D == H == W
     assert N == N1
+    C1, D1, H, W = reference.shape
+    assert C1 == C and D1 == D and H == D and W == D
+    C2, _, _, _ = psf.shape
+    assert C2 == C
+
+    new_potential_poses = xp.asarray(potential_poses, copy=True)
+    if D % 2 == 0:
+        new_potential_poses[..., 3:] += 0.5
+    else:
+        new_potential_poses[..., 3:] += 1.0
 
     # PSF
     h = xp.fft.fftn(
         xp.fft.fftshift(
-            interpolate_to_size(psf, (D, H, W), multichannel=True), axes=(1, 2, 3)
+            interpolate_to_size(psf, (D, D, D), multichannel=True), axes=(1, 2, 3)
         ),
         axes=(1, 2, 3),
     )
@@ -339,7 +351,7 @@ def convolution_matching_poses(
     for (start1, end1), (start2, end2) in tqdm(split_batch((N, M), batch_size), total=(N*M)//batch_size, leave=False, desc="convolution matching"):
         minibatch_size = (end1 - start1) * (end2 - start2)
         potential_poses_minibatch = to_device(
-            potential_poses[start1:end1, start2:end2], compute_device
+            new_potential_poses[start1:end1, start2:end2], compute_device
         )
 
         # Volumes to Fourier space
@@ -355,7 +367,7 @@ def convolution_matching_poses(
                 xp.reshape(potential_poses_minibatch, (minibatch_size, 6)),
                 multichannel=True,
             ),
-            (end1 - start1, end2 - start2, C, D, H, W),
+            (end1 - start1, end2 - start2, C, D, D, D),
         )
         reference_minibatch = h * xp.fft.fftn(reference_minibatch, axes=(3, 4, 5))
 
