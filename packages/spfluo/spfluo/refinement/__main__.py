@@ -26,6 +26,7 @@ def create_parser():
     parser.add_argument("--psf_path", type=str, required=True)
     parser.add_argument("--guessed_poses_path", type=str, required=True)
     parser.add_argument("--initial_volume_path", type=str, required=False, default=None)
+    parser.add_argument("--channel", type=int, required=False, default=None)
 
     # Output files
     parser.add_argument(
@@ -105,6 +106,12 @@ def main(args):
     guessed_poses = xp.asarray(
         guessed_poses, device=host_device, dtype=getattr(xp, args.dtype)
     )
+
+    if args.channel is not None:
+        particles = particles[:, [args.channel]]
+        psf = psf[[args.channel]]
+        if initial_volume is not None:
+            initial_volume = initial_volume[[args.channel]]
 
     reconstruction, poses = refine(
         particles,

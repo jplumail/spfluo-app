@@ -64,6 +64,12 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
             help="Select the PSF.",
         )
         form.addParam(
+            "channel",
+            params.IntParam,
+            label="Refine on channel?",
+            help="Keep empty for multichannel refinement."
+        )
+        form.addParam(
             "initialVolume",
             params.PointerParam,
             pointerClass="Particle",
@@ -217,6 +223,9 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
         args = []
         if self.initialVolume.get():
             args += ["--initial_volume_path", self.initial_volume_path]
+        self.channel: int | None = self.channel.get()
+        if self.channel is not None:
+            args += ["--channel", self.channel]
         args += [
             "--particles_dir",
             self.particles_dir,
