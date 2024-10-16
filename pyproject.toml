@@ -30,6 +30,9 @@ packages = ["src/spfluo_app"]
 [tool.hatch.build.targets.sdist]
 exclude = ["packages/*"]
 
+[tool.uv]
+constraint-dependencies = ["pyqt5-qt5 <=5.15.2"]  # pyqt5-qt5 doesn't have source dist for recent versions, so windows requirements.txt is broken
+
 [tool.uv.sources]
 scipion-fluo-singleparticle = { workspace = true }
 scipion-app-spfluo = { workspace = true }
