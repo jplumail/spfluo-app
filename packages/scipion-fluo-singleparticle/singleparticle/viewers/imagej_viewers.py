@@ -10,7 +10,7 @@ from typing import List
 import pyworkflow.utils as pwutils
 import tifffile
 from pwfluo import objects as pwfluoobj
-from pwfluo.constants import MICRON_STR
+from pwfluo.constants import MICRON_STR_UTF_8
 from pyworkflow.gui.browser import FileBrowserWindow
 from pyworkflow.viewer import DESKTOP_TKINTER, View, Viewer
 
@@ -22,7 +22,6 @@ handler = logging.StreamHandler()
 formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 handler.setFormatter(formatter)
 logger.addHandler(handler)
-
 
 class ImageJ:
     def __init__(self, parent=None):
@@ -69,11 +68,11 @@ class ImageJ:
                         "axes": "CZYX",
                         "PositionT": i,
                         "PhysicalSizeX": vs_xy,
-                        "PhysicalSizeXUnit": MICRON_STR,
+                        "PhysicalSizeXUnit": MICRON_STR_UTF_8,
                         "PhysicalSizeY": vs_xy,
-                        "PhysicalSizeYUnit": MICRON_STR,
+                        "PhysicalSizeYUnit": MICRON_STR_UTF_8,
                         "PhysicalSizeZ": vs_z,
-                        "PhysicalSizeZUnit": MICRON_STR,
+                        "PhysicalSizeZUnit": MICRON_STR_UTF_8,
                     }
                     logger.debug(f"{im.getVoxelSize()=}, {type(im.getVoxelSize())=}")
                     logger.debug(f"voxel size: {vs_xy}x{vs_xy}x{vs_z}")
