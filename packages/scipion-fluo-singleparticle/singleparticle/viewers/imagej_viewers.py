@@ -62,7 +62,8 @@ class ImageJ:
             for i, im in enumerate(images):
                 temp_file = os.path.join(temp_dir, f"temp-{i}.ome.tiff")
                 with tifffile.TiffWriter(temp_file, ome=True, bigtiff=True) as tif:
-                    multichannel = im.getNumChannels() > 1
+                    C = im.getNumChannels()
+                    multichannel = C > 1
                     vs_xy, vs_z = im.getVoxelSize() if im.getVoxelSize() else (1, 1)
                     metadata = {
                         "axes": "CZYX",
@@ -108,7 +109,7 @@ class ImageJ:
                 f"swap_dimensions "
                 f"{swap_dims_options}"
                 f"contains=[] name={temp_files_pattern} "
-                f"z_1={Z} c_1=1 t_1={len(images)}');"
+                f"z_1={Z} c_1={C} t_1={len(images)}');"
             )
             logger.debug(script)
             pwutils.runJob(
