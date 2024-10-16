@@ -2,14 +2,9 @@
 source = "vcs"
 raw-options = { root = "../.." }
 
-[build.targets.sdist]
-exclude = ["/spfluo/data/*"]
-include = ["/spfluo/data/*.py", "/spfluo/data/registry.txt"]
 
 [build.targets.wheel]
 packages = ["spfluo"]
-exclude = ["/spfluo/data/*"]
-include = ["/spfluo/data/*.py", "/spfluo/data/registry.txt"]
 
 [envs.test]
 installer = "uv"
