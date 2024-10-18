@@ -67,7 +67,8 @@ class ProtSingleParticleRefinement(Protocol, ProtFluoBase):
             "channel",
             params.IntParam,
             label="Refine on channel?",
-            help="Keep empty for multichannel refinement."
+            help="Keep empty for multichannel refinement.",
+            allowsNull=True,
         )
         form.addParam(
             "initialVolume",
