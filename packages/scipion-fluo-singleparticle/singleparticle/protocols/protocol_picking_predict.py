@@ -66,13 +66,7 @@ class ProtSingleParticlePickingPredict(ProtFluoPicking):
         self.output_dir = os.path.abspath(self._getExtraPath(PICKING_WORKING_DIR))
         self.test_dir = os.path.join(self.output_dir, "images")
         self.inputImages: SetOfFluoImages = self.inputFluoImages.get()
-        self.image_paths = {}
-        for im in self.inputImages:
-            im: FluoImage
-            im_name = im.getImgId()
-            im_newPath = os.path.join(self.test_dir, im_name + ".tif")
-            self.image_paths[im.getBaseName()] = os.path.basename(im_newPath)
-
+        
         self._insertFunctionStep(self.prepareStep)
         self._insertFunctionStep(self.predictStep)
         self._insertFunctionStep(self.postprocessStep)
@@ -83,19 +77,12 @@ class ProtSingleParticlePickingPredict(ProtFluoPicking):
             os.makedirs(self.test_dir, exist_ok=True)
 
         # Image links
+        self.image_paths = {}
         for im in self.inputImages:
             im: FluoImage
-            im_path = os.path.abspath(im.getFileName())
-            ext = os.path.splitext(im_path)[1]
-            im_name = im.getImgId()
-            im_newPath = os.path.join(self.test_dir, im_name + ".tif")
-            if ext != ".tif" and ext != ".tiff":
-                raise NotImplementedError(
-                    f"Found ext {ext} in particles: {im_path}."
-                    "Only tiff file are supported."
-                )  # FIXME: allow formats accepted by AICSImageio
-            else:
-                os.link(im_path, im_newPath)
+            im_newPath = os.path.join(self.test_dir, im.getImgId() + ".tiff")
+            im.export(im_newPath, channel=self.trainRun.channel.get(), isotropic=False)
+            self.image_paths[im.getBaseName()] = os.path.basename(im_newPath)
 
     def predictStep(self):
         checkpoint_path = os.path.abspath(
@@ -108,7 +95,7 @@ class ProtSingleParticlePickingPredict(ProtFluoPicking):
         args += ["--output_dir", f"{self.output_dir}"]
         args += ["--patch_size", *self.trainRun.getPatchSize()]
         args += ["--stride", f"{self.stride.get()}"]
-        args += ["--extension", "tif"]
+        args += ["--extension", "tiff"]
         if self.trainRun.pu.get():
             args += ["--predict_on_u_mask"]
         Plugin.runJob(self, Plugin.getSPFluoProgram(PICKING_MODULE), args=args)
@@ -117,7 +104,7 @@ class ProtSingleParticlePickingPredict(ProtFluoPicking):
         checkpoint_path = os.path.abspath(
             self.trainRun._getExtraPath("picking", "checkpoint.pt")
         )
-        predictions_path = self._getExtraPath("picking", "predictions.pickle")
+        predictions_path = os.path.abspath(self._getExtraPath("picking", "predictions.pickle"))
         args = ["--stages", "postprocess"]
         args += ["--predictions", f"{predictions_path}"]
         args += ["--checkpoint", f"{checkpoint_path}"]

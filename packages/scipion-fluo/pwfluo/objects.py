@@ -531,12 +531,12 @@ class Image(FluoObject):
         if isotropic:
             if self.getVoxelSize() and self.getVoxelSize()[0] != self.getVoxelSize()[1]:
                 data, vs = self.getDataIsotropic()
-        if channel and self.getNumChannels() > 1:
+        if channel is not None and self.getNumChannels() > 1:
             # read channel
             if data is None:
                 data = self.getData()
             data = data[channel]
-
+        
         if data is not None:
             tifffile.imwrite(filename, data)
         else:
