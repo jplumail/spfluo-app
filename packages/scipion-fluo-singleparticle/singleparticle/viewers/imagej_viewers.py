@@ -84,7 +84,7 @@ class ImageJ:
                         raise ValueError(f"Data is None for {im}.")
             first_temp_file = os.path.join(temp_dir, "temp-0.ome.tiff")
             temp_files_pattern = (
-                os.path.join(temp_dir, f"temp-<0-{len(images)}>.ome.tiff")
+                os.path.join(temp_dir, f"temp-<0-{len(images)-1}>.ome.tiff")
                 if len(images) > 1
                 else os.path.join(temp_dir, "temp-0.ome.tiff")
             )
