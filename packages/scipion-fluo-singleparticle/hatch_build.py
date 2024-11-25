@@ -16,11 +16,12 @@ class CustomBuildHook(BuildHookInterface):
             subprocess.check_call(
                 ["mvn", "package", "--file", "pom.xml", "--settings", "settings.xml"],
                 cwd=tipi_path,
+                shell=True,
             )
             jar_file = os.path.join(tipi_path, "target", "TiPi-for-spfluo-1.0.jar")
             assert os.path.exists(jar_file), f"JAR file {jar_file} not found"
 
             # Build parcel
             web_path = os.path.join(here, "singleparticle", "web", "client")
-            subprocess.check_call(["npm", "ci", "--include", "dev"], cwd=web_path)
-            subprocess.check_call(["npx", "parcel", "build", "src/*"], cwd=web_path)
+            subprocess.check_call(["npm", "ci", "--include", "dev"], cwd=web_path, shell=True)
+            subprocess.check_call(["npx", "parcel", "build", "src/ab-initio-dashboard.html"], cwd=web_path, shell=True)
