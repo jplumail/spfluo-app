@@ -16,8 +16,8 @@ dynamic = ["version"]
 requires-python = "==3.11.*"
 
 [project.optional-dependencies]
-cpu = ["torch"]
-cu124 = ["torch"]
+cpu = ["torch==2.5.1+cpu"]
+cu124 = ["torch==2.5.1+cu124"]
 
 [project.urls]
 Repository = "https://github.com/jplumail/spfluo-app.git"
