@@ -87,6 +87,7 @@ jobs:
       run: > 
         echo "spfluo-app[cpu]==${{ needs.get-version.outputs.spfluo-app-version }}" | uv pip compile --python 3.11 -
         -o requirements.txt
+        --index-strategy unsafe-best-match
         --universal
         --index-url https://download.pytorch.org/whl/cpu
         --extra-index-url https://pypi.org/simple
@@ -97,6 +98,7 @@ jobs:
       run: > 
         echo "spfluo-app[cu124]==${{ needs.get-version.outputs.spfluo-app-version }}" | uv pip compile -
         -o requirements-gpu.txt
+        --index-strategy unsafe-best-match
         --universal
         --index-url https://download.pytorch.org/whl/cu124
         --extra-index-url https://pypi.org/simple
