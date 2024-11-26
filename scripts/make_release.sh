@@ -11,4 +11,5 @@ git commit --allow-empty -m "release $VERSION"
 git tag "$VERSION"
 
 # Push the commit and the tags
-git push --follow-tags
+git push
+git push --tags
