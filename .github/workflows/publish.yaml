@@ -83,9 +83,9 @@ jobs:
     - name: Install Python 3.11
       run: uv python install 3.11
     
-    - name: Run pip-compile
+    - name: Run pip-compile with torch cpu
       run: > 
-        echo "spfluo-app==${{ needs.get-version.outputs.spfluo-app-version }}" | uv pip compile --python 3.11 -
+        echo "spfluo-app[cpu]==${{ needs.get-version.outputs.spfluo-app-version }}" | uv pip compile --python 3.11 -
         -o requirements.txt
         --universal
         --index-url https://download.pytorch.org/whl/cpu
@@ -93,9 +93,9 @@ jobs:
         --emit-index-url
         $([[ "${{ github.ref }}" == *"rc"* ]] && echo "--prerelease allow")
     
-    - name: Run pip-compile
+    - name: Run pip-compile with torch cu124
       run: > 
-        echo "spfluo-app==${{ needs.get-version.outputs.spfluo-app-version }}" | uv pip compile -
+        echo "spfluo-app[cu124]==${{ needs.get-version.outputs.spfluo-app-version }}" | uv pip compile -
         -o requirements-gpu.txt
         --universal
         --index-url https://download.pytorch.org/whl/cu124
