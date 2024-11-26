@@ -39,7 +39,6 @@ ab-initio-reconstruction = [
   "SimpleITK",
 ]
 picking = [
-  "torch",
   "tensorboard",
   "albumentations",
 ]

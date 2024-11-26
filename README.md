@@ -16,5 +16,6 @@ Run with uv:
 ```sh
 git clone https://github.com/jplumail/spfluo-app
 cd spfluo-app
-uv run spfluo-app
+uv run --extra cu124 spfluo-app  # run with cuda 12.4 torch
+uv run --extra cpu spfluo-app  # run with cpu torch
 ```
