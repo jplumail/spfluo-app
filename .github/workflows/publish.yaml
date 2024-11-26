@@ -133,7 +133,7 @@ jobs:
       PYAPP_IS_GUI: 1
       PYAPP_EXEC_SCRIPT: "${{ github.workspace }}/src/spfluo_app/__main__.py"
       PYAPP_PYTHON_VERSION: "3.11"
-      PYAPP_UV_ENABLED: 1 
+      PYAPP_UV_ENABLED: 0
       TARGET_DIR: "${{ github.workspace }}/target"
 
     steps:
