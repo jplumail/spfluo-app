@@ -130,7 +130,6 @@ jobs:
       PYAPP_VERSION: "0.22.0"
       PYAPP_PROJECT_NAME: "spfluo-app"
       PYAPP_PROJECT_VERSION: ${{ needs.get-version.outputs.spfluo-app-version }}
-      PYAPP_PROJECT_DEPENDENCY_FILE: "${{ github.workspace }}/requirements.txt"
       PYAPP_IS_GUI: 1
       PYAPP_EXEC_SCRIPT: "${{ github.workspace }}/src/spfluo_app/__main__.py"
       PYAPP_PYTHON_VERSION: "3.11"
