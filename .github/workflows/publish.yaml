@@ -82,7 +82,7 @@ jobs:
     
     - name: Run pip-compile
       run: > 
-        echo "spfluo-app==${{ needs.get-version.outputs.spfluo-app-version }}" | uv pip compile -
+        echo "spfluo-app==${{ needs.get-version.outputs.spfluo-app-version }}" | uv pip compile --python 3.11 -
         -o requirements.txt
         --universal
         --index-url https://download.pytorch.org/whl/cpu
